@@ -96,7 +96,11 @@ body{
 .ic-svg{width:18px;height:18px;display:block;flex-shrink:0}
 .ic-menu{width:18px;height:18px;display:block;flex-shrink:0}
 .ic-mini{width:14px;height:14px;display:block;flex-shrink:0;opacity:.7}
-/* Ícone enviado pelo administrador: imagem própria, não segue a cor do texto. */
+/* Ícone enviado pelo administrador: imagem própria, não segue a cor do texto.
+   Ele é um <img>, e os do catálogo são <svg> — por isso todo ajuste de tamanho
+   por contexto usa `:is(svg,img)`. Escrito só como `svg`, o ajuste passava ao
+   largo do ícone enviado, que ficava no 18px genérico enquanto o do catálogo
+   ia para 16px ou 20px conforme o lugar. */
 .ic-arquivo{object-fit:contain}
 
 /* ── estrutura ─────────────────────────────────────────────────────────── */
@@ -160,7 +164,7 @@ body{
   border-radius:9px;border:1px solid rgba(255,255,255,.2);color:#dbe6f5;
   text-decoration:none;font-size:.83rem;font-weight:600;
 }
-.btn-sair svg{width:16px;height:16px}
+.btn-sair :is(svg,img){width:16px;height:16px}
 .btn-sair:hover{background:rgba(255,255,255,.1);color:#fff}
 
 .topo{
@@ -182,7 +186,7 @@ body{
   position:absolute;left:.7rem;top:50%;transform:translateY(-50%);
   color:var(--texto-fraco);pointer-events:none;line-height:0;
 }
-.busca-lupa svg{width:15px;height:15px}
+.busca-lupa :is(svg,img){width:15px;height:15px}
 .atalho-teclado{
   position:absolute;right:.45rem;top:50%;transform:translateY(-50%);
   font-family:var(--fonte);font-size:.64rem;color:var(--texto-fraco);
@@ -283,7 +287,7 @@ body{
   width:42px;height:42px;border-radius:11px;display:grid;place-items:center;flex-shrink:0;
   background:var(--tom-azul-fundo);color:var(--tom-azul);
 }
-.numero-ic svg{width:20px;height:20px}
+.numero-ic :is(svg,img){width:20px;height:20px}
 .tom-azul    .numero-ic{background:var(--tom-azul-fundo);color:var(--tom-azul)}
 .tom-verde   .numero-ic{background:var(--tom-verde-fundo);color:var(--tom-verde)}
 .tom-roxo    .numero-ic{background:var(--tom-roxo-fundo);color:var(--tom-roxo)}
@@ -357,7 +361,7 @@ html[data-tema="escuro"] .cartao-corpo.com-marca::before{opacity:.1}
   width:34px;height:34px;border-radius:50%;background:var(--borda-suave);
   color:var(--texto-fraco);display:grid;place-items:center;
 }
-.sem-ic svg{width:16px;height:16px}
+.sem-ic :is(svg,img){width:16px;height:16px}
 .sem-registro b{font-size:.82rem;color:var(--texto);font-weight:600}
 .sem-registro small{font-size:.72rem;color:var(--texto-fraco)}
 /* Fila zerada é boa notícia, não falta de conteúdo. */
@@ -374,7 +378,7 @@ html[data-tema="escuro"] .cartao-corpo.com-marca::before{opacity:.1}
 .comunicados .comunicado:last-child{border-bottom:none}
 a.comunicado:hover .titulo{color:var(--azul)}
 .com-ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex-shrink:0}
-.com-ic svg{width:16px;height:16px}
+.com-ic :is(svg,img){width:16px;height:16px}
 .com-urgente{background:var(--tom-vermelho-fundo);color:var(--tom-vermelho)}
 .com-comunicado{background:var(--tom-laranja-fundo);color:var(--tom-laranja)}
 .com-informacao{background:var(--tom-azul-fundo);color:var(--tom-azul)}
@@ -446,7 +450,7 @@ a.ladrilho:hover{border-color:var(--azul);transform:translateY(-2px);
   flex-shrink:0;background:color-mix(in srgb,var(--cor,#2563eb) 14%,transparent);
   color:var(--cor,var(--azul));
 }
-.ladrilho-ic svg{width:16px;height:16px}
+.ladrilho-ic :is(svg,img){width:16px;height:16px}
 .ladrilho-txt{min-width:0}
 .ladrilho-txt b{
   display:block;font-family:var(--sistemas-fonte,var(--fonte));
@@ -482,7 +486,7 @@ a.atalho:hover{border-color:var(--azul);background:var(--cartao-suave)}
   flex-shrink:0;background:color-mix(in srgb,var(--cor,#2563eb) 14%,transparent);
   color:var(--cor,var(--azul));
 }
-.atalho-ic svg{width:16px;height:16px}
+.atalho-ic :is(svg,img){width:16px;height:16px}
 .atalho-txt{min-width:0}
 .atalho-txt b{
   display:block;font-family:var(--atalhos-fonte,var(--fonte));
@@ -501,7 +505,7 @@ a.atalho:hover{border-color:var(--azul);background:var(--cartao-suave)}
 .busca-cartao{position:relative;margin-bottom:.5rem}
 .busca-cartao span{position:absolute;left:.6rem;top:50%;transform:translateY(-50%);
   color:var(--texto-fraco);line-height:0;pointer-events:none}
-.busca-cartao span svg{width:14px;height:14px}
+.busca-cartao span :is(svg,img){width:14px;height:14px}
 .busca-cartao input{
   width:100%;background:var(--cartao-suave);border:1px solid var(--borda);
   border-radius:8px;padding:.4rem .7rem .4rem 1.9rem;font-size:.76rem;
@@ -608,7 +612,7 @@ a.atalho:hover{border-color:var(--azul);background:var(--cartao-suave)}
 .ramais .ramal-linha[hidden]{display:none}
 .res-ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
   flex-shrink:0;background:var(--tom-azul-fundo);color:var(--tom-azul)}
-.res-ic svg{width:17px;height:17px}
+.res-ic :is(svg,img){width:17px;height:17px}
 .reservas b{display:block;font-family:var(--reservas-fonte,var(--fonte));
   font-size:var(--reservas-titulo-tam,.79rem);color:var(--reservas-titulo-cor,var(--texto));
   font-weight:600}
@@ -733,9 +737,9 @@ textarea{resize:vertical}
 .url{color:var(--texto-fraco);font-size:.72rem;word-break:break-all}
 .acoes-linha{display:flex;gap:.35rem;align-items:center;flex-wrap:wrap}
 .mini-icone{width:32px;height:32px;border-radius:7px;color:#fff;display:grid;place-items:center}
-.mini-icone svg{width:17px;height:17px}
+.mini-icone :is(svg,img){width:17px;height:17px}
 .icone-tabela{color:var(--azul);display:block}
-.icone-tabela svg{width:18px;height:18px}
+.icone-tabela :is(svg,img){width:18px;height:18px}
 .tag{display:inline-block;font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:999px;
   background:var(--borda-suave);color:var(--texto-fraco)}
 .tag-ok{background:var(--tom-verde-fundo);color:var(--tom-verde)}
@@ -778,7 +782,7 @@ textarea{resize:vertical}
 .opcao-icone span:hover{background:var(--borda-suave);color:var(--azul)}
 .opcao-icone input:checked+span{background:var(--azul);color:#fff}
 .opcao-icone input:focus-visible+span{border-color:var(--texto)}
-.opcao-icone svg{width:17px;height:17px}
+.opcao-icone :is(svg,img){width:17px;height:17px}
 
 .dica-admin{border-top:1px dashed var(--borda);padding-top:.5rem;margin-top:.5rem}
 .dica-admin a{color:var(--azul);font-weight:600}
