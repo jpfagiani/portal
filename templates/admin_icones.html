@@ -35,22 +35,58 @@
   <section class="painel-caixa">
     <h2>Ícones enviados ({{ itens|length }})</h2>
     {% if itens %}
-    <div class="grade-icones">
-      {% for nome in itens %}
-      <div class="icone-cartao">
-        <img src="{{ url_for('static', filename='icones/' ~ nome) }}" alt="">
-        <span class="icone-nome" title="{{ nome }}">{{ nome }}</span>
-        <form method="post" onsubmit="return confirm('Remover {{ nome }}?')">
-          <input type="hidden" name="csrf" value="{{ csrf_token }}">
-          <input type="hidden" name="acao" value="excluir">
-          <input type="hidden" name="nome" value="{{ nome }}">
-          <button class="btn btn-sm btn-perigo" type="submit">Excluir</button>
-        </form>
+    {# Uma forma só para os dois botões: excluir dentro do formulário do zoom
+       evita aninhar <form>, que o navegador não aceita. Quem exclui vai pelo
+       botão nomeado; quem salva, pelo acao=zoom. #}
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <div class="grade-icones">
+        {% for nome in itens %}
+        {% set zoom = zooms.get(nome, zoom_padrao) %}
+        <div class="icone-cartao">
+          <img src="{{ url_for('static', filename='icones/' ~ nome) }}" alt=""
+               style="--ic-zoom: {{ (zoom / 100)|round(2) }}">
+          <span class="icone-nome" title="{{ nome }}">{{ nome }}</span>
+          <label class="icone-zoom">
+            <input type="range" name="zoom_{{ nome }}" value="{{ zoom }}"
+                   min="{{ zoom_min }}" max="{{ zoom_max }}" step="5"
+                   data-zoom aria-label="Tamanho de {{ nome }}">
+            <span data-zoom-valor>{{ zoom }}%</span>
+          </label>
+          <button class="btn btn-sm btn-perigo" type="submit" name="excluir"
+                  value="{{ nome }}"
+                  onclick="return confirm('Remover {{ nome }}?')">Excluir</button>
+        </div>
+        {% endfor %}
       </div>
-      {% endfor %}
-    </div>
+      <div class="acoes">
+        <button class="btn btn-principal" type="submit"
+                name="acao" value="zoom">Salvar tamanhos</button>
+      </div>
+    </form>
+
+    <p class="dica">O ícone é desenhado sempre na mesma caixa dos desenhos que
+      acompanham o portal. Arquivo baixado da internet costuma trazer margem
+      transparente em volta — nesse caso o desenho ocupa menos da caixa e
+      parece menor, mesmo estando do tamanho certo. O ajuste amplia o desenho
+      <strong>sem</strong> mudar o espaço que o ícone ocupa, então nada muda de
+      lugar no painel.</p>
     <p class="dica">Remover um ícone não quebra nada: os itens que o usavam
       voltam sozinhos ao símbolo padrão.</p>
+
+    <script>
+      // A amostra acompanha o controle antes de salvar — senao so daria para
+      // conferir o tamanho depois de gravar e voltar para a pagina.
+      document.querySelectorAll('[data-zoom]').forEach(function (faixa) {
+        var cartao = faixa.closest('.icone-cartao');
+        var img = cartao.querySelector('img');
+        var texto = cartao.querySelector('[data-zoom-valor]');
+        faixa.addEventListener('input', function () {
+          img.style.setProperty('--ic-zoom', faixa.value / 100);
+          texto.textContent = faixa.value + '%';
+        });
+      });
+    </script>
     {% else %}
     <p class="vazio">Nenhum ícone enviado — o seletor mostra só os desenhos que
       acompanham o portal.</p>

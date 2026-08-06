@@ -101,7 +101,7 @@ body{
    por contexto usa `:is(svg,img)`. Escrito só como `svg`, o ajuste passava ao
    largo do ícone enviado, que ficava no 18px genérico enquanto o do catálogo
    ia para 16px ou 20px conforme o lugar. */
-.ic-arquivo{object-fit:contain}
+.ic-arquivo{object-fit:contain;transform:scale(var(--ic-zoom,1))}
 
 /* ── estrutura ─────────────────────────────────────────────────────────── */
 
@@ -809,7 +809,13 @@ textarea{resize:vertical}
   display:flex;flex-direction:column;align-items:center;gap:.45rem;padding:.7rem .5rem;
   border:1px solid var(--borda);border-radius:10px;background:var(--cartao-suave);
 }
-.icone-cartao img{width:34px;height:34px;object-fit:contain}
+/* A amostra segue o mesmo zoom do painel, para o ajuste ser conferido aqui. */
+.icone-cartao img{width:34px;height:34px;object-fit:contain;
+  transform:scale(var(--ic-zoom,1))}
+.icone-zoom{display:flex;align-items:center;gap:.4rem;width:100%;margin:0;
+  font-size:.66rem;color:var(--texto-fraco);font-weight:400}
+.icone-zoom input[type=range]{flex:1;min-width:0;accent-color:var(--azul)}
+.icone-zoom span{min-width:2.6em;text-align:right;font-variant-numeric:tabular-nums}
 .icone-nome{
   font-size:.68rem;color:var(--texto-fraco);max-width:100%;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;

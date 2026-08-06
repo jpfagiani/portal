@@ -192,6 +192,34 @@ def icones_enviados():
         return []
 
 
+# Zoom por ícone, em porcentagem, guardado em config como
+# "icone_zoom:<arquivo>". Ícone baixado da internet costuma vir com margem
+# transparente embutida: mesmo na caixa do tamanho certo, o desenho ocupa
+# menos da metade dela e parece menor que os do catálogo, que são desenhados
+# de ponta a ponta. O zoom amplia o desenho sem mudar o espaço que o ícone
+# ocupa no layout — por isso é `transform`, e não largura.
+ICONE_ZOOM = 'icone_zoom:'
+# O teto vem do selo mais apertado: o ladrilho desenha um ícone de 16px dentro
+# de um quadrado colorido de 30px, razão 1,875. Em 175% o desenho fica com 28px
+# e sobra 1px de cada lado — passando disso ele começa a vazar para fora do
+# quadrado, que é pior do que o ícone pequeno que se queria corrigir.
+ZOOM_MIN, ZOOM_MAX, ZOOM_PADRAO = 100, 175, 100
+
+
+def zooms_icones():
+    """Zoom de cada ícone enviado, lido uma vez por requisição.
+
+    O ic() é chamado dezenas de vezes para montar uma página, e cfg() varre a
+    tabela config inteira a cada chamada — guardar em `g` troca isso por uma
+    consulta só."""
+    if 'zoom_icones' not in g:
+        g.zoom_icones = {
+            r['chave'][len(ICONE_ZOOM):]: _int(r['valor'], ZOOM_PADRAO)
+            for r in db().execute('SELECT chave, valor FROM config'
+                                  ' WHERE chave LIKE ?', (ICONE_ZOOM + '%',))}
+    return g.zoom_icones
+
+
 def icone_de_arquivo(valor):
     """Nome do arquivo se `valor` aponta para um ícone enviado que existe.
 
@@ -302,7 +330,12 @@ def ic(nome, classe='ic-svg'):
         # Imagem própria: não herda a cor do texto como os desenhos do
         # catálogo, e é isso que se espera de um logo enviado.
         caminho = url_for('static', filename=f'icones/{enviado}')
-        return Markup(f'<img class="{escape(classe)} ic-arquivo" '
+        zoom = zooms_icones().get(enviado, ZOOM_PADRAO)
+        # Só sai atributo quando há o que dizer: no tamanho natural o ícone
+        # segue sendo uma tag limpa, como era antes de existir o ajuste.
+        estilo = (f' style="--ic-zoom:{zoom / 100:.2f}"'
+                  if zoom != ZOOM_PADRAO else '')
+        return Markup(f'<img class="{escape(classe)} ic-arquivo"{estilo} '
                       f'src="{escape(caminho)}" alt="" aria-hidden="true">')
     return Markup(
         f'<svg class="{escape(classe)}" viewBox="0 0 24 24" fill="none" '
@@ -2611,15 +2644,38 @@ def admin_icones():
     a foto de fundo: dá para enviar por aqui ou copiar direto no servidor."""
     os.makedirs(ICONES_DIR, exist_ok=True)
     if request.method == 'POST':
-        if request.form.get('acao') == 'excluir':
-            nome = secure_filename(request.form.get('nome', ''))
+        # O botão de excluir mora dentro do formulário do zoom (aninhar <form>
+        # não é HTML válido), então ele se identifica pelo próprio nome.
+        if request.form.get('excluir') or request.form.get('acao') == 'excluir':
+            nome = secure_filename(request.form.get('excluir')
+                                   or request.form.get('nome', ''))
             caminho = os.path.join(ICONES_DIR, nome)
             if nome and os.path.isfile(caminho):
                 os.remove(caminho)
+                # Leva junto o zoom, senão um ícone novo com o mesmo nome
+                # nasceria com o ajuste do que foi apagado.
+                con = db()
+                con.execute('DELETE FROM config WHERE chave=?',
+                            (ICONE_ZOOM + nome,))
+                con.commit()
                 # Quem usava o ícone volta ao símbolo genérico sozinho, porque
                 # icone_de_arquivo() confere a existência antes de desenhar.
                 flash(f'Ícone {nome} removido. Os itens que o usavam voltam '
                       'ao símbolo padrão.', 'ok')
+            return redirect(url_for('admin_icones'))
+
+        if request.form.get('acao') == 'zoom':
+            con = db()
+            for nome in icones_enviados():
+                bruto = request.form.get(f'zoom_{nome}')
+                if bruto is None:
+                    continue
+                valor = min(ZOOM_MAX, max(ZOOM_MIN, _int(bruto, ZOOM_PADRAO)))
+                con.execute('INSERT INTO config (chave,valor) VALUES (?,?) '
+                            'ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor',
+                            (ICONE_ZOOM + nome, str(valor)))
+            con.commit()
+            flash('Tamanhos ajustados.', 'ok')
             return redirect(url_for('admin_icones'))
 
         enviado = request.files.get('icone')
@@ -2640,7 +2696,9 @@ def admin_icones():
         flash(f'Ícone {base}{ext} enviado.', 'ok')
         return redirect(url_for('admin_icones'))
 
-    return render_template('admin_icones.html', itens=icones_enviados())
+    return render_template('admin_icones.html', itens=icones_enviados(),
+                           zooms=zooms_icones(), zoom_padrao=ZOOM_PADRAO,
+                           zoom_min=ZOOM_MIN, zoom_max=ZOOM_MAX)
 
 
 @app.route('/admin/aparencia', methods=['GET', 'POST'])
