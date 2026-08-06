@@ -1161,3 +1161,19 @@ html[data-tema="escuro"] .img-fundo .livre-corpo::before{opacity:.12}
   .regiao-baixo .cartao[data-col="3"],
   .regiao-baixo .cartao[data-col="4"]{grid-column-start:auto}
 }
+
+/* Posicao da imagem dentro do item, escolhida no cadastro. "Acima" e o padrao
+   e ja vinha da regra .com-imagem. */
+.comunicado .conteudo:has(.com-img-lado){display:grid;
+  grid-template-columns:96px minmax(0,1fr);gap:.6rem;align-items:start}
+.com-img-lado{grid-row:1 / span 3;max-height:96px;margin-top:0}
+/* Ao fundo: a imagem sai do fluxo e fica esmaecida atras do texto, como a
+   marca d'agua dos cartoes. */
+.comunicado .conteudo:has(.com-img-fundo){position:relative}
+.com-img-fundo{
+  position:absolute;inset:0;width:100%;height:100%;margin:0;
+  object-fit:cover;opacity:.15;pointer-events:none;z-index:0;
+}
+.comunicado .conteudo:has(.com-img-fundo)>*:not(.com-img-fundo){
+  position:relative;z-index:1}
+html[data-tema="escuro"] .com-img-fundo{opacity:.1}

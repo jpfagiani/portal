@@ -11,6 +11,11 @@
   {% for rotulo, href, ativa in abas %}
   <a href="{{ href }}" class="{{ 'ativa' if ativa }}">{{ rotulo }}</a>
   {% endfor %}
+  <form method="post" style="display:inline">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <input type="hidden" name="acao" value="novo_cartao">
+    <button class="btn btn-sm" type="submit" title="Criar mais um cartão">+ Novo cartão</button>
+  </form>
 </nav>
 
 <section class="painel-caixa nome-cartao-caixa">
@@ -23,6 +28,14 @@
                              aparencia[2], aparencia[3],
                              {'cartao': cartao_atual.chave}) }}
   {% endif %}
+  <form method="post" style="margin-top:1rem"
+        onsubmit="return confirm('Excluir {{ cartao_atual.nome }} e todos os itens dele?')">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <input type="hidden" name="cartao" value="{{ cartao_atual.chave }}">
+    <input type="hidden" name="acao" value="excluir_cartao">
+    <button class="btn btn-sm btn-perigo" type="submit">Excluir este cartão</button>
+    <span class="dica" style="margin-left:.5rem">Os itens dele saem junto.</span>
+  </form>
 </section>
 
 <div class="painel painel-duplo">
@@ -110,6 +123,14 @@
       <label class="check"><input type="checkbox" name="remover_imagem">
         Remover a imagem deste item</label>
       {% endif %}
+
+      <label>Posição da imagem</label>
+      <select name="img_pos">
+        {% for chave_ip, rotulo in img_pos.items() %}
+        <option value="{{ chave_ip }}"
+          {{ 'selected' if (editar.img_pos if editar else 'topo') == chave_ip }}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
 
       <label>Vídeo <small>(MP4, WEBM ou OGG)</small></label>
       <input type="file" name="video" accept="video/mp4,video/webm,video/ogg">

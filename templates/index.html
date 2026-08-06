@@ -26,8 +26,7 @@
     por isso que agora tambem podem ser movidos. `itens` vem None quando o
     cartao e livre, que carrega o proprio conteudo. #}
 {% macro desenha(c, itens) %}
-  {% if itens is none %}{{ b.cartao_livre(c) }}
-  {% elif c.tipo == 'sistemas' %}
+  {% if c.tipo == 'sistemas' %}
     <section class="cartao" {{ posicao(c) }}>
       {{ cabecalho('grade', c.nome, url_for('sistemas'), sistemas_total, limites.sistemas) }}
       <div class="cartao-corpo">{{ b.ladrilhos(sistemas) }}</div>

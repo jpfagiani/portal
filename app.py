@@ -760,6 +760,66 @@ def _nome_guardado(con, chave, padrao):
     return (linha[0].strip() if linha and linha[0].strip() else padrao)
 
 
+def _adotar_cartoes_livres(con):
+    """Os cartões livres viram cartões do painel com um item só.
+
+    Eram a mesma ideia com menos recursos: um cartão com um conteúdo. Depois
+    que o cartão comum passou a aceitar imagem, vídeo e posição da foto, manter
+    os dois seria oferecer dois caminhos para a mesma coisa — foi o que a
+    unidade apontou. A tabela `cartoes` fica de pé, sem tela, para o caso de
+    algo se perder na tradução.
+    """
+    if con.execute("SELECT 1 FROM config WHERE chave='livres_adotados'").fetchone():
+        return
+    con.row_factory = sqlite3.Row
+    try:
+        livres = con.execute('SELECT * FROM cartoes ORDER BY ordem, id').fetchall()
+    except sqlite3.OperationalError:
+        livres = []          # instalação que nunca chegou a ter cartões livres
+    for r in livres:
+        chave = _proxima_chave_cartao(con)
+        con.execute("INSERT INTO cartoes_painel (chave,nome,icone,regiao,"
+                    "largura,coluna,ordem,tipo,ativo)"
+                    " VALUES (?,?,?,?,?,?,?,'itens',?)",
+                    (chave, r['titulo'], r['icone'], r['regiao'], r['largura'],
+                     r['coluna'], 100 + r['ordem'], r['ativo']))
+        _semear_aparencia(con, chave)
+        con.execute("INSERT INTO lateral (tipo,titulo,conteudo,url,url_rot,"
+                    "ordem,ativo,urgencia,destaque,titulo_cor,texto_cor,"
+                    "fundo_cor,data,imagem,img_pos,video,cartao)"
+                    " VALUES ('aviso',?,?,?,?,0,1,'informacao','nenhum',"
+                    "?,?,?,'',?,?,'',?)",
+                    (r['titulo'], r['texto'], r['url'], r['url_rot'],
+                     r['titulo_cor'], r['texto_cor'], r['fundo_cor'],
+                     r['imagem'], r['img_pos'], chave))
+    con.row_factory = None
+    con.execute("INSERT INTO config (chave,valor) VALUES ('livres_adotados','1')")
+
+
+def _proxima_chave_cartao(con):
+    """cartaoN livre. A chave nomeia as configurações de aparência, então nunca
+    é reaproveitada — um cartão novo com a chave de um excluído herdaria as
+    cores dele."""
+    usadas = {r[0] for r in con.execute('SELECT chave FROM cartoes_painel')}
+    n = 1
+    while f'cartao{n}' in usadas:
+        n += 1
+    return f'cartao{n}'
+
+
+def _semear_aparencia(con, chave):
+    """Grava a aparência padrão do cartão novo.
+
+    Escrita no banco, e não deixada para um valor implícito: assim o resto do
+    sistema continua achando a chave onde sempre achou, sem caso especial para
+    cartão criado depois."""
+    for sufixo, valor in (('fonte', 'padrao'), ('titulo_tam', '0.83'),
+                          ('titulo_cor', '#1e293b'), ('texto_tam', '0.74'),
+                          ('texto_cor', '#7c8ba1')):
+        con.execute('INSERT OR IGNORE INTO config (chave,valor) VALUES (?,?)',
+                    (f'{chave}_{sufixo}', valor))
+
+
 def _semear_cartoes(con):
     """Cria os cinco cartões e adota o conteúdo dos blocos antigos.
 
@@ -777,6 +837,10 @@ def _semear_cartoes(con):
                     ' VALUES (?,?,?,?,?,?,?,1)',
                     (chave, _nome_guardado(con, chave, nome), icone, regiao,
                      largura, ordem, chave))
+
+    # Antes da guarda: tem marca propria e precisa rodar tambem em instalacao
+    # que ja passou pela migracao anterior.
+    _adotar_cartoes_livres(con)
 
     if con.execute("SELECT 1 FROM config WHERE chave='cartoes_migrados'").fetchone():
         return
@@ -861,6 +925,7 @@ def init_db():
             ('lateral',  'imagem',  "TEXT DEFAULT ''"),
             ('lateral',  'video',   "TEXT DEFAULT ''"),
             ('lateral',  'url_rot', "TEXT DEFAULT ''"),
+            ('lateral',  'img_pos', "TEXT DEFAULT 'topo'"),
             ('cartoes',  'coluna',  'INTEGER NOT NULL DEFAULT 0'),
             ('cartoes_painel', 'coluna', 'INTEGER NOT NULL DEFAULT 0'),
             ('cartoes_painel', 'tipo', "TEXT NOT NULL DEFAULT 'itens'"),
@@ -1068,6 +1133,16 @@ def lista(chave):
         return redirect(url_for('sistemas'))
     if chave == 'ramais':
         return redirect(url_for('ramais'))
+    # Cartão criado depois da instalação não está em FONTES, que é montado uma
+    # vez só. O nome e a consulta saem do próprio registro — sem isto, todo
+    # cartão novo nasceria com o "Ver todos" quebrado.
+    registrado = cartao_por_chave(chave)
+    if registrado and registrado['tipo'] == 'itens':
+        return render_template(
+            'lista.html', chave=chave, titulo=registrado['nome'],
+            macro='comunicados', marca_bloco=marca_atual('comunicados'),
+            itens=db().execute('SELECT * FROM lateral WHERE ativo=1 AND cartao=?'
+                               ' ORDER BY ordem, id', (chave,)).fetchall())
     if chave not in FONTES:
         abort(404)
     _, consulta, titulo, macro = FONTES[chave]
@@ -1401,22 +1476,12 @@ def index():
     for c in cartoes_do_painel(so_ativos=True):
         regiao = c['regiao'] if c['regiao'] in CARTAO_REGIOES else 'baixo'
         cartoes_painel[regiao].append((c, itens_por_cartao.get(c['chave'], [])))
-    # Os cartoes livres entram na mesma grade, misturados aos demais e na ordem
-    # de cada um — antes iam sempre para o fim da fileira.
-    for c in con.execute('SELECT * FROM cartoes WHERE ativo=1 ORDER BY ordem, id'):
-        regiao = c['regiao'] if c['regiao'] in CARTAO_REGIOES else 'baixo'
-        cartoes_painel[regiao].append((c, None))
     for regiao in cartoes_painel:
         cartoes_painel[regiao].sort(key=lambda par: par[0]['ordem'])
 
-    cartoes_livres = {chave: [] for chave in CARTAO_REGIOES}
-    for c in con.execute('SELECT * FROM cartoes WHERE ativo=1 ORDER BY ordem, id'):
-        cartoes_livres.setdefault(
-            c['regiao'] if c['regiao'] in CARTAO_REGIOES else 'baixo', []).append(c)
-
     return render_template(
         'index.html', numeros=numeros, saudacao=saudacao(),
-        cartoes_livres=cartoes_livres, cartoes_painel=cartoes_painel,
+        cartoes_painel=cartoes_painel,
         # O corte vem antes do agrupamento: fatiar a lista já agrupada cortaria
         # categorias inteiras, não itens, e o limite deixaria de existir.
         sistemas=agrupar_por_categoria(sistemas_todos[:LIMITES['sistemas']]),
@@ -1738,6 +1803,39 @@ def admin_lateral():
             chave = CARTOES_SEMENTE[0][0]
         volta = url_for('admin_lateral', cartao=chave)
 
+        if acao == 'novo_cartao':
+            nova = _proxima_chave_cartao(con)
+            proxima_ordem = con.execute(
+                'SELECT COALESCE(MAX(ordem),0)+1 FROM cartoes_painel').fetchone()[0]
+            con.execute('INSERT INTO cartoes_painel (chave,nome,icone,regiao,'
+                        'largura,coluna,ordem,tipo,ativo)'
+                        " VALUES (?,?,'prancheta','baixo',1,0,?,'itens',1)",
+                        (nova, 'Cartão ' + nova.replace('cartao', ''),
+                         proxima_ordem))
+            _semear_aparencia(con, nova)
+            con.commit()
+            flash('Cartão criado. Arraste-o no mapa para posicionar.', 'ok')
+            return redirect(url_for('admin_lateral', cartao=nova))
+
+        if acao == 'excluir_cartao':
+            # O último não sai: sem nenhum cartão a tela não teria o que abrir.
+            quantos = con.execute("SELECT COUNT(*) FROM cartoes_painel"
+                                  " WHERE tipo='itens'").fetchone()[0]
+            if quantos <= 1:
+                flash('Este é o último cartão — crie outro antes de excluí-lo.',
+                      'erro')
+                return redirect(volta)
+            for linha in con.execute('SELECT imagem, video FROM lateral'
+                                     ' WHERE cartao=?', (chave,)):
+                remove_upload(linha['imagem'])
+                remove_upload(linha['video'])
+            con.execute('DELETE FROM lateral WHERE cartao=?', (chave,))
+            con.execute('DELETE FROM cartoes_painel WHERE chave=? AND '
+                        "tipo='itens'", (chave,))
+            con.commit()
+            flash('Cartão e itens removidos.', 'ok')
+            return redirect(url_for('admin_lateral'))
+
         if acao == 'titulo_cartao':
             salvar_nome_cartao_painel(chave)
             return redirect(volta)
@@ -1800,6 +1898,8 @@ def admin_lateral():
                      request.form.get('data', '').strip(),
                      imagem, video,
                      request.form.get('url_rot', '').strip(),
+                     (request.form.get('img_pos')
+                      if request.form.get('img_pos') in CARTAO_IMG_POS else 'topo'),
                      chave)
             if not dados[1]:
                 flash('O título é obrigatório.', 'erro')
@@ -1807,15 +1907,15 @@ def admin_lateral():
                 con.execute('UPDATE lateral SET tipo=?,titulo=?,conteudo=?,url=?,'
                             'ordem=?,ativo=?,urgencia=?,destaque=?,titulo_tam=?,'
                             'titulo_cor=?,texto_tam=?,texto_cor=?,fundo_cor=?,'
-                            'data=?,imagem=?,video=?,url_rot=?,cartao=?'
+                            'data=?,imagem=?,video=?,url_rot=?,img_pos=?,cartao=?'
                             ' WHERE id=?', dados + (ident,))
                 flash('Item atualizado.', 'ok')
             else:
                 con.execute('INSERT INTO lateral (tipo,titulo,conteudo,url,ordem,'
                             'ativo,urgencia,destaque,titulo_tam,titulo_cor,'
                             'texto_tam,texto_cor,fundo_cor,data,imagem,video,'
-                            'url_rot,cartao)'
-                            ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', dados)
+                            'url_rot,img_pos,cartao)'
+                            ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', dados)
                 flash('Item adicionado.', 'ok')
         con.commit()
         return redirect(volta)
@@ -1832,101 +1932,10 @@ def admin_lateral():
         paleta=PALETA, paleta_fundo=PALETA_FUNDO,
         abas=abas_painel(chave), fontes=FONTES_TEXTO,
         cartao_atual=cartao_por_chave(chave),
-        icones_cartao=dados_icone_cartao(chave),
+        icones_cartao=dados_icone_cartao(chave), img_pos=CARTAO_IMG_POS,
         aparencia=dados_aparencia_cartao(chave),
         itens=con.execute('SELECT * FROM lateral WHERE cartao=?'
                           ' ORDER BY ordem, id', (chave,)).fetchall())
-
-
-@app.route('/admin/cartoes', methods=['GET', 'POST'])
-@admin_obrigatorio
-def admin_cartoes():
-    """Cartões livres do painel: título, foto e texto que a unidade escreve.
-
-    Os cartões fixos (ramais, escalas, chamados) sabem desenhar um tipo só de
-    lista. Este aqui não tem conteúdo próprio — mostra o que for escrito —, e é
-    por ele que se põe recado, foto de evento ou instrução no painel sem mexer
-    em template.
-    """
-    con = db()
-    if request.method == 'POST':
-        acao = request.form.get('acao')
-        ident = _int(request.form.get('id'))
-        if acao == 'ordenar':
-            return reordenar('cartoes')
-        if acao == 'excluir':
-            row = con.execute('SELECT imagem FROM cartoes WHERE id=?',
-                              (ident,)).fetchone()
-            # A foto sai junto: cartão excluído deixaria o arquivo órfão em
-            # uploads/, ocupando espaço sem nada apontando para ele.
-            if row:
-                remove_upload(row['imagem'])
-            con.execute('DELETE FROM cartoes WHERE id=?', (ident,))
-            flash('Cartão removido.', 'ok')
-        else:
-            atual = ''
-            if ident:
-                row = con.execute('SELECT imagem FROM cartoes WHERE id=?',
-                                  (ident,)).fetchone()
-                atual = row['imagem'] if row else ''
-            try:
-                imagem = salva_upload('imagem', atual)
-            except ValueError as e:
-                flash(str(e), 'erro')
-                return redirect(url_for('admin_cartoes'))
-            # Trocar a foto apaga a anterior, pelo mesmo motivo do excluir.
-            if imagem != atual:
-                remove_upload(atual)
-            if request.form.get('remover_imagem'):
-                remove_upload(imagem)
-                imagem = ''
-
-            regiao = request.form.get('regiao', 'baixo')
-            img_pos = request.form.get('img_pos', 'topo')
-            largura = _int(request.form.get('largura'), 1)
-            coluna = _int(request.form.get('coluna'))
-            dados = (request.form.get('titulo', '').strip(),
-                     nome_icone(request.form.get('icone', '')),
-                     request.form.get('texto', '').strip(),
-                     imagem,
-                     img_pos if img_pos in CARTAO_IMG_POS else 'topo',
-                     request.form.get('url', '').strip(),
-                     request.form.get('url_rot', '').strip(),
-                     regiao if regiao in CARTAO_REGIOES else 'baixo',
-                     largura if largura in CARTAO_LARGURAS else 1,
-                     coluna if coluna in CARTAO_COLUNAS else 0,
-                     cor_hexa(request.form.get('titulo_cor'), ''),
-                     cor_hexa(request.form.get('texto_cor'), ''),
-                     cor_hexa(request.form.get('fundo_cor'), ''),
-                     _int(request.form.get('ordem')),
-                     1 if request.form.get('ativo') else 0)
-            if not dados[0]:
-                flash('O título é obrigatório.', 'erro')
-            elif ident:
-                con.execute('UPDATE cartoes SET titulo=?,icone=?,texto=?,imagem=?,'
-                            'img_pos=?,url=?,url_rot=?,regiao=?,largura=?,coluna=?,'
-                            'titulo_cor=?,texto_cor=?,fundo_cor=?,ordem=?,ativo=?'
-                            ' WHERE id=?', dados + (ident,))
-                flash('Cartão atualizado.', 'ok')
-            else:
-                con.execute('INSERT INTO cartoes (titulo,icone,texto,imagem,'
-                            'img_pos,url,url_rot,regiao,largura,coluna,'
-                            'titulo_cor,texto_cor,fundo_cor,ordem,ativo)'
-                            ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', dados)
-                flash('Cartão adicionado.', 'ok')
-        con.commit()
-        return redirect(url_for('admin_cartoes'))
-
-    editar = None
-    if request.args.get('editar'):
-        editar = con.execute('SELECT * FROM cartoes WHERE id=?',
-                             (_int(request.args['editar']),)).fetchone()
-    return render_template(
-        'admin_cartoes.html', editar=editar, regioes=CARTAO_REGIOES,
-        img_pos=CARTAO_IMG_POS, larguras=CARTAO_LARGURAS,
-        colunas=CARTAO_COLUNAS,
-        paleta=PALETA, paleta_fundo=PALETA_FUNDO,
-        itens=con.execute('SELECT * FROM cartoes ORDER BY ordem, id').fetchall())
 
 
 @app.route('/admin/mapa', methods=['GET', 'POST'])
@@ -1948,7 +1957,7 @@ def admin_mapa():
         for p in posicoes if isinstance(posicoes, list) else []:
             ref = str(p.get('ref', ''))
             tabela, _, chave = ref.partition(':')
-            if tabela not in ('painel', 'livre') or not chave:
+            if tabela != 'painel' or not chave:
                 continue
             regiao = p.get('regiao')
             coluna = _int(p.get('coluna'))
@@ -1957,12 +1966,8 @@ def admin_mapa():
                      coluna if coluna in CARTAO_COLUNAS else 0,
                      largura if largura in CARTAO_LARGURAS else 1,
                      _int(p.get('ordem')))
-            if tabela == 'painel':
-                con.execute('UPDATE cartoes_painel SET regiao=?,coluna=?,'
-                            'largura=?,ordem=? WHERE chave=?', dados + (chave,))
-            else:
-                con.execute('UPDATE cartoes SET regiao=?,coluna=?,largura=?,'
-                            'ordem=? WHERE id=?', dados + (_int(chave),))
+            con.execute('UPDATE cartoes_painel SET regiao=?,coluna=?,'
+                        'largura=?,ordem=? WHERE chave=?', dados + (chave,))
         con.commit()
         flash('Layout salvo.', 'ok')
         return redirect(url_for('admin_mapa'))
@@ -1977,11 +1982,6 @@ def admin_mapa():
             'descricao': ('conteúdo próprio' if c['tipo'] != 'itens'
                           else f'{quantos} item(ns)'),
             'oculto': not c['ativo']})
-    for c in con.execute('SELECT * FROM cartoes ORDER BY ordem, id'):
-        cartoes.append({
-            'ref': f"livre:{c['id']}", 'nome': c['titulo'], 'icone': c['icone'],
-            'regiao': c['regiao'], 'largura': c['largura'], 'coluna': c['coluna'],
-            'descricao': 'cartão livre', 'oculto': not c['ativo']})
 
     for c in cartoes:
         if c['regiao'] not in CARTAO_REGIOES:
