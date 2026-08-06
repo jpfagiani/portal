@@ -13,7 +13,7 @@
 {% if cartao[0] %}
 <section class="painel-caixa nome-cartao-caixa">
   {{ campos.nome_cartao(nome_atual, cartao[1], csrf_token,
-                        {'grupo': grupo}) }}
+                        {'grupo': grupo}, icones_cartao, ic) }}
   {% if aparencia %}
   <h2 style="margin-top:1.2rem">Aparência do texto</h2>
   {{ campos.aparencia_cartao(aparencia[1], cfg, fontes, csrf_token,

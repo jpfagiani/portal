@@ -7,7 +7,7 @@
 
     O `csrf` vem por parâmetro de propósito — este arquivo é importado sem
     `with context`, então o macro não enxerga o context processor. #}
-{% macro nome_cartao(valor, padrao, csrf, extra={}) %}
+{% macro nome_cartao(valor, padrao, csrf, extra={}, icones=none, ic=none) %}
   <form method="post" class="nome-cartao">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <input type="hidden" name="acao" value="titulo_cartao">
@@ -21,6 +21,37 @@
     </div>
     <p class="dica">É o título que aparece no alto do cartão. Chame do jeito que
       se fala na unidade — em branco, volta a “{{ padrao }}”.</p>
+    {#  `icones` chega por parametro, e não do contexto, porque este arquivo e
+        importado sem `with context` — o macro não enxergaria nem o catalogo
+        nem a funcao que desenha o icone. #}
+    {% if icones %}
+    {% set marcado, proprios, prefixo, todos = icones %}
+    <label style="margin-top:.7rem">Ícone deste cartão</label>
+    <div class="escolha-icone">
+      <label class="opcao-icone opcao-icone-nenhum" title="Sem ícone">
+        <input type="radio" name="icone_cartao" value="nenhum"
+               {{ 'checked' if marcado == 'nenhum' }}>
+        <span>Sem ícone</span>
+      </label>
+      {% for nome in proprios %}
+      {% set valor_ic = prefixo ~ nome %}
+      <label class="opcao-icone" title="{{ nome }} (enviado)">
+        <input type="radio" name="icone_cartao" value="{{ valor_ic }}"
+               {{ 'checked' if valor_ic == marcado }}>
+        <span>{{ ic(valor_ic) }}</span>
+      </label>
+      {% endfor %}
+      {% for nome in todos %}
+      <label class="opcao-icone" title="{{ nome }}">
+        <input type="radio" name="icone_cartao" value="{{ nome }}"
+               {{ 'checked' if nome == marcado }}>
+        <span>{{ ic(nome) }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <p class="dica">Aparece ao lado do título, no alto do cartão. Salva junto
+      com o nome.</p>
+    {% endif %}
   </form>
 {% endmacro %}
 

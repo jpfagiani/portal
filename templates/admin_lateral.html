@@ -15,7 +15,8 @@
 
 <section class="painel-caixa nome-cartao-caixa">
   {{ campos.nome_cartao(cartao_atual.nome, cartao_atual.chave|replace('cartao','Cartão '),
-                        csrf_token, {'cartao': cartao_atual.chave}) }}
+                        csrf_token, {'cartao': cartao_atual.chave},
+                        icones_cartao, ic) }}
   {% if aparencia %}
   <h2 style="margin-top:1.2rem">Aparência do texto</h2>
   {{ campos.aparencia_cartao(aparencia[1], cfg, fontes, csrf_token,

@@ -1370,7 +1370,11 @@ def index():
     # Os dois ultimos indicadores acompanham os dois primeiros cartoes: com
     # cartoes genericos nao ha mais "escala" nem "chamado" para contar, e
     # numero com rotulo fixo sobre conteudo livre enganaria quem le.
-    for c, tom, icone in zip(cartoes_do_painel(so_ativos=True)[:2],
+    # Só os cartões de lista têm item para contar. Sem o filtro, o primeiro
+    # do registro é "Acesso rápido aos sistemas", que apareceria com zero.
+    com_itens = [c for c in cartoes_do_painel(so_ativos=True)
+                 if c['tipo'] == 'itens']
+    for c, tom, icone in zip(com_itens[1:3],
                              ('roxo', 'vermelho'), ('calendario', 'fone')):
         numeros.append((quantos_cartao(con, c['chave']), c['nome'],
                         'Itens visíveis', icone, tom))
@@ -1636,6 +1640,8 @@ def admin_links():
                                     'atalho': 'atalhos'}[grupo]),
         nome_atual=nome_do_bloco({'sistema': 'sistemas',
                                   'atalho': 'atalhos'}[grupo], GRUPOS_LINK[grupo]),
+        icones_cartao=dados_icone_cartao({'sistema': 'sistemas',
+                                          'atalho': 'atalhos'}[grupo]),
         nome_bloco=nome_do_bloco({'sistema': 'sistemas',
                                   'atalho': 'atalhos'}[grupo], GRUPOS_LINK[grupo]),
         aparencia=dados_aparencia_cartao({'sistema': 'sistemas',
@@ -1826,6 +1832,7 @@ def admin_lateral():
         paleta=PALETA, paleta_fundo=PALETA_FUNDO,
         abas=abas_painel(chave), fontes=FONTES_TEXTO,
         cartao_atual=cartao_por_chave(chave),
+        icones_cartao=dados_icone_cartao(chave),
         aparencia=dados_aparencia_cartao(chave),
         itens=con.execute('SELECT * FROM lateral WHERE cartao=?'
                           ' ORDER BY ordem, id', (chave,)).fetchall())
@@ -2043,6 +2050,7 @@ def admin_ramais():
         'admin_ramais.html', editar=editar,
         cartao=dados_titulo_cartao('ramais'),
         nome_atual=nome_do_bloco('ramais', 'Ramais mais utilizados'),
+        icones_cartao=dados_icone_cartao('ramais'),
         aparencia=dados_aparencia_cartao('ramais'), fontes=FONTES_TEXTO,
         itens=con.execute('SELECT * FROM ramais ORDER BY setor COLLATE NOCASE, id'
                           ).fetchall())
@@ -2197,6 +2205,18 @@ def salvar_aparencia_cartao(chave_cartao):
     flash('Aparência salva.', 'ok')
 
 
+def dados_icone_cartao(chave):
+    """(marcado, próprios, prefixo, todos) para o seletor de ícone.
+
+    Vai por parâmetro ao macro porque `campos.html` é importado sem contexto:
+    ali dentro nem o catálogo de ícones nem `ic` estariam visíveis."""
+    registrado = cartao_por_chave(chave)
+    if not registrado:
+        return None
+    return (nome_icone(registrado['icone']), icones_enviados(), ICONE_ARQ,
+            sorted(ICONES))
+
+
 def dados_titulo_cartao(chave):
     """(chave, nome padrão) para a tela desenhar o campo de nome do cartão.
 
@@ -2226,9 +2246,14 @@ def salvar_nome_cartao_painel(chave):
     padrao = nomes.get(chave, chave)
     nome = (request.form.get('titulo_cartao') or '').strip() or padrao
     con = db()
-    con.execute('UPDATE cartoes_painel SET nome=? WHERE chave=?', (nome, chave))
+    # O ícone vem no mesmo formulário; ausente (tela sem seletor), fica como está.
+    if 'icone_cartao' in request.form:
+        con.execute('UPDATE cartoes_painel SET nome=?, icone=? WHERE chave=?',
+                    (nome, nome_icone(request.form['icone_cartao']), chave))
+    else:
+        con.execute('UPDATE cartoes_painel SET nome=? WHERE chave=?', (nome, chave))
     con.commit()
-    flash('Nome do cartão salvo.', 'ok')
+    flash('Cartão salvo.', 'ok')
 
 
 def salvar_titulo_cartao(chave):
