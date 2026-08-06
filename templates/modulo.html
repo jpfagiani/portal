@@ -1,0 +1,20 @@
+{% extends 'shell.html' %}
+{% set pagina = chave %}
+{% block titulo %}{{ nome }}{% endblock %}
+
+{% block miolo %}
+<main class="pagina">
+  <div class="cartao" style="max-width:640px;margin:0 auto">
+    <div class="cartao-cab"><h2>{{ nome }}</h2></div>
+    <div class="cartao-corpo">
+      <p class="vazio">Este módulo ainda não está disponível.</p>
+      <p class="dica">O espaço já existe no portal: quando o conteúdo de
+        <strong>{{ nome }}</strong> estiver definido, ele passa a abrir aqui —
+        sem mudar o endereço nem o menu.</p>
+      <div class="acoes">
+        <a class="btn btn-principal" href="{{ url_for('index') }}">Voltar ao início</a>
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends 'admin_base.html' %}
+{% set aba = 'inicio' %}
+{% block titulo %}Administração{% endblock %}
+
+{% block admin %}
+<div class="painel">
+  <h1 class="secao-titulo">Administração</h1>
+  <div class="grade-numeros">
+    <a class="numero" href="{{ url_for('admin_links') }}">
+      <strong>{{ total.links }}</strong><span>Sistemas na página inicial</span></a>
+    <a class="numero" href="{{ url_for('admin_banners') }}">
+      <strong>{{ total.banners }}</strong><span>Imagens no banner</span></a>
+    <a class="numero" href="{{ url_for('admin_lateral') }}">
+      <strong>{{ total.lateral }}</strong><span>Itens na barra lateral</span></a>
+    <a class="numero" href="{{ url_for('admin_ramais') }}">
+      <strong>{{ total.ramais }}</strong><span>Ramais na lista</span></a>
+    <a class="numero" href="{{ url_for('admin_usuarios') }}">
+      <strong>{{ total.usuarios }}</strong><span>Usuários cadastrados</span></a>
+  </div>
+  <div class="cartao-info-texto">
+    <p><strong>Como usar:</strong> cada aba acima gerencia uma parte da página inicial.
+    Em <em>Sistemas</em> ficam os botões de acesso; em <em>Banner</em>, as imagens que
+    passam automaticamente; em <em>Barra lateral</em>, os avisos e links da coluna da
+    direita; em <em>Aparência</em>, a imagem de fundo, o nome da unidade e as cores.
+    Em <em>Backup</em>, você baixa uma cópia de tudo e a restaura quando precisar.</p>
+  </div>
+</div>
+{% endblock %}

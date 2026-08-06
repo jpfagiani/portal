@@ -1,0 +1,305 @@
+{% extends 'admin_base.html' %}
+{% set aba = 'aparencia' %}
+{% block titulo %}Aparência{% endblock %}
+
+{% block admin %}
+<div class="painel">
+  <section class="painel-caixa painel-largo">
+    <h2>Identidade e aparência</h2>
+    <form method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <label>Nome da unidade <small>(rodapé e título da janela)</small></label>
+      <input name="site_nome" value="{{ cfg.site_nome }}">
+      <div class="linha">
+        <div>
+          <label>Sigla <small>(barra lateral)</small></label>
+          <input name="site_sigla" value="{{ cfg.site_sigla }}">
+        </div>
+        <div>
+          <label>Subtítulo <small>(barra lateral, sob a sigla)</small></label>
+          <input name="site_sub" value="{{ cfg.site_sub }}"
+                 placeholder="Portal de Sistemas">
+        </div>
+      </div>
+
+      <h2 style="margin-top:1.6rem">Texto da capa</h2>
+      <p class="dica">As três linhas escritas sobre a foto do topo da página
+        inicial. Um banner com título ou texto próprios (em
+        <a href="{{ url_for('admin_banners') }}">Banner</a>) tem preferência
+        sobre o que estiver aqui.</p>
+
+      <div class="capa-previa">
+        <span class="cp-abertura">{{ cfg.capa_abertura }}</span>
+        <strong class="cp-titulo"
+                style="font-size:{{ cfg.capa_titulo_tam }}rem;color:{{ cfg.capa_titulo_cor }}"
+        >{{ cfg.capa_titulo or 'Portal ' ~ cfg.site_sigla }}</strong>
+        <span class="cp-texto"
+              style="font-size:{{ cfg.capa_texto_tam }}rem;color:{{ cfg.capa_texto_cor }}"
+        >{{ cfg.capa_texto }}{% if cfg.capa_texto2 %}<br>{{ cfg.capa_texto2 }}{% endif %}</span>
+      </div>
+
+      <div class="linha">
+        <div>
+          <label>Linha de abertura</label>
+          <input name="capa_abertura" value="{{ cfg.capa_abertura }}"
+                 placeholder="Bem-vindo ao">
+        </div>
+        <div>
+          <label>Título <small>(em branco: “Portal {{ cfg.site_sigla }}”)</small></label>
+          <input name="capa_titulo" value="{{ cfg.capa_titulo }}"
+                 placeholder="Portal {{ cfg.site_sigla }}">
+        </div>
+      </div>
+
+      <div class="linha">
+        <div>
+          <label>Descrição — 1ª linha</label>
+          <input name="capa_texto" value="{{ cfg.capa_texto }}"
+                 placeholder="Acesse sistemas, informações">
+        </div>
+        <div>
+          <label>Descrição — 2ª linha <small>(opcional)</small></label>
+          <input name="capa_texto2" value="{{ cfg.capa_texto2 }}"
+                 placeholder="e serviços da unidade.">
+        </div>
+      </div>
+      <p class="dica">Duas linhas separadas para você escolher onde o texto
+        quebra. Deixada ao acaso, a quebra cai em lugar diferente conforme a
+        largura da tela.</p>
+
+      <div class="linha">
+        <div>
+          <label>Título — tamanho <small>(rem)</small></label>
+          <input name="capa_titulo_tam" type="number" step="0.05" min="0.8" max="4"
+                 value="{{ cfg.capa_titulo_tam }}">
+        </div>
+        <div>
+          <label>Título — cor</label>
+          <input name="capa_titulo_cor" type="color" value="{{ cfg.capa_titulo_cor }}">
+        </div>
+        <div>
+          <label>Descrição — tamanho <small>(rem)</small></label>
+          <input name="capa_texto_tam" type="number" step="0.05" min="0.6" max="2"
+                 value="{{ cfg.capa_texto_tam }}">
+        </div>
+        <div>
+          <label>Descrição — cor</label>
+          <input name="capa_texto_cor" type="color" value="{{ cfg.capa_texto_cor }}">
+        </div>
+      </div>
+
+      <h2 style="margin-top:1.6rem">Texto dos comunicados</h2>
+      <label>Fonte</label>
+      <select name="com_fonte">
+        {% for chave, (rotulo, _) in fontes.items() %}
+        <option value="{{ chave }}" {{ 'selected' if cfg.com_fonte == chave }}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+      <p class="dica">A lista é fechada de propósito: o servidor é de rede
+        interna, sem fonte baixada da internet, então só valem famílias que já
+        existem na máquina de quem lê.</p>
+      <div class="linha">
+        <div>
+          <label>Título — tamanho <small>(rem)</small></label>
+          <input name="com_titulo_tam" type="number" step="0.05" min="0.6" max="2"
+                 value="{{ cfg.com_titulo_tam }}">
+        </div>
+        <div>
+          <label>Título — cor</label>
+          <input name="com_titulo_cor" type="color" value="{{ cfg.com_titulo_cor }}">
+        </div>
+        <div>
+          <label>Texto — tamanho <small>(rem)</small></label>
+          <input name="com_texto_tam" type="number" step="0.05" min="0.6" max="2"
+                 value="{{ cfg.com_texto_tam }}">
+        </div>
+        <div>
+          <label>Texto — cor</label>
+          <input name="com_texto_cor" type="color" value="{{ cfg.com_texto_cor }}">
+        </div>
+      </div>
+      <p class="dica">O realce de cada comunicado — fundo colorido ou título
+        pulsando — é escolhido item a item em
+        <a href="{{ url_for('admin_lateral') }}">Comunicados</a>.</p>
+
+      <h2 style="margin-top:1.6rem">Texto dos botões</h2>
+      <p class="dica">Vale para os quadrados de <em>Acesso rápido aos
+        sistemas</em> e para as pastilhas de <em>Atalhos úteis</em>.</p>
+      <div class="linha">
+        <div>
+          <label>Sigla — tamanho <small>(rem)</small></label>
+          <input name="botao_sigla_tam" type="number" step="0.05" min="0.6" max="1.6"
+                 value="{{ cfg.botao_sigla_tam }}">
+        </div>
+        <div>
+          <label>Sigla — cor</label>
+          <input name="botao_sigla_cor" type="color" value="{{ cfg.botao_sigla_cor }}">
+        </div>
+        <div>
+          <label>Nome — tamanho <small>(rem)</small></label>
+          <input name="botao_nome_tam" type="number" step="0.05" min="0.5" max="1.4"
+                 value="{{ cfg.botao_nome_tam }}">
+        </div>
+        <div>
+          <label>Nome — cor</label>
+          <input name="botao_nome_cor" type="color" value="{{ cfg.botao_nome_cor }}">
+        </div>
+      </div>
+      <p class="dica">No <strong>tema escuro</strong> o portal usa cores
+        próprias para o texto dos botões — uma cor escolhida para cartão branco
+        ficaria ilegível sobre cartão escuro, e quem está lendo não teria como
+        corrigir. Os tamanhos valem nos dois temas, e as cores da capa também,
+        porque ali o fundo é escuro sempre.</p>
+
+      <h2 style="margin-top:1.6rem">Títulos dos cartões</h2>
+      <p class="dica">O nome de cada bloco na página inicial. Chame do jeito
+        que se fala na unidade — em branco, volta ao nome padrão.</p>
+      <div class="linha">
+        {% for chave, padrao in titulos_cartao %}
+        <div>
+          <label>{{ padrao }}</label>
+          <input name="titulo_{{ chave }}" placeholder="{{ padrao }}"
+                 value="{{ cfg['titulo_' ~ chave] }}">
+        </div>
+        {% endfor %}
+      </div>
+      <p class="dica">Os itens da <strong>barra lateral</strong> têm nome
+        próprio, em <a href="{{ url_for('admin_painel', bloco='menu') }}">Blocos
+        do painel → Menu lateral</a>.</p>
+
+      <h2 style="margin-top:1.6rem">Fundo do portal</h2>
+      <p class="dica">O que aparece atrás dos cartões, na página inteira. Não
+        tem relação com o banner rotativo da capa — esse fica em
+        <a href="{{ url_for('admin_banners') }}">Banner</a>.</p>
+
+      <div class="escolha-modo">
+        <label class="opcao-modo">
+          <input type="radio" name="fundo_modo" value="imagem"
+                 {{ 'checked' if cfg.fundo_modo == 'imagem' }}>
+          <span><b>Imagem</b><small>a foto enviada abaixo</small></span>
+        </label>
+        <label class="opcao-modo">
+          <input type="radio" name="fundo_modo" value="cor"
+                 {{ 'checked' if cfg.fundo_modo == 'cor' }}>
+          <span><b>Cor sólida</b><small>a cor escolhida ao lado</small></span>
+        </label>
+        <label class="opcao-modo">
+          <input type="radio" name="fundo_modo" value="nenhum"
+                 {{ 'checked' if cfg.fundo_modo == 'nenhum' }}>
+          <span><b>Desabilitado</b><small>o cinza claro do tema</small></span>
+        </label>
+      </div>
+
+      <div class="linha">
+        <div>
+          <label>Cor sólida do fundo</label>
+          <input name="fundo_cor" type="color" value="{{ cfg.fundo_cor }}">
+        </div>
+        <div>
+          <label>Véu sobre a foto <small>(0 a 100)</small></label>
+          <input name="fundo_veu" type="number" min="0" max="100" step="1"
+                 value="{{ cfg.fundo_veu|float|round|int }}">
+        </div>
+      </div>
+      <p class="dica">O véu clareia a foto por trás dos cartões. Em
+        <strong>0</strong> ela aparece crua; perto de <strong>100</strong> some
+        quase toda. Foto crua atrás de texto cansa a leitura — o padrão é 82.
+        No tema escuro o véu escurece, em vez de clarear.</p>
+
+      <label>Imagem de fundo <small>(foto aérea da unidade — JPG, PNG ou WEBP)</small></label>
+      <input type="file" name="fundo" accept="image/png,image/jpeg,image/webp">
+      {% if fundo_nome %}
+        <img class="previa previa-larga"
+             src="{{ url_for('static', filename=fundo_nome) }}?v={{ fundo_versao }}" alt="">
+        <p class="dica">Arquivo atual: <code>static/{{ fundo_nome }}</code> — trocar esse
+          arquivo direto no servidor muda o fundo do site, sem precisar deste painel.</p>
+      {% else %}
+        <p class="vazio">Nenhuma imagem enviada — no modo <em>Imagem</em> o portal
+          cai na cor do tema até você enviar uma.</p>
+      {% endif %}
+
+      <h2 style="margin-top:1.6rem">Cores da capa e da barra lateral</h2>
+      <div class="linha">
+        <div>
+          <label>Capa <small>(atrás das imagens)</small></label>
+          <input name="capa_cor" type="color" value="{{ cfg.capa_cor }}">
+        </div>
+        <div>
+          <label>Barra lateral — topo</label>
+          <input name="lateral_cor1" type="color" value="{{ cfg.lateral_cor1 }}">
+        </div>
+        <div>
+          <label>Barra lateral — pé</label>
+          <input name="lateral_cor2" type="color" value="{{ cfg.lateral_cor2 }}">
+        </div>
+      </div>
+      <p class="dica">A barra lateral vai de uma cor à outra, de cima para
+        baixo. <strong>A mesma cor nas duas</strong> deixa ela sólida. A cor da
+        capa aparece quando não há banner e também tinge o véu que escurece a
+        foto atrás do texto — por isso convém que seja escura.</p>
+
+      <h2 style="margin-top:1.6rem">Imagens</h2>
+
+      <label>Logo / brasão <small>(PNG com fundo transparente, JPG, WEBP ou SVG)</small></label>
+      <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+      <img class="previa previa-logo"
+           src="{{ url_for('static', filename=logo_nome) }}?v={{ logo_versao }}" alt="">
+      <p class="dica">Arquivo atual: <code>static/{{ logo_nome }}</code> — pode ser
+        trocado por aqui ou substituindo o arquivo no servidor.</p>
+
+      <label>Marca d'água dos aniversariantes
+        <small>(PNG transparente ou SVG — um bolo, por exemplo)</small></label>
+      <input type="file" name="marca_aniversarios" accept="image/png,image/svg+xml,image/webp,image/jpeg">
+      {% set marca, marca_v = marca_aniversarios %}
+      {% if marca %}
+        <img class="previa previa-logo"
+             src="{{ url_for('static', filename=marca) }}?v={{ marca_v }}" alt="">
+        <p class="dica">Arquivo atual: <code>static/{{ marca }}</code> — aparece
+          esmaecida no canto do cartão, atrás dos nomes.</p>
+      {% else %}
+        <p class="vazio">Nenhuma marca d'água — o cartão fica sem imagem de fundo.</p>
+      {% endif %}
+
+      <h2 style="margin-top:1.6rem">Banner rotativo</h2>
+      <div class="linha">
+        <div>
+          <label>Segundos por slide</label>
+          <input name="banner_seg" type="number" min="2" max="60" value="{{ cfg.banner_seg }}">
+        </div>
+        <div>
+          <label>Cor principal <small>(cabeçalho)</small></label>
+          <input name="cor_primaria" type="color" value="{{ cfg.cor_primaria }}">
+        </div>
+        <div>
+          <label>Cor de destaque <small>(botões e links)</small></label>
+          <input name="cor_destaque" type="color" value="{{ cfg.cor_destaque }}">
+        </div>
+      </div>
+      <p class="dica">As imagens que passam na capa ficam em
+        <a href="{{ url_for('admin_banners') }}">Banner</a>. Com um slide só a
+        capa fica parada; a rotação começa a partir de dois.</p>
+
+      <div class="acoes">
+        <button class="btn btn-principal" type="submit">Salvar</button>
+      </div>
+    </form>
+
+    <div class="acoes">
+      {% if fundo_nome %}
+      <form method="post" onsubmit="return confirm('Remover a imagem de fundo?')">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <input type="hidden" name="acao" value="remover_fundo">
+        <button class="btn btn-sm btn-perigo" type="submit">Remover imagem de fundo</button>
+      </form>
+      {% endif %}
+      {% if marca_aniversarios[0] %}
+      <form method="post" onsubmit="return confirm(&quot;Remover a marca d'água?&quot;)">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <input type="hidden" name="acao" value="remover_marca">
+        <button class="btn btn-sm btn-perigo" type="submit">Remover marca d'água</button>
+      </form>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

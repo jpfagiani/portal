@@ -1,0 +1,74 @@
+{% extends 'admin_base.html' %}
+{% set aba = 'ramais' %}
+{% block titulo %}Ramais{% endblock %}
+
+{% block admin %}
+<div class="painel painel-duplo">
+  <section class="painel-caixa">
+    <h2>{{ 'Editar ramal' if editar else 'Novo ramal' }}</h2>
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="id" value="{{ editar.id if editar else '' }}">
+      <label>Setor *</label>
+      <input name="setor" required value="{{ editar.setor if editar else '' }}">
+      <label>Ramal *  <small>(separe vários com barra: 202 / 256)</small></label>
+      <input name="numeros" required value="{{ editar.numeros if editar else '' }}">
+      <label class="check"><input type="checkbox" name="ativo"
+        {{ 'checked' if (not editar or editar.ativo) }}> Exibir na lista</label>
+      <label class="check"><input type="checkbox" name="destaque"
+        {{ 'checked' if editar and editar.destaque }}> Destacar na página inicial
+        (bloco "Ramais mais utilizados")</label>
+      <p class="dica">Sem nenhum marcado, o painel mostra os primeiros da lista
+        em ordem alfabética.</p>
+      <div class="acoes">
+        <button class="btn btn-principal" type="submit">Salvar</button>
+        {% if editar %}<a class="btn" href="{{ url_for('admin_ramais') }}">Cancelar</a>{% endif %}
+      </div>
+    </form>
+
+    <h2 style="margin-top:1.5rem">Colar lista pronta</h2>
+    <form method="post" onsubmit="return !this.substituir.checked || confirm('Isto apaga os ramais atuais antes de importar. Continuar?')">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="acao" value="importar">
+      <label>Uma linha por setor — o número vai no fim</label>
+      <textarea name="lista" rows="9" placeholder="ADMINISTRATIVO    202 / 256&#10;ALMOXARIFADO      245 / 253&#10;PABX              200"></textarea>
+      <p class="dica">Aceita colunas separadas por tabulação, ponto-e-vírgula ou
+        vários espaços — dá para colar direto de uma planilha ou de um documento.</p>
+      <label class="check"><input type="checkbox" name="substituir">
+        Apagar os ramais atuais antes de importar</label>
+      <div class="acoes">
+        <button class="btn btn-principal" type="submit">Importar</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="painel-caixa">
+    <h2>Ramais cadastrados ({{ itens|length }})</h2>
+    <table class="tabela">
+      <thead><tr><th>Setor</th><th>Ramal</th><th>Situação</th><th></th></tr></thead>
+      <tbody>
+        {% for i in itens %}
+        <tr>
+          <td><strong>{{ i.setor }}</strong></td>
+          <td>{{ i.numeros }}</td>
+          <td>{% if i.ativo %}<span class="tag tag-ok">visível</span>
+              {% else %}<span class="tag">oculto</span>{% endif %}
+              {% if i.destaque %}<span class="tag tag-admin">destaque</span>{% endif %}</td>
+          <td class="acoes-linha">
+            <a class="btn btn-sm" href="{{ url_for('admin_ramais', editar=i.id) }}">Editar</a>
+            <form method="post" onsubmit="return confirm('Remover {{ i.setor }}?')">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <input type="hidden" name="acao" value="excluir">
+              <input type="hidden" name="id" value="{{ i.id }}">
+              <button class="btn btn-sm btn-perigo" type="submit">Excluir</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="vazio">Nenhum ramal cadastrado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

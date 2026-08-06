@@ -1,0 +1,59 @@
+{% extends 'admin_base.html' %}
+{% set aba = 'usuarios' %}
+{% block titulo %}Usuários{% endblock %}
+
+{% block admin %}
+<div class="painel painel-duplo">
+  <section class="painel-caixa">
+    <h2>{{ 'Editar usuário' if editar else 'Novo usuário' }}</h2>
+    <form method="post" autocomplete="off">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="id" value="{{ editar.id if editar else '' }}">
+      <label>Usuário * <small>(letras minúsculas, números, . _ -)</small></label>
+      <input name="usuario" required pattern="[a-zA-Z0-9._-]{3,32}"
+             value="{{ editar.usuario if editar else '' }}">
+      <label>Nome completo *</label>
+      <input name="nome" required value="{{ editar.nome if editar else '' }}">
+      <label>Senha {% if editar %}<small>(deixe em branco para manter)</small>{% else %}*{% endif %}</label>
+      <input name="senha" type="password" autocomplete="new-password"
+             {{ '' if editar else 'required' }} minlength="6">
+      <label class="check"><input type="checkbox" name="admin"
+        {{ 'checked' if editar and editar.admin }}> Administrador (pode gerenciar o portal)</label>
+      <label class="check"><input type="checkbox" name="ativo"
+        {{ 'checked' if (not editar or editar.ativo) }}> Ativo (pode entrar)</label>
+      <div class="acoes">
+        <button class="btn btn-principal" type="submit">Salvar</button>
+        {% if editar %}<a class="btn" href="{{ url_for('admin_usuarios') }}">Cancelar</a>{% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="painel-caixa">
+    <h2>Usuários cadastrados</h2>
+    <table class="tabela">
+      <thead><tr><th>Usuário</th><th>Nome</th><th>Perfil</th><th>Situação</th><th></th></tr></thead>
+      <tbody>
+        {% for i in itens %}
+        <tr>
+          <td><strong>{{ i.usuario }}</strong></td>
+          <td>{{ i.nome }}</td>
+          <td>{% if i.admin %}<span class="tag tag-admin">administrador</span>
+              {% else %}<span class="tag">usuário</span>{% endif %}</td>
+          <td>{% if i.ativo %}<span class="tag tag-ok">ativo</span>
+              {% else %}<span class="tag tag-off">inativo</span>{% endif %}</td>
+          <td class="acoes-linha">
+            <a class="btn btn-sm" href="{{ url_for('admin_usuarios', editar=i.id) }}">Editar</a>
+            <form method="post" onsubmit="return confirm('Remover {{ i.usuario }}?')">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <input type="hidden" name="acao" value="excluir">
+              <input type="hidden" name="id" value="{{ i.id }}">
+              <button class="btn btn-sm btn-perigo" type="submit">Excluir</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

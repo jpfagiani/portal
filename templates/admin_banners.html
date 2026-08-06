@@ -1,0 +1,87 @@
+{% extends 'admin_base.html' %}
+{% set aba = 'banners' %}
+{% block titulo %}Banner{% endblock %}
+
+{% block admin %}
+<div class="painel painel-duplo">
+  <section class="painel-caixa">
+    <h2>{{ 'Editar imagem' if editar else 'Nova imagem' }}</h2>
+    <p class="dica">O texto escrito sobre a capa (“Bem-vindo ao…”) é
+      <strong>fixo</strong> e fica em
+      <a href="{{ url_for('admin_aparencia') }}">Aparência</a>. Aqui entra só o
+      que passa por trás dele: uma foto ou uma cor sólida.</p>
+
+    <form method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="id" value="{{ editar.id if editar else '' }}">
+
+      <label>Imagem <small>(PNG, JPG, WEBP ou GIF — recomendado 1600×450)</small></label>
+      <input type="file" name="imagem" accept="image/*">
+      {% if editar and editar.arquivo %}
+        <img class="previa previa-larga"
+             src="{{ url_for('static', filename='uploads/' ~ editar.arquivo) }}" alt="">
+        <small>Deixe em branco para manter a imagem atual.</small>
+      {% endif %}
+
+      <label class="check"><input type="checkbox" name="usar_cor" id="usar-cor"
+        {{ 'checked' if editar and editar.cor }}> Usar cor sólida no lugar da imagem</label>
+      <label>Cor sólida</label>
+      <input name="cor" type="color" value="{{ editar.cor if editar and editar.cor else '#16294f' }}">
+      <p class="dica">Marcando a cor, a imagem deste slide é descartada —
+        guardar as duas deixaria a dúvida de qual vale.</p>
+
+      <label>Identificação <small>(descreve a imagem; não aparece na capa)</small></label>
+      <input name="titulo" value="{{ editar.titulo if editar else '' }}"
+             placeholder="Fachada da unidade">
+      <label>Link ao clicar <small>(opcional)</small></label>
+      <input name="url" placeholder="https://..." value="{{ editar.url if editar else '' }}">
+      <label>Ordem</label>
+      <input name="ordem" type="number" value="{{ editar.ordem if editar else 0 }}">
+      <label class="check"><input type="checkbox" name="ativo"
+        {{ 'checked' if (not editar or editar.ativo) }}> Exibir no banner</label>
+      <div class="acoes">
+        <button class="btn btn-principal" type="submit">Salvar</button>
+        {% if editar %}<a class="btn" href="{{ url_for('admin_banners') }}">Cancelar</a>{% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="painel-caixa">
+    <h2>Imagens do banner ({{ itens|length }})</h2>
+    <div class="lista-banners" data-ordenavel="{{ url_for('admin_banners') }}"
+         data-csrf="{{ csrf_token }}">
+      {% for i in itens %}
+      <div class="banner-item" data-id="{{ i.id }}">
+        <span class="pega" title="Arraste para reordenar">⠿</span>
+        {% if i.arquivo %}
+        <img src="{{ url_for('static', filename='uploads/' ~ i.arquivo) }}" alt="">
+        {% else %}
+        <span class="amostra-cor" style="background: {{ i.cor }}">{{ i.cor }}</span>
+        {% endif %}
+        <div class="banner-item-info">
+          <strong>{{ i.titulo or ('cor sólida' if i.cor else '(sem identificação)') }}</strong>
+          <small>ordem <span data-coluna-ordem>{{ i.ordem }}</span> ·
+            {% if i.ativo %}<span class="tag tag-ok">visível</span>
+            {% else %}<span class="tag">oculto</span>{% endif %}</small>
+          <div class="acoes-linha">
+            <a class="btn btn-sm" href="{{ url_for('admin_banners', editar=i.id) }}">Editar</a>
+            <form method="post" onsubmit="return confirm('Remover este slide?')">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <input type="hidden" name="acao" value="excluir">
+              <input type="hidden" name="id" value="{{ i.id }}">
+              <button class="btn btn-sm btn-perigo" type="submit">Excluir</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <p class="vazio">Nenhum slide cadastrado — a capa mostra só a cor de fundo.</p>
+      {% endfor %}
+    </div>
+    <p class="dica">Arraste os cartões pela alça <span class="pega">⠿</span> para
+      mudar a ordem em que passam — a mudança é salva na hora. Com um slide só,
+      a capa fica parada; a rotação começa a partir de dois.</p>
+  </section>
+</div>
+<script src="{{ url_for('static', filename='ordenar.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends 'shell.html' %}
+{% import 'blocos.html' as b with context %}
+{% set pagina = 'inicio' %}
+{% block titulo %}Sistemas{% endblock %}
+
+{% block miolo %}
+<main class="pagina">
+
+  <section class="cartao">
+    <div class="cartao-cab"><span class="cab-ic">{{ ic('grade') }}</span>
+      <h2>{{ cfg.titulo_sistemas }}</h2></div>
+    <div class="cartao-corpo">
+      {{ b.ladrilhos(sistemas, largo=true) }}
+    </div>
+  </section>
+
+  {% if atalhos %}
+  <section class="cartao" style="margin-top:1rem">
+    <div class="cartao-cab"><span class="cab-ic">{{ ic('marcador') }}</span>
+      <h2>Atalhos úteis ({{ atalhos|length }})</h2></div>
+    <div class="cartao-corpo">{{ b.atalhos(atalhos) }}</div>
+  </section>
+  {% endif %}
+
+  {% if reservas %}
+  <section class="cartao" style="margin-top:1rem">
+    <div class="cartao-cab"><span class="cab-ic">{{ ic('arquivo') }}</span>
+      <h2>Reservas rápidas ({{ reservas|length }})</h2></div>
+    <div class="cartao-corpo reservas reservas-largo">{{ b.reservas(reservas) }}</div>
+  </section>
+  {% endif %}
+
+  <p class="ramais-voltar"><a href="{{ url_for('index') }}">← Voltar ao início</a></p>
+</main>
+{% endblock %}

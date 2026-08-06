@@ -1,0 +1,34 @@
+# Banco de dados (usuários, senhas, conteúdo) — nunca versionar
+dados.db
+secret.key
+
+# Imagens e ícones enviados pelo administrador
+static/uploads/
+static/icones/
+
+# Personalização da unidade: logo.* substitui o brasao.png padrão do repo
+# e fundo.* é a foto aérea. Trocados por arquivo, fora do versionamento.
+static/logo.png
+static/logo.jpg
+static/logo.jpeg
+static/logo.webp
+static/logo.svg
+static/fundo.jpg
+static/fundo.jpeg
+static/fundo.png
+static/fundo.webp
+
+# Marca d'água enviada pelo administrador. O .svg que acompanha o repo fica
+# versionado de propósito — é o desenho padrão do bolo.
+static/marca-*.png
+static/marca-*.jpg
+static/marca-*.jpeg
+static/marca-*.webp
+
+# Gerado pelo instalador dentro da própria pasta do serviço
+ACESSO-POR-NOME.txt
+
+__pycache__/
+venv/
+*.log
+backups/

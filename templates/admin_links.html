@@ -1,0 +1,160 @@
+{% extends 'admin_base.html' %}
+{% set aba = 'links' %}
+{% block titulo %}Sistemas{% endblock %}
+
+{% block admin %}
+<nav class="abas" style="margin-bottom:1rem">
+  {% for chave, nome in grupos.items() %}
+  <a href="{{ url_for('admin_links', grupo=chave) }}"
+     class="{{ 'ativa' if grupo == chave }}">{{ nome }}</a>
+  {% endfor %}
+</nav>
+
+<div class="painel painel-duplo">
+  <section class="painel-caixa">
+    <h2>{{ 'Editar' if editar else 'Novo' }} — {{ grupos[grupo] }}</h2>
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="id" value="{{ editar.id if editar else '' }}">
+      <label>Título *</label>
+      <input name="titulo" required value="{{ editar.titulo if editar else '' }}">
+      <label>Endereço (URL) <small>(pode ficar para depois)</small></label>
+      <input name="url" placeholder="https://..." value="{{ editar.url if editar else '' }}">
+      <p class="dica">Sem endereço o botão aparece no painel e não é link, até
+        alguém informar para onde ele leva.</p>
+      <label>Descrição <small>(2ª linha do botão, nos atalhos)</small></label>
+      <input name="descricao" value="{{ editar.descricao if editar else '' }}">
+
+      {% if grupo == 'sistema' %}
+      <label>Categoria <small>(agrupa os sistemas no cartão)</small></label>
+      <input name="categoria" list="categorias-existentes" placeholder="Operacionais"
+             value="{{ editar.categoria if editar else '' }}">
+      <datalist id="categorias-existentes">
+        {% for c in categorias %}<option value="{{ c }}">{% endfor %}
+      </datalist>
+      <p class="dica">Em branco, o sistema entra na grade sem subtítulo. Os que
+        têm a mesma categoria aparecem juntos, na ordem cadastrada.</p>
+      {% else %}
+      <input type="hidden" name="categoria" value="{{ editar.categoria if editar else '' }}">
+      {% endif %}
+
+      {% if grupo == 'reserva' %}
+      <label>Situação <small>(selo à direita)</small></label>
+      <input name="situacao" placeholder="Disponível"
+             value="{{ editar.situacao if editar else '' }}">
+      <p class="dica">Começando por <em>Disponível</em> ou <em>Livre</em> o selo
+        sai verde; qualquer outro texto sai em âmbar. Em branco, não aparece
+        selo nenhum.</p>
+      {% else %}
+      <input type="hidden" name="situacao" value="{{ editar.situacao if editar else '' }}">
+      {% endif %}
+      <input type="hidden" name="grupo" value="{{ editar.grupo if editar else grupo }}">
+      <div class="linha">
+        {% if grupo == 'sistema' %}
+        <div>
+          <label>Sigla <small>(até 5 letras)</small></label>
+          <input name="icone" maxlength="5" value="{{ editar.icone if editar else '' }}">
+        </div>
+        {% else %}
+        {# A sigla só aparece no ladrilho dos sistemas; nos outros grupos o
+           campo fica fora do formulário, mas o valor é preservado. #}
+        <input type="hidden" name="icone" value="{{ editar.icone if editar else '' }}">
+        {% endif %}
+        <div>
+          <label>Ordem</label>
+          <input name="ordem" type="number" value="{{ editar.ordem if editar else 0 }}">
+        </div>
+        <div>
+          <label>Cor <small>(usada nesta lista)</small></label>
+          <input name="cor" type="color" value="{{ editar.cor if editar else '#3a6d8c' }}">
+        </div>
+      </div>
+
+      {% set marcado = (editar.simbolo if editar else '') or 'aplicativo' %}
+      <label>Ícone</label>
+      <div class="escolha-icone">
+        <label class="opcao-icone opcao-icone-nenhum" title="Sem ícone">
+          <input type="radio" name="simbolo" value="nenhum"
+                 {{ 'checked' if marcado == 'nenhum' }}>
+          <span>Sem ícone</span>
+        </label>
+        {% for nome in icones_proprios %}
+        {% set valor = prefixo_icone ~ nome %}
+        <label class="opcao-icone" title="{{ nome }} (enviado)">
+          <input type="radio" name="simbolo" value="{{ valor }}"
+                 {{ 'checked' if valor == marcado }}>
+          <span>{{ ic(valor) }}</span>
+        </label>
+        {% endfor %}
+        {% for nome in icones %}
+        <label class="opcao-icone" title="{{ nome }}">
+          <input type="radio" name="simbolo" value="{{ nome }}"
+                 {{ 'checked' if nome == marcado }}>
+          <span>{{ ic(nome) }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <p class="dica">Os primeiros são os
+        <a href="{{ url_for('admin_icones') }}">ícones enviados</a> pela
+        unidade; depois vêm os que acompanham o portal.</p>
+      <label class="check"><input type="checkbox" name="ativo"
+        {{ 'checked' if (not editar or editar.ativo) }}> Exibir na página inicial</label>
+      <div class="acoes">
+        <button class="btn btn-principal" type="submit">Salvar</button>
+        {% if editar %}<a class="btn" href="{{ url_for('admin_links', grupo=grupo) }}">Cancelar</a>{% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="painel-caixa">
+    <h2>Colar lista</h2>
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="acao" value="importar">
+      <label>Uma linha por sistema</label>
+      <textarea name="lista" rows="6" placeholder="SEI | Sistema Eletrônico de Informações | https://sei.sp.gov.br&#10;GSA | Gestão de Sistemas | http://10.x.x.x/gsa&#10;Webmail | https://webmail.sp.gov.br"></textarea>
+      <p class="dica">Formato: <code>SIGLA | Nome | endereço</code>. A sigla é
+        opcional — sem ela, sai das iniciais do nome. O separador pode ser
+        barra vertical, tabulação ou vários espaços.</p>
+      <input type="hidden" name="grupo_destino" value="{{ grupo }}">
+      <p class="dica">Os itens entram em <strong>{{ grupos[grupo] }}</strong>
+        — a aba selecionada acima.</p>
+      <div class="acoes"><button class="btn btn-principal" type="submit">Importar</button></div>
+    </form>
+
+    <h2 style="margin-top:1.5rem">{{ grupos[grupo] }} ({{ itens|length }})</h2>
+    <table class="tabela">
+      <thead><tr><th></th><th></th><th>Título</th><th>Ordem</th><th>Situação</th><th></th></tr></thead>
+      <tbody data-ordenavel="{{ url_for('admin_links') }}" data-csrf="{{ csrf_token }}"
+             data-extra="grupo={{ grupo }}">
+        {% for i in itens %}
+        <tr data-id="{{ i.id }}">
+          <td class="pega" title="Arraste para reordenar">⠿</td>
+          <td><span class="mini-icone" style="background: {{ i.cor }}"
+                    title="{{ i.simbolo or 'aplicativo' }}">{{ ic(i.simbolo) }}</span></td>
+          <td><strong>{{ i.titulo }}</strong><br><small class="url">{{ i.url }}</small></td>
+          <td data-coluna-ordem>{{ i.ordem }}</td>
+          <td>{% if i.ativo %}<span class="tag tag-ok">visível</span>
+              {% else %}<span class="tag">oculto</span>{% endif %}</td>
+          <td class="acoes-linha">
+            <a class="btn btn-sm" href="{{ url_for('admin_links', grupo=grupo, editar=i.id) }}">Editar</a>
+            <form method="post" onsubmit="return confirm('Remover {{ i.titulo }}?')">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <input type="hidden" name="acao" value="excluir">
+              <input type="hidden" name="grupo" value="{{ grupo }}">
+              <input type="hidden" name="id" value="{{ i.id }}">
+              <button class="btn btn-sm btn-perigo" type="submit">Excluir</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="vazio">Nenhum sistema cadastrado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="dica">Arraste as linhas pela alça <span class="pega">⠿</span> para
+      mudar a ordem no painel — a mudança é salva na hora.</p>
+  </section>
+</div>
+<script src="{{ url_for('static', filename='ordenar.js') }}"></script>
+{% endblock %}

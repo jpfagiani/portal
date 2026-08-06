@@ -1,0 +1,60 @@
+{% extends 'admin_base.html' %}
+{% set aba = 'icones' %}
+{% block titulo %}Ícones{% endblock %}
+
+{% block admin %}
+<div class="painel painel-duplo">
+  <section class="painel-caixa">
+    <h2>Enviar ícone</h2>
+    <p class="dica">Logos de sistemas, brasões, o que a unidade usar. Depois de
+      enviados, aparecem no seletor de ícone junto com os desenhos que já vêm
+      no portal — em <a href="{{ url_for('admin_links') }}">Sistemas e
+      atalhos</a> e em <a href="{{ url_for('admin_painel', bloco='menu') }}">Menu
+      lateral</a>.</p>
+
+    <form method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <label>Arquivo <small>(SVG, PNG, WEBP ou JPG)</small></label>
+      <input type="file" name="icone" accept=".svg,image/svg+xml,image/png,image/webp,image/jpeg" required>
+      <label>Nome <small>(como vai aparecer no seletor)</small></label>
+      <input name="nome" placeholder="sei">
+      <div class="acoes">
+        <button class="btn btn-principal" type="submit">Enviar</button>
+      </div>
+    </form>
+
+    <p class="dica">Prefira <strong>SVG</strong> ou PNG com fundo transparente:
+      o ícone é desenhado pequeno, e fundo branco vira um quadrado visível
+      dentro do botão. Diferente dos desenhos que acompanham o portal, um ícone
+      enviado <strong>mantém as próprias cores</strong> — é o que se espera de
+      um logo.</p>
+    <p class="dica">Também dá para copiar arquivos direto para
+      <code>static/icones/</code> no servidor; o efeito é o mesmo.</p>
+  </section>
+
+  <section class="painel-caixa">
+    <h2>Ícones enviados ({{ itens|length }})</h2>
+    {% if itens %}
+    <div class="grade-icones">
+      {% for nome in itens %}
+      <div class="icone-cartao">
+        <img src="{{ url_for('static', filename='icones/' ~ nome) }}" alt="">
+        <span class="icone-nome" title="{{ nome }}">{{ nome }}</span>
+        <form method="post" onsubmit="return confirm('Remover {{ nome }}?')">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <input type="hidden" name="acao" value="excluir">
+          <input type="hidden" name="nome" value="{{ nome }}">
+          <button class="btn btn-sm btn-perigo" type="submit">Excluir</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="dica">Remover um ícone não quebra nada: os itens que o usavam
+      voltam sozinhos ao símbolo padrão.</p>
+    {% else %}
+    <p class="vazio">Nenhum ícone enviado — o seletor mostra só os desenhos que
+      acompanham o portal.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

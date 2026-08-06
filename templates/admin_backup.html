@@ -1,0 +1,74 @@
+{% extends 'admin_base.html' %}
+{% set aba = 'backup' %}
+{% block titulo %}Backup{% endblock %}
+
+{% block admin %}
+<div class="painel painel-duplo">
+
+  <section class="painel-caixa">
+    <h2>Gerar backup</h2>
+    <p class="dica">Baixa um arquivo <code>.zip</code> com <strong>tudo</strong>:
+      banco de dados (sistemas, banner, avisos, ramais, usuários e senhas,
+      cores e nome da unidade), a foto de fundo, o logo e as imagens do banner.
+      Guarde-o fora do servidor.</p>
+
+    <table class="tabela" style="margin:.8rem 0">
+      <tbody>
+        <tr><th scope="row">Sistemas</th><td>{{ conteudo.links }}</td></tr>
+        <tr><th scope="row">Imagens do banner</th><td>{{ conteudo.banners }}</td></tr>
+        <tr><th scope="row">Itens da barra lateral</th><td>{{ conteudo.lateral }}</td></tr>
+        <tr><th scope="row">Ramais</th><td>{{ conteudo.ramais }}</td></tr>
+        <tr><th scope="row">Usuários</th><td>{{ conteudo.usuarios }}</td></tr>
+      </tbody>
+    </table>
+
+    <form method="post" action="{{ url_for('backup_baixar') }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <button class="btn btn-principal" type="submit">Baixar backup agora</button>
+    </form>
+  </section>
+
+  <section class="painel-caixa">
+    <h2>Restaurar backup</h2>
+    <p class="dica">Envie um arquivo gerado aqui. O conteúdo atual é
+      <strong>substituído</strong> pelo do backup — mas antes disso o portal
+      guarda sozinho uma cópia do estado de agora no servidor, então dá para
+      voltar atrás.</p>
+    <div class="aviso aviso-erro" style="margin:.6rem 0">
+      Os usuários e senhas também são substituídos: depois de restaurar, entre
+      com a senha que valia na época daquele backup.
+    </div>
+
+    <form method="post" action="{{ url_for('backup_restaurar') }}"
+          enctype="multipart/form-data"
+          onsubmit="return confirm('Restaurar este backup? O conteúdo atual será substituído.')">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <label>Arquivo de backup (.zip)</label>
+      <input type="file" name="arquivo" accept=".zip,application/zip" required>
+      <div class="acoes">
+        <button class="btn btn-perigo" type="submit">Restaurar</button>
+      </div>
+    </form>
+
+    <h2 style="margin-top:1.5rem">Cópias guardadas no servidor</h2>
+    {% if copias %}
+    <p class="dica">Criadas automaticamente antes de cada restauração, em
+      <code>backups/</code>. Para usar uma delas, copie o arquivo do servidor e
+      envie-o no campo acima.</p>
+    <table class="tabela">
+      <thead><tr><th>Arquivo</th><th>Data</th><th>Tamanho</th></tr></thead>
+      <tbody>
+        {% for c in copias %}
+        <tr><td><small class="url">{{ c.nome }}</small></td>
+            <td>{{ c.data }}</td><td>{{ c.kb }} KB</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="vazio">Nenhuma cópia automática ainda — elas aparecem aqui na
+      primeira vez que você restaurar um backup.</p>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends 'shell.html' %}
+{% import 'blocos.html' as b with context %}
+{% set pagina = 'inicio' %}
+{% block titulo %}Início{% endblock %}
+
+{#  Os cartões existem sempre, mesmo vazios, para a página não mudar de forma
+    conforme é preenchida. Cada bloco mostra até um limite; o "ver todos" abre
+    a lista completa em outra aba. #}
+
+{#  O "ver todos" aparece só quando o cartão está escondendo alguma coisa:
+    sem isso, ou polui todos os cabeçalhos, ou o que passa do limite fica
+    inalcançável. #}
+{% macro cabecalho(icone, titulo, total=0, limite=0, href=none) %}
+  <div class="cartao-cab">
+    <span class="cab-ic">{{ ic(icone) }}</span>
+    <h2>{{ titulo }}</h2>
+    {% if href and total > limite %}
+    <a class="ver" href="{{ href }}" target="_blank" rel="noopener"
+       title="Ver os {{ total }} itens">+{{ total - limite }}</a>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{% block miolo %}
+{% set capa_titulo = cfg.capa_titulo or ('Portal ' ~ cfg.site_sigla) %}
+<main class="painel">
+
+  <section class="capa" data-intervalo="{{ cfg.banner_seg }}">
+    {% if banners %}
+    <div class="banner-trilho">
+      {% for i in banners %}
+      <div class="slide {% if loop.first %}ativo{% endif %}"
+           {% if i.arquivo %}
+           style="background-image:url('{{ url_for('static', filename='uploads/' ~ i.arquivo) }}')"
+           {% else %}style="background:{{ i.cor }}"{% endif %}
+           {% if i.titulo %}role="img" aria-label="{{ i.titulo }}"{% endif %}>
+        {% if i.url %}<a class="slide-link" href="{{ i.url }}" target="_blank"
+                         rel="noopener" aria-label="{{ i.titulo or 'Abrir' }}"></a>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if banners|length > 1 %}
+    <button class="banner-seta ant" aria-label="Imagem anterior">‹</button>
+    <button class="banner-seta prox" aria-label="Próxima imagem">›</button>
+    <div class="banner-pontos">
+      {% for i in banners %}<button class="ponto {% if loop.first %}ativo{% endif %}"
+        aria-label="Imagem {{ loop.index }}"></button>{% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <div class="capa-texto">
+      {#  Juntando as duas coisas: a saudação ocupa a primeira linha da capa
+          para quem está identificado; para quem só está de passagem vale a
+          "Linha de abertura" configurada em Aparência. #}
+      {% if usuario_nome %}
+      <small>{{ saudacao }}, {{ usuario_nome.split()[0] }}! <span aria-hidden="true">&#128075;</span></small>
+      {% elif cfg.capa_abertura %}<small>{{ cfg.capa_abertura }}</small>{% endif %}
+      <strong>{{ capa_titulo }}</strong>
+      {% if cfg.capa_texto or cfg.capa_texto2 %}
+      <p>{{ cfg.capa_texto }}{% if cfg.capa_texto2 %}<br>{{ cfg.capa_texto2 }}{% endif %}</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <div class="numeros">
+    {% for valor, rotulo, nota, icone, tom in numeros %}
+    <div class="numero-cartao tom-{{ tom }}">
+      <span class="numero-ic">{{ ic(icone) }}</span>
+      <span>
+        <strong>{{ valor }}</strong>
+        <b>{{ rotulo }}</b>
+        <small>{{ nota }}</small>
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="regiao-topo">
+    <section class="cartao">
+      {{ cabecalho('grade', cfg.titulo_sistemas, sistemas_total, limites.sistemas,
+             url_for('sistemas')) }}
+      <div class="cartao-corpo">
+        {{ b.ladrilhos(sistemas) }}
+      </div>
+    </section>
+
+    <section class="cartao">
+      {{ cabecalho('megafone', cfg.titulo_comunicados, comunicados|length,
+             limites.comunicados, url_for('lista', chave='comunicados')) }}
+      <div class="cartao-corpo comunicados">
+        {{ b.comunicados(comunicados[:limites.comunicados]) }}
+      </div>
+    </section>
+
+    <section class="cartao">
+      {{ cabecalho('bolo', cfg.titulo_aniversariantes, aniversariantes|length,
+             limites.aniversariantes, url_for('lista', chave='aniversariantes')) }}
+      {% set marca, marca_v = marca_aniversarios %}
+      <div class="cartao-corpo aniversarios {{ 'com-marca' if marca }}"
+           {% if marca %}style="--marca: url('{{ url_for('static', filename=marca) }}?v={{ marca_v }}')"{% endif %}>
+        {{ b.aniversarios(aniversariantes[:limites.aniversariantes]) }}
+      </div>
+    </section>
+  </div>
+
+  <section class="cartao regiao-meio">
+    {{ cabecalho('marcador', cfg.titulo_atalhos, atalhos|length, limites.atalhos,
+             url_for('lista', chave='atalhos')) }}
+    <div class="cartao-corpo">
+      {{ b.atalhos(atalhos[:limites.atalhos]) }}
+    </div>
+  </section>
+
+  <div class="regiao-baixo">
+    <section class="cartao">
+      {{ cabecalho('telefone', cfg.titulo_ramais, ramais_total, limites.ramais,
+             url_for('ramais')) }}
+      <div class="cartao-corpo ramais">
+        <div class="busca-cartao">
+          <span aria-hidden="true">{{ ic('lupa') }}</span>
+          <input type="search" id="filtro-ramais-painel"
+                 placeholder="Pesquisar ramal ou setor..." aria-label="Filtrar ramais">
+        </div>
+        {{ b.ramais(ramais_destaque[:limites.ramais],
+            ramais_destaque[limites.ramais:] + ramais_extras) }}
+        {% if eh_admin and ramais_sem_destaque and ramais_destaque %}
+        <p class="dica dica-admin">Mostrando os primeiros da lista. Marque os
+          principais em <a href="{{ url_for('admin_ramais') }}">Ramais</a>.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="cartao">
+      {{ cabecalho('calendario', cfg.titulo_escalas, escalas|length, limites.escalas,
+             url_for('lista', chave='escalas')) }}
+      <div class="cartao-corpo escalas">
+        {{ b.escalas(escalas[:limites.escalas]) }}
+      </div>
+    </section>
+
+    <section class="cartao">
+      {{ cabecalho('fone', cfg.titulo_chamados, chamados|length, limites.chamados,
+             url_for('lista', chave='chamados')) }}
+      <div class="cartao-corpo chamados">
+        {{ b.chamados(chamados[:limites.chamados]) }}
+      </div>
+    </section>
+
+    <section class="cartao">
+      {{ cabecalho('arquivo', cfg.titulo_reservas, reservas|length, limites.reservas,
+             url_for('lista', chave='reservas')) }}
+      <div class="cartao-corpo reservas">
+        {{ b.reservas(reservas[:limites.reservas]) }}
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="{{ url_for('static', filename='ramais.js') }}"></script>
+{% if banners|length > 1 %}<script src="{{ url_for('static', filename='banner.js') }}"></script>{% endif %}
+{% endblock %}

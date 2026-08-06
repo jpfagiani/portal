@@ -1,0 +1,95 @@
+{% extends 'admin_base.html' %}
+{% set aba = 'lateral' %}
+{% block titulo %}Barra lateral{% endblock %}
+
+{% block admin %}
+<div class="painel painel-duplo">
+  <section class="painel-caixa">
+    <h2>{{ 'Editar item' if editar else 'Novo item' }}</h2>
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="id" value="{{ editar.id if editar else '' }}">
+      <label>Tipo</label>
+      <select name="tipo">
+        <option value="aviso" {{ 'selected' if editar and editar.tipo=='aviso' }}>Aviso / informação</option>
+        <option value="link"  {{ 'selected' if editar and editar.tipo=='link' }}>Link</option>
+      </select>
+      <label>Urgência <small>(define o selo e a cor do símbolo)</small></label>
+      <select name="urgencia">
+        <option value="informacao" {{ 'selected' if not editar or editar.urgencia == 'informacao' }}>Informação</option>
+        <option value="comunicado" {{ 'selected' if editar and editar.urgencia == 'comunicado' }}>Comunicado</option>
+        <option value="urgente"    {{ 'selected' if editar and editar.urgencia == 'urgente' }}>Urgente</option>
+      </select>
+
+      <label>Destaque <small>(realce extra no painel)</small></label>
+      <select name="destaque">
+        {% for chave, rotulo in destaques.items() %}
+        <option value="{{ chave }}"
+          {{ 'selected' if (editar.destaque if editar else 'nenhum') == chave }}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+      <p class="dica"><strong>Fundo colorido</strong> tinge o item na cor da
+        urgência. <strong>Título pulsando</strong> faz o título variar de
+        opacidade devagar — não é um pisca-pisca: texto que apaga por completo
+        fica ilegível na hora errada, e cintilação rápida pode causar mal-estar
+        em quem é sensível. Quem configurou o sistema para menos animação vê o
+        título sublinhado, sem movimento.</p>
+      <p class="dica">Use com parcimônia: <em>tudo</em> em destaque não destaca nada.</p>
+
+      <label>Data exibida <small>(livre, ex.: 15/07/2026)</small></label>
+      <input name="data" value="{{ editar.data if editar else '' }}">
+      <label>Título *</label>
+      <input name="titulo" required value="{{ editar.titulo if editar else '' }}">
+      <label>Texto</label>
+      <textarea name="conteudo" rows="9">{{ editar.conteudo if editar else '' }}</textarea>
+      <p class="dica">O texto sai no painel <strong>exatamente como for
+        digitado aqui</strong>: quebras de linha, linhas em branco e espaços
+        seguidos são preservados, então dá para alinhar emoji e itens à mão.
+        As linhas longas que dobram sozinhas saem justificadas.</p>
+      <label>Endereço <small>(quando o tipo for Link)</small></label>
+      <input name="url" placeholder="https://..." value="{{ editar.url if editar else '' }}">
+      <label>Ordem</label>
+      <input name="ordem" type="number" value="{{ editar.ordem if editar else 0 }}">
+      <label class="check"><input type="checkbox" name="ativo"
+        {{ 'checked' if (not editar or editar.ativo) }}> Exibir na barra lateral</label>
+      <div class="acoes">
+        <button class="btn btn-principal" type="submit">Salvar</button>
+        {% if editar %}<a class="btn" href="{{ url_for('admin_lateral') }}">Cancelar</a>{% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="painel-caixa">
+    <h2>Itens da barra lateral</h2>
+    <table class="tabela">
+      <thead><tr><th></th><th>Título</th><th>Destaque</th><th>Ordem</th><th>Situação</th><th></th></tr></thead>
+      <tbody data-ordenavel="{{ url_for('admin_lateral') }}" data-csrf="{{ csrf_token }}">
+        {% for i in itens %}
+        <tr data-id="{{ i.id }}">
+          <td class="pega" title="Arraste para reordenar">⠿</td>
+          <td><strong>{{ i.titulo }}</strong></td>
+          <td>{{ {'urgente':'Urgente','comunicado':'Comunicado'}.get(i.urgencia,'Informação') }}</td>
+          <td data-coluna-ordem>{{ i.ordem }}</td>
+          <td>{% if i.ativo %}<span class="tag tag-ok">visível</span>
+              {% else %}<span class="tag">oculto</span>{% endif %}</td>
+          <td class="acoes-linha">
+            <a class="btn btn-sm" href="{{ url_for('admin_lateral', editar=i.id) }}">Editar</a>
+            <form method="post" onsubmit="return confirm('Remover {{ i.titulo }}?')">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <input type="hidden" name="acao" value="excluir">
+              <input type="hidden" name="id" value="{{ i.id }}">
+              <button class="btn btn-sm btn-perigo" type="submit">Excluir</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="vazio">Nenhum item cadastrado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="dica">Arraste as linhas pela alça <span class="pega">⠿</span> para
+      mudar a ordem na coluna da direita — a mudança é salva na hora.</p>
+  </section>
+</div>
+<script src="{{ url_for('static', filename='ordenar.js') }}"></script>
+{% endblock %}

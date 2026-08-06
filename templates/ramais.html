@@ -1,0 +1,42 @@
+{% extends 'shell.html' %}
+{% set pagina = 'ramais' %}
+{% block titulo %}Ramais{% endblock %}
+
+{% block miolo %}
+<main class="pagina">
+  <div class="ramais-caixa">
+    <h1 class="ramais-titulo">Lista de ramais</h1>
+
+    <div class="ramais-busca">
+      <input id="busca-ramal" type="search" autocomplete="off"
+             placeholder="Pesquisar por setor ou ramal..." aria-label="Pesquisar ramal"
+             value="{{ request.args.get('q', '') }}">
+    </div>
+
+    {% if itens %}
+    {#  Colunas no estilo lista telefônica: a leitura desce a coluna e passa
+        para a seguinte, mantendo a ordem alfabética. #}
+    <div class="ramais-colunas" id="lista-ramais">
+      {% for r in itens %}
+      <div class="ramal-item">
+        <span class="ramal-setor">{{ r.setor }}</span>
+        <span class="ramal-numero">{{ r.numeros }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="ramais-vazio" id="sem-resultado" hidden>Nenhum ramal encontrado.</p>
+    <p class="ramais-total"><span id="conta-ramais">{{ itens|length }}</span> ramais</p>
+    {% else %}
+    <p class="ramais-vazio">
+      Nenhum ramal cadastrado ainda.
+      {% if eh_admin %}Use <a href="{{ url_for('admin_ramais') }}">Administração → Ramais</a>
+      para cadastrar ou colar a lista.{% endif %}
+    </p>
+    {% endif %}
+
+    <p class="ramais-voltar"><a href="{{ url_for('index') }}">← Voltar ao início</a></p>
+  </div>
+</main>
+
+<script src="{{ url_for('static', filename='ramais.js') }}"></script>
+{% endblock %}

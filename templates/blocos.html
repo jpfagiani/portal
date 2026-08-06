@@ -1,0 +1,195 @@
+{#  Conteúdo de cada cartão, em macros — o painel usa a versão recortada e a
+    página "ver todos" usa a lista inteira, sem duplicar marcação. #}
+
+{% macro vazio(texto, icone='aplicativo') %}
+  <div class="sem-registro"><span class="sem-ic">{{ ic(icone) }}</span>{{ texto }}</div>
+{% endmacro %}
+
+{#  Comunicado: quadrado colorido com o símbolo, título com o selo do tipo ao
+    lado e a data à direita. #}
+{% macro comunicados(itens) %}
+  {% for c in itens %}
+  {% set u = c.urgencia|default('informacao') %}
+  {% set d = c.destaque|default('nenhum') %}
+  {% set interno %}
+    <span class="com-ic com-{{ u }}">{{ ic({'urgente':'alerta',
+      'comunicado':'megafone'}.get(u, 'calendario')) }}</span>
+    <span class="conteudo">
+      <span class="linha-titulo">
+        <span class="titulo">{{ c.titulo }}</span>
+        <span class="selo selo-{{ u }}">{{ {'urgente':'Urgente',
+          'comunicado':'Aviso'}.get(u, 'Novo') }}</span>
+      </span>
+      {% if c.conteudo %}<p>{{ c.conteudo|linhas }}</p>{% endif %}
+      {% if c.data %}<span class="quando">{{ c.data }}</span>{% endif %}
+    </span>
+  {% endset %}
+  {% if c.tipo == 'link' and c.url %}
+    <a class="comunicado destaque-{{ d }} tom-{{ u }}" href="{{ c.url }}" target="_blank" rel="noopener">{{ interno }}</a>
+  {% else %}
+    <div class="comunicado destaque-{{ d }} tom-{{ u }}">{{ interno }}</div>
+  {% endif %}
+  {% else %}
+  {{ vazio('Nenhum comunicado publicado.', 'megafone') }}
+  {% endfor %}
+{% endmacro %}
+
+{#  Ladrilhos dos sistemas, agrupados por categoria. O ícone vai num quadrado
+    da cor do sistema; sigla e nome ficam ao lado. Sem endereço o quadrado
+    continua na grade, só não é link — um <a href=""> recarregaria a própria
+    página, que parece defeito. #}
+{% macro ladrilho(s) %}
+  {% set interno %}
+    {% if s.simbolo != 'nenhum' %}
+    <span class="ladrilho-ic" style="--cor: {{ s.cor }}">{{ ic(s.simbolo) }}</span>{% endif %}
+    <span class="ladrilho-txt">
+      <b>{{ s.icone or s.titulo[:5]|upper }}</b>
+      <small>{{ s.titulo }}</small>
+    </span>
+  {% endset %}
+  {% set rotulo %}{{ s.titulo }}{% if s.descricao %} — {{ s.descricao }}{% endif %}{% endset %}
+  {% if s.url %}
+  <a class="ladrilho" href="{{ s.url }}" target="_blank" rel="noopener"
+     title="{{ rotulo }}">{{ interno }}</a>
+  {% else %}
+  <span class="ladrilho ladrilho-sem-link"
+        title="{{ rotulo }} — endereço ainda não definido">{{ interno }}</span>
+  {% endif %}
+{% endmacro %}
+
+{#  Recebe [(categoria, [itens])] do agrupar_por_categoria(). #}
+{% macro ladrilhos(grupos, largo=false) %}
+  {% set vazio_de_tudo = grupos|map(attribute=1)|map('length')|sum == 0 %}
+  {% for categoria, itens in grupos %}
+    {% if categoria %}<h3 class="categoria">{{ categoria }}</h3>{% endif %}
+    <div class="ladrilhos{{ ' ladrilhos-largo' if largo }}">
+      {% for s in itens %}{{ ladrilho(s) }}{% endfor %}
+    </div>
+  {% endfor %}
+  {% if vazio_de_tudo %}{{ vazio('Nenhum sistema cadastrado.', 'grade') }}{% endif %}
+{% endmacro %}
+
+{#  Atalhos em pastilhas: quadrado colorido à esquerda, título e descrição ao
+    lado. Sem endereço a pastilha continua na faixa, só não é link. #}
+{% macro atalhos(itens) %}
+  <div class="atalhos">
+    {% for a in itens %}
+    {% set interno %}
+      {% if a.simbolo != 'nenhum' %}
+      <span class="atalho-ic" style="--cor: {{ a.cor }}">{{ ic(a.simbolo) }}</span>{% endif %}
+      <span class="atalho-txt">
+        <b>{{ a.titulo }}</b>
+        {% if a.descricao %}<small>{{ a.descricao }}</small>{% endif %}
+      </span>
+    {% endset %}
+    {% if a.url %}
+    <a class="atalho" href="{{ a.url }}" target="_blank" rel="noopener"
+       title="{{ a.titulo }}">{{ interno }}</a>
+    {% else %}
+    <span class="atalho atalho-sem-link"
+          title="{{ a.titulo }} — endereço ainda não definido">{{ interno }}</span>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% if not itens %}{{ vazio('Nenhum atalho cadastrado.', 'marcador') }}{% endif %}
+{% endmacro %}
+
+{#  Selo com dia e mês à esquerda, nome e cargo ao lado. #}
+{% macro aniversarios(itens) %}
+  {% for a in itens %}
+  <div>
+    <span class="data-selo tom-{{ loop.index0 % 4 }}">
+      <b>{{ '%02d'|format(a.dia) }}</b>
+      <small>{{ meses[a.mes - 1][:3]|upper }}</small>
+    </span>
+    <span><b>{{ a.nome }}</b>
+      {% if a.cargo %}<small>{{ a.cargo }}</small>{% endif %}</span>
+  </div>
+  {% else %}
+  {{ vazio('Nenhum aniversariante em ' ~ mes_atual_nome|lower ~ '.', 'bolo') }}
+  {% endfor %}
+{% endmacro %}
+
+{#  `itens` são as linhas visíveis; `extras` é o resto da lista telefônica,
+    presente na página mas escondido — é o que permite a busca do cartão
+    alcançar quem não está à vista. #}
+{% macro ramais(itens, extras=[]) %}
+  {% for r in itens %}{{ linha_ramal(r) }}{% else %}
+  {{ vazio('Nenhum ramal em destaque.', 'telefone') }}
+  {% endfor %}
+  {% for r in extras %}{{ linha_ramal(r, extra=true) }}{% endfor %}
+  <p class="ramais-nada" hidden>Nenhum ramal encontrado.</p>
+{% endmacro %}
+
+{% macro linha_ramal(r, extra=false) %}
+  <div class="ramal-linha{{ ' ramal-extra' if extra }}" data-setor="{{ r.setor|lower }}"
+       {% if extra %}hidden{% endif %}>
+    <span class="setor">{{ ic('telefone', 'ic-mini') }}<span>{{ r.setor }}</span></span>
+    <span class="numeros">
+      {% for n in r.numeros|partes_numeros %}<b>{{ n }}</b>{% endfor %}
+    </span>
+  </div>
+{% endmacro %}
+
+{% macro escalas(itens) %}
+  {% for e in itens %}
+  <div>
+    <span class="turno turno-{{ loop.index0 % 3 }}">{{ e.turno|sigla_turno }}</span>
+    <span class="dados"><b>{{ e.turno }}</b>
+      {% if e.equipe %}<small>{{ e.equipe }}</small>{% endif %}
+      {% if e.horario %}<small>{{ e.horario }}</small>{% endif %}</span>
+    {% if e.efetivo %}<span class="efetivo">{{ e.efetivo }}</span>{% endif %}
+  </div>
+  {% else %}
+  {{ vazio('Nenhuma escala para hoje.', 'calendario') }}
+  {% endfor %}
+{% endmacro %}
+
+{% macro chamados(itens) %}
+  {% for ch in itens %}
+  <div class="chamado">
+    <span class="linha-selo">
+      <span class="numero">{{ ch.numero }}</span>
+      <span class="situacao s-{{ ch.situacao|default('aberto') }}">{{ ch.situacao }}</span>
+    </span>
+    <b>{{ ch.titulo }}</b>
+    {% if ch.data %}<small>{{ ch.data }}</small>{% endif %}
+  </div>
+  {% else %}
+  {#  Fila zerada é boa notícia, não ausência de conteúdo: verde e com o
+      motivo escrito, em vez do cinza de "nada cadastrado". #}
+  <div class="sem-registro sem-registro-bom">
+    <span class="sem-ic">{{ ic('confere') }}</span>
+    <b>Nenhum chamado aberto</b>
+    <small>Ótimo! Não há chamados pendentes.</small>
+  </div>
+  {% endfor %}
+{% endmacro %}
+
+{#  Sem endereço a reserva continua na lista, só não é link — mesma regra dos
+    atalhos e dos ladrilhos. #}
+{% macro reservas(itens) %}
+  {% for r in itens %}
+  {% set interno %}
+    {% if r.simbolo != 'nenhum' %}
+    <span class="res-ic">{{ ic(r.simbolo) }}</span>{% endif %}
+    <span class="res-txt"><b>{{ r.titulo }}</b>
+      {% if r.descricao %}<small>{{ r.descricao }}</small>{% endif %}</span>
+    {#  Verde quando a situação começa por "dispon" ou "livre" — o caso bom.
+        Os demais em âmbar, que serve tanto para "em uso" quanto para o que a
+        unidade inventar de escrever. #}
+    {% if r.situacao %}
+    {% set bom = r.situacao|lower|trim %}
+    <span class="res-selo {{ 'res-selo-bom' if bom.startswith('dispon') or bom.startswith('livre') }}"
+    >{{ r.situacao }}</span>{% endif %}
+  {% endset %}
+  {% if r.url %}
+  <a class="reserva-item" href="{{ r.url }}" target="_blank" rel="noopener">{{ interno }}</a>
+  {% else %}
+  <span class="reserva-item reserva-sem-link"
+        title="{{ r.titulo }} — endereço ainda não definido">{{ interno }}</span>
+  {% endif %}
+  {% else %}
+  {{ vazio('Nenhuma reserva para hoje.', 'arquivo') }}
+  {% endfor %}
+{% endmacro %}

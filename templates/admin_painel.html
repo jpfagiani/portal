@@ -1,0 +1,155 @@
+{% extends 'admin_base.html' %}
+{% set aba = 'painel' %}
+{% block titulo %}Blocos do painel{% endblock %}
+
+{% set rotulos = {
+  'nome':'Nome', 'ordem':'Ordem',
+  'turno':'Turno', 'equipe':'Equipe', 'horario':'Horário', 'efetivo':'Efetivo',
+  'dia':'Dia', 'mes':'Mês', 'cargo':'Cargo',
+  'icone':'Ícone', 'url':'Endereço'
+} %}
+{% set exemplos = {
+  'nome':'Nome completo',
+  'turno':'Manhã', 'equipe':'Equipe Alfa', 'horario':'06:00 às 14:00',
+  'efetivo':'28 servidores', 'cargo':'Policial Penal',
+  'url':'deixe em branco para a página de módulo'
+} %}
+
+{% block admin %}
+<nav class="abas" style="margin-bottom:1rem">
+  {% for chave, b in blocos.items() %}
+  <a href="{{ url_for('admin_painel', bloco=chave) }}"
+     class="{{ 'ativa' if bloco == chave }}">{{ b.titulo }}</a>
+  {% endfor %}
+</nav>
+
+<div class="painel painel-duplo">
+  <section class="painel-caixa">
+    <h2>{{ 'Editar' if editar else 'Novo' }} — {{ info.titulo }}</h2>
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="bloco" value="{{ bloco }}">
+      <input type="hidden" name="id" value="{{ editar.id if editar else '' }}">
+
+      {% for campo in info.campos %}
+      <label>{{ rotulos.get(campo, campo) }}{% if campo in info.obrigatorios %} *{% endif %}</label>
+      {% if campo == 'mes' %}
+        <select name="mes" {{ 'required' if campo in info.obrigatorios }}>
+          {% for nome in meses %}
+          <option value="{{ loop.index }}"
+            {{ 'selected' if (editar and editar.mes == loop.index)
+                          or (not editar and loop.index == mes_numero) }}>{{ nome }}</option>
+          {% endfor %}
+        </select>
+      {% elif campo == 'icone' %}
+        {% set marcado = (editar.icone if editar else '')|icone_valido %}
+        <div class="escolha-icone">
+          <label class="opcao-icone opcao-icone-nenhum" title="Sem ícone">
+            <input type="radio" name="icone" value="nenhum"
+                   {{ 'checked' if marcado == 'nenhum' }}>
+            <span>Sem ícone</span>
+          </label>
+          {% for nome in icones_proprios %}
+          {% set valor = prefixo_icone ~ nome %}
+          <label class="opcao-icone" title="{{ nome }} (enviado)">
+            <input type="radio" name="icone" value="{{ valor }}"
+                   {{ 'checked' if valor == marcado }}>
+            <span>{{ ic(valor) }}</span>
+          </label>
+          {% endfor %}
+          {% for nome in icones %}
+          <label class="opcao-icone" title="{{ nome }}">
+            <input type="radio" name="icone" value="{{ nome }}"
+                   {{ 'checked' if nome == marcado }}>
+            <span>{{ ic(nome) }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      {% elif campo in ('dia', 'ordem') %}
+        <input name="{{ campo }}" type="number"
+               {% if campo == 'dia' %}min="1" max="31"{% endif %}
+               {{ 'required' if campo in info.obrigatorios }}
+               value="{{ editar[campo] if editar else ('' if campo != 'ordem' else 0) }}">
+      {% else %}
+        <input name="{{ campo }}" {{ 'required' if campo in info.obrigatorios }}
+               {% if campo == 'horario' %}data-mascara="horario"
+               inputmode="numeric" maxlength="16"{% endif %}
+               placeholder="{{ exemplos.get(campo, '') }}"
+               value="{{ editar[campo] if editar else '' }}">
+        {% if campo == 'horario' %}
+        <p class="dica">Digite só os números — <code>06001800</code> vira
+          <code>06:00 às 18:00</code>. Para outro formato (“12x36”, “sob
+          escala”), apague e escreva livremente.</p>
+        {% endif %}
+      {% endif %}
+      {% endfor %}
+
+      <label class="check"><input type="checkbox" name="ativo"
+        {{ 'checked' if (not editar or editar.ativo) }}> Exibir no painel</label>
+      <div class="acoes">
+        <button class="btn btn-principal" type="submit">Salvar</button>
+        {% if editar %}
+        <a class="btn" href="{{ url_for('admin_painel', bloco=bloco) }}">Cancelar</a>{% endif %}
+      </div>
+    </form>
+    <p class="dica">
+      {% if bloco == 'aniversariantes' %}
+        O cartão da página inicial mostra <strong>apenas o mês corrente</strong>
+        ({{ mes_atual_nome|lower }}) — quem tem aniversário em outro mês fica
+        guardado e aparece na época. A lista completa do ano fica em
+        <a href="{{ url_for('lista', chave='aniversariantes') }}" target="_blank"
+           rel="noopener">ver todos</a>.
+      {% elif bloco == 'menu' %}
+        Estes são os itens da barra lateral. Desmarque <em>Exibir</em> para
+        esconder um item que ainda não tem conteúdo. Em <em>Endereço</em>, deixe
+        em branco para o item abrir a página de “módulo em preparação”, ou
+        informe um endereço (interno como <code>/ramais</code> ou externo) para
+        ele levar direto ao destino.
+      {% else %}
+        Este bloco só aparece na página inicial quando tem ao menos um item visível.
+      {% endif %}
+    </p>
+  </section>
+
+  <section class="painel-caixa">
+    <h2>{{ info.titulo }} ({{ itens|length }})</h2>
+    <table class="tabela">
+      <thead><tr>
+        {% if 'ordem' in info.campos %}<th></th>{% endif %}
+        {% for campo in info.campos if campo != 'ordem' %}<th>{{ rotulos.get(campo, campo) }}</th>{% endfor %}
+        <th>Situação</th><th></th>
+      </tr></thead>
+      <tbody {% if 'ordem' in info.campos %}data-ordenavel="{{ url_for('admin_painel') }}"
+             data-csrf="{{ csrf_token }}" data-extra="bloco={{ bloco }}"{% endif %}>
+        {% for i in itens %}
+        <tr data-id="{{ i.id }}">
+          {% if 'ordem' in info.campos %}<td class="pega" title="Arraste para reordenar">⠿</td>{% endif %}
+          {% for campo in info.campos if campo != 'ordem' %}
+          <td>{% if campo == 'mes' %}{{ meses[i.mes - 1] if 1 <= i.mes <= 12 else i.mes }}
+              {% elif campo == 'icone' %}<span class="icone-tabela">{{ ic(i.icone) }}</span>
+              {% elif loop.first %}<strong>{{ i[campo] }}</strong>
+              {% else %}{{ i[campo] }}{% endif %}</td>
+          {% endfor %}
+          <td>{% if i.ativo %}<span class="tag tag-ok">visível</span>
+              {% else %}<span class="tag">oculto</span>{% endif %}</td>
+          <td class="acoes-linha">
+            <a class="btn btn-sm" href="{{ url_for('admin_painel', bloco=bloco, editar=i.id) }}">Editar</a>
+            <form method="post" onsubmit="return confirm('Remover este item?')">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <input type="hidden" name="bloco" value="{{ bloco }}">
+              <input type="hidden" name="acao" value="excluir">
+              <input type="hidden" name="id" value="{{ i.id }}">
+              <button class="btn btn-sm btn-perigo" type="submit">Excluir</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="vazio">Nenhum item cadastrado neste bloco.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+<script src="{{ url_for('static', filename='ordenar.js') }}"></script>
+<script src="{{ url_for('static', filename='mascaras.js') }}"></script>
+{% endblock %}
