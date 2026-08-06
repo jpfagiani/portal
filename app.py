@@ -14,6 +14,7 @@ import os
 import re
 import secrets
 import sqlite3
+import time
 import zipfile
 from datetime import datetime
 from functools import wraps
@@ -29,6 +30,7 @@ DB_PATH    = os.environ.get('INTRANET_DB', os.path.join(BASE_DIR, 'dados.db'))
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 UPLOAD_DIR = os.path.join(STATIC_DIR, 'uploads')
 KEY_FILE   = os.path.join(BASE_DIR, 'secret.key')
+TRAVA_FILE = KEY_FILE + '.lock'
 EXT_OK     = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
 
 # Logo e foto de fundo são arquivos fixos em static/. Basta substituir o
@@ -235,17 +237,53 @@ app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024
 
 
 def _secret_key():
-    """Chave de sessão persistente — sem ela, todo restart desloga os usuários."""
-    if os.path.exists(KEY_FILE):
-        with open(KEY_FILE, 'r') as f:
-            k = f.read().strip()
+    """Chave de sessão persistente — sem ela, todo restart desloga os usuários.
+
+    O gunicorn sobe três workers que importam este módulo ao mesmo tempo. Gerar
+    a chave sem combinar dava a cada um a sua: quem escrevesse por último ficava
+    com o arquivo, mas os outros dois seguiam usando a que geraram na memória.
+    O cookie assinado por um worker era ilegível para os demais, e o login
+    morria em "Sessão expirada" toda vez que o POST caía num worker diferente
+    do que desenhou o formulário.
+
+    Um marcador criado com O_EXCL elege um único processo para gravar: ele
+    escreve e devolve a chave que gravou, e os demais esperam o marcador sumir
+    para reler o arquivo dele. Vale também para a chave vazia, que é como o
+    arquivo fica quando o disco enche — o modo 'w' trunca antes de escrever, e
+    é a escrita que falha.
+    """
+    limite = time.monotonic() + 5
+    while time.monotonic() < limite:
+        try:
+            with open(KEY_FILE, 'r') as f:
+                k = f.read().strip()
             if k:
                 return k
-    k = secrets.token_hex(32)
-    with open(KEY_FILE, 'w') as f:
-        f.write(k)
-    os.chmod(KEY_FILE, 0o600)
-    return k
+        except FileNotFoundError:
+            pass
+
+        # Chave ausente ou vazia. Só um processo pode reparar: os demais
+        # esperariam para sempre por uma chave que cada um sobrescreveria. O
+        # marcador criado com O_EXCL elege esse processo — os outros dormem e
+        # releem o que ele gravou.
+        try:
+            marca = os.open(TRAVA_FILE, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            time.sleep(0.05)
+            continue
+        try:
+            nova = secrets.token_hex(32)
+            fd = os.open(KEY_FILE, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, 'w') as f:
+                f.write(nova)
+            return nova
+        finally:
+            # Solta o marcador mesmo se a escrita falhar (disco cheio), senão a
+            # primeira falha travaria todo boot seguinte.
+            os.close(marca)
+            os.unlink(TRAVA_FILE)
+
+    raise RuntimeError(f'Não foi possível estabelecer a chave de sessão em {KEY_FILE}')
 
 
 app.secret_key = _secret_key()
