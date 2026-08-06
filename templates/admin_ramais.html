@@ -1,8 +1,18 @@
 {% extends 'admin_base.html' %}
+{% import 'campos.html' as campos %}
 {% set aba = 'ramais' %}
 {% block titulo %}Ramais{% endblock %}
 
 {% block admin %}
+<section class="painel-caixa nome-cartao-caixa">
+  {{ campos.nome_cartao(cfg['titulo_' ~ cartao[0]], cartao[1], csrf_token) }}
+  {% if aparencia %}
+  <h2 style="margin-top:1.2rem">Aparência do texto</h2>
+  {{ campos.aparencia_cartao(aparencia[1], cfg, fontes, csrf_token,
+                             aparencia[2], aparencia[3]) }}
+  {% endif %}
+</section>
+
 <div class="painel painel-duplo">
   <section class="painel-caixa">
     <h2>{{ 'Editar ramal' if editar else 'Novo ramal' }}</h2>

@@ -31,7 +31,22 @@
       </span>
       {% if c.conteudo %}
       <p class="{{ 'cortado' if c.conteudo|texto_longo }}">{{ c.conteudo|linhas }}</p>
-    {% endif %}
+      {% endif %}
+      {#  Imagem e video sao conteudo do item, nao decoracao: entram depois do
+          texto, na largura do cartao. O video traz os controles do navegador e
+          nao toca sozinho — som inesperado num portal aberto e invasivo. #}
+      {% if c.imagem %}
+      <img class="com-imagem" loading="lazy" alt="{{ c.titulo }}"
+           src="{{ url_for('static', filename='uploads/' ~ c.imagem) }}">
+      {% endif %}
+      {% if c.video %}
+      <video class="com-video" controls preload="metadata"
+             src="{{ url_for('static', filename='uploads/' ~ c.video) }}"></video>
+      {% endif %}
+      {% if c.url and c.tipo != 'link' %}
+      <a class="com-link" href="{{ c.url }}" target="_blank" rel="noopener"
+        >{{ c.url_rot or 'Abrir' }}</a>
+      {% endif %}
       {% if c.data %}<span class="quando">{{ c.data }}</span>{% endif %}
     </span>
   {% endset %}
@@ -203,4 +218,61 @@
   {% else %}
   {{ vazio('Nenhuma reserva para hoje.', 'arquivo') }}
   {% endfor %}
+{% endmacro %}
+
+
+{#  Cartão livre: a unidade escreve o conteúdo. Ao contrário dos cartões fixos,
+    que sabem desenhar um tipo só de lista, aqui entra título, foto e texto.
+
+    O cartão inteiro é montado neste macro — cabeçalho junto — porque a foto ao
+    fundo precisa envolver as duas partes, e o `cabecalho()` da index desenha só
+    a barra de cima. #}
+{% macro cartao_livre(c) %}
+  {% set estilo %}
+    {%- if c.titulo_cor %}--liv-titulo-cor:{{ c.titulo_cor }};{% endif -%}
+    {%- if c.texto_cor %}--liv-texto-cor:{{ c.texto_cor }};{% endif -%}
+    {%- if c.fundo_cor %}--liv-fundo:{{ c.fundo_cor }};{% endif -%}
+    {%- if c.imagem and c.img_pos == 'fundo' %}--liv-marca:url('{{
+        url_for('static', filename='uploads/' ~ c.imagem) }}');{% endif -%}
+  {% endset %}
+  <section class="cartao cartao-livre img-{{ c.img_pos }}" style="{{ estilo }}"
+           {% if c.largura > 1 %}data-larg="{{ c.largura }}"{% endif %}>
+    <div class="cartao-cab">
+      <span class="cab-ic">{{ ic(c.icone) }}</span>
+      <h2>{{ c.titulo }}</h2>
+    </div>
+    <div class="cartao-corpo livre-corpo">
+      {#  Só as posições "topo" e "lado" viram <img>. Em "fundo" a foto é
+          decoração e sai por CSS, sem alt para leitor de tela anunciar. #}
+      {% if c.imagem and c.img_pos != 'fundo' %}
+      <img class="livre-foto" src="{{ url_for('static', filename='uploads/' ~ c.imagem) }}"
+           alt="{{ c.titulo }}" loading="lazy">
+      {% endif %}
+      {% if c.texto %}<p class="livre-texto">{{ c.texto|linhas }}</p>{% endif %}
+      {% if not c.texto and not c.imagem %}
+      {{ vazio('Cartão sem conteúdo.', c.icone) }}
+      {% endif %}
+      {% if c.url %}
+      <a class="livre-link" href="{{ c.url }}" target="_blank" rel="noopener"
+        >{{ c.url_rot or 'Abrir' }}</a>
+      {% endif %}
+    </div>
+  </section>
+{% endmacro %}
+
+
+{#  Cartao do painel: nome no cabecalho e a lista de itens dentro. Os cinco sao
+    iguais — o que muda e o nome, a posicao e o que a unidade escreve. #}
+{% macro cartao_painel(c, itens) %}
+  <section class="cartao" {% if c.largura > 1 %}data-larg="{{ c.largura }}"{% endif %}>
+    <div class="cartao-cab">
+      <span class="cab-ic">{{ ic(c.icone) }}</span>
+      <h2>{{ c.nome }}</h2>
+      <a class="ver" href="{{ url_for('lista', chave=c.chave) }}"
+         target="_blank" rel="noopener">Ver todos</a>
+    </div>
+    <div class="cartao-corpo comunicados" style="--liv-fonte:var(--{{ c.chave }}-fonte)">
+      {{ comunicados(itens) }}
+    </div>
+  </section>
 {% endmacro %}

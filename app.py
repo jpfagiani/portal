@@ -353,17 +353,102 @@ FONTES_TEXTO = {
 # Títulos dos cartões do painel. Ficam em config para a unidade chamar cada
 # bloco do jeito que fala no dia a dia — "Ramais mais utilizados" pode ser
 # "Telefones úteis" sem ninguém mexer em template.
+# Cartões cujo nome é uma configuração. Os cinco cartões do painel saíram
+# daqui: o nome deles é do próprio cartão, guardado em `cartoes_painel.nome`.
 TITULOS_CARTAO = [
-    ('comunicados',     'Comunicados importantes'),
-    ('sistemas',        'Acesso rápido aos sistemas'),
-    ('aniversariantes', 'Aniversariantes do mês'),
-    ('atalhos',         'Atalhos úteis'),
-    ('ramais',          'Ramais mais utilizados'),
-    ('escalas',         'Escalas de hoje'),
-    ('chamados',        'Chamados de TI'),
-    ('reservas',        'Reservas rápidas'),
+    ('sistemas', 'Acesso rápido aos sistemas'),
+    ('atalhos',  'Atalhos úteis'),
+    ('ramais',   'Ramais mais utilizados'),
 ]
 PADROES.update({f'titulo_{chave}': texto for chave, texto in TITULOS_CARTAO})
+
+# Aparência de cada cartão: fonte, tamanho e cor do título e do texto. Editada
+# na tela do próprio cartão; Aparência fica com o que vale para o portal todo.
+#
+# O prefixo nomeia as variáveis CSS emitidas em base.html. Os padrões são
+# exatamente o que a folha já desenhava antes de existir o controle — ligar o
+# ajuste não muda nada de lugar; só passa a ser possível mexer.
+#
+# 'com' é o prefixo dos comunicados desde antes; mantido para não perder o que
+# já está gravado nas instalações em uso.
+# Os cinco cartões do painel, na posição que os blocos antigos ocupavam. O
+# nome é genérico de propósito: o cartão não é mais "de escala" nem "de
+# aniversário", serve para o que a unidade quiser pôr dentro.
+CARTOES_SEMENTE = [
+    # A ordem é global, não por região: ela ordena as abas da administração e,
+    # dentro de cada região, a posição no painel. Numerar por região faria os
+    # valores colidirem e as abas sairiam fora de sequência.
+    ('cartao1', 'Cartão 1', 'megafone',   'topo',  0),
+    ('cartao2', 'Cartão 2', 'bolo',       'topo',  1),
+    ('cartao3', 'Cartão 3', 'calendario', 'baixo', 2),
+    ('cartao4', 'Cartão 4', 'fone',       'baixo', 3),
+    ('cartao5', 'Cartão 5', 'arquivo',    'baixo', 4),
+]
+
+CARTAO_APARENCIA = {
+    #                prefixo       título          texto
+    # Os cinco cartões do painel nascem iguais — nada mais os distingue.
+    **{c: (c, '0.83', '#1e293b', '0.74', '#7c8ba1')
+       for c, *_ in CARTOES_SEMENTE},
+    'sistemas':      ('sistemas', '0.80', '#1e293b', '0.67', '#7c8ba1'),
+    'atalhos':       ('atalhos',  '0.80', '#1e293b', '0.67', '#7c8ba1'),
+    # Medidas do cartão do painel, que é do que a tela de Ramais fala. A página
+    # "ver todos" é outra coisa — três colunas de lista — e tem medida própria.
+    'ramais':        ('ramais',   '0.74', '#1e293b', '0.78', '#1e293b'),
+}
+PADROES.update({
+    chave: valor
+    for pref, t_tam, t_cor, x_tam, x_cor in CARTAO_APARENCIA.values()
+    for chave, valor in ((f'{pref}_fonte', 'padrao'),
+                         (f'{pref}_titulo_tam', t_tam), (f'{pref}_titulo_cor', t_cor),
+                         (f'{pref}_texto_tam', x_tam),  (f'{pref}_texto_cor', x_cor))
+    if chave not in PADROES})
+
+
+# "Título" e "texto" apontam para coisas diferentes em cada cartão. Dito na
+# tela, ninguém precisa mexer para descobrir o que vai mudar.
+CARTAO_PARTES = {
+    **{c: ('o título de cada item', 'o texto embaixo dele')
+       for c, *_ in CARTOES_SEMENTE},
+    'sistemas': ('a sigla do botão', 'o nome embaixo dela'),
+    'atalhos':  ('o nome do atalho', 'a descrição embaixo dele'),
+    'ramais':   ('o nome do setor',  'o número do ramal'),
+}
+
+
+def campos_aparencia(chave):
+    """(campo, faixa) de cada ajuste do cartão. Faixa só para tamanho."""
+    pref = CARTAO_APARENCIA[chave][0]
+    return ((f'{pref}_fonte', None),
+            (f'{pref}_titulo_tam', (0.6, 2.0)), (f'{pref}_titulo_cor', None),
+            (f'{pref}_texto_tam', (0.5, 2.0)),  (f'{pref}_texto_cor', None))
+
+
+def dados_aparencia_cartao(chave):
+    """(chave, prefixo, o que é título, o que é texto) para a tela desenhar o
+    formulário. Cartão inexistente — o menu lateral — devolve None."""
+    if chave not in CARTAO_APARENCIA:
+        return None
+    return (chave, CARTAO_APARENCIA[chave][0]) + CARTAO_PARTES[chave]
+
+# Cartões livres: a unidade cria os seus, com título, foto e texto próprios.
+# A posição é por encaixe na grade que já existe, não solta em pixels — o
+# portal é aberto para telas de tamanhos muito diferentes, e posição livre
+# viraria texto por cima de foto no primeiro notebook de tela menor.
+CARTAO_REGIOES = {
+    'topo':  'Fileira de cima (ao lado de sistemas e comunicados)',
+    'meio':  'Faixa do meio (largura inteira)',
+    'baixo': 'Fileira de baixo (ao lado de ramais e escalas)',
+}
+# Onde a foto entra no cartão.
+CARTAO_IMG_POS = {
+    'topo':  'Acima do texto, largura inteira',
+    'lado':  'À esquerda, com o texto ao lado',
+    'fundo': 'Ao fundo, esmaecida atrás do texto',
+}
+# Quantas colunas o cartão ocupa. Mais que 3 não faz sentido: a fileira de
+# cima tem três colunas, e a de baixo encolhe sozinha conforme a tela.
+CARTAO_LARGURAS = {1: '1 coluna', 2: '2 colunas', 3: '3 colunas'}
 
 # Valores que entram numa folha de estilo não podem vir crus do formulário:
 # um ponto-e-vírgula no meio já emenda outra regra.
@@ -503,6 +588,38 @@ CREATE TABLE IF NOT EXISTS menu_itens (
     ordem INTEGER NOT NULL DEFAULT 0,
     ativo INTEGER NOT NULL DEFAULT 1
 );
+-- Os cartões da página inicial. Deixaram de ser cinco blocos especializados
+-- (escala, aniversário, chamado…) e passaram a ser cartões iguais entre si: o
+-- que muda de um para outro é o nome, a posição e o que se escreve dentro.
+-- A chave é fixa (cartao1..cartao5) porque nomeia as configurações de
+-- aparência; o nome visível fica em `nome` e pode ser trocado à vontade.
+CREATE TABLE IF NOT EXISTS cartoes_painel (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    chave   TEXT UNIQUE NOT NULL,
+    nome    TEXT NOT NULL,
+    icone   TEXT DEFAULT 'prancheta',
+    regiao  TEXT DEFAULT 'baixo',       -- topo | meio | baixo
+    largura INTEGER NOT NULL DEFAULT 1,
+    ordem   INTEGER NOT NULL DEFAULT 0,
+    ativo   INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS cartoes (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    titulo  TEXT NOT NULL,
+    icone   TEXT DEFAULT 'prancheta',
+    texto   TEXT DEFAULT '',
+    imagem  TEXT DEFAULT '',            -- arquivo em static/uploads
+    img_pos TEXT DEFAULT 'topo',        -- topo | fundo | lado
+    url     TEXT DEFAULT '',
+    url_rot TEXT DEFAULT '',            -- rótulo do link no rodapé do cartão
+    regiao  TEXT DEFAULT 'baixo',       -- topo | meio | baixo
+    largura INTEGER NOT NULL DEFAULT 1, -- quantas colunas o cartão ocupa
+    titulo_cor TEXT DEFAULT '',
+    texto_cor  TEXT DEFAULT '',
+    fundo_cor  TEXT DEFAULT '',
+    ordem   INTEGER NOT NULL DEFAULT 0,
+    ativo   INTEGER NOT NULL DEFAULT 1
+);
 CREATE TABLE IF NOT EXISTS config (
     chave TEXT PRIMARY KEY,
     valor TEXT NOT NULL
@@ -582,6 +699,60 @@ def _fecha_db(exc):
         con.close()
 
 
+
+
+def _semear_cartoes(con):
+    """Cria os cinco cartões e adota o conteúdo dos blocos antigos.
+
+    Roda uma vez só, marcada em `config`. Os blocos especializados guardavam
+    cada um as suas colunas (turno/equipe, dia/mês, número/situação); aqui elas
+    viram título e texto, que é o que o cartão genérico sabe mostrar. As
+    tabelas de origem ficam de pé, intocadas: se algo se perder na tradução, o
+    dado original continua lá para ser conferido.
+    """
+    if con.execute("SELECT 1 FROM config WHERE chave='cartoes_migrados'").fetchone():
+        return
+    for chave, nome, icone, regiao, ordem in CARTOES_SEMENTE:
+        con.execute('INSERT OR IGNORE INTO cartoes_painel'
+                    ' (chave,nome,icone,regiao,ordem,ativo) VALUES (?,?,?,?,?,1)',
+                    (chave, nome, icone, regiao, ordem))
+
+    # Comunicados já eram itens de texto livre: só ganham dono.
+    con.execute("UPDATE lateral SET cartao='cartao1' WHERE cartao=''")
+
+    def adotar(consulta, destino, monta):
+        try:
+            linhas = con.execute(consulta).fetchall()
+        except sqlite3.OperationalError:
+            return          # tabela não existe nesta instalação
+        for i, r in enumerate(linhas):
+            titulo, corpo = monta(r)
+            if not titulo:
+                continue
+            con.execute(
+                'INSERT INTO lateral (tipo,titulo,conteudo,url,ordem,ativo,'
+                'urgencia,destaque,data,cartao)'
+                " VALUES ('aviso',?,?,'',?,?,'informacao','nenhum','',?)",
+                (titulo, corpo, i, r['ativo'] if 'ativo' in r.keys() else 1, destino))
+
+    con.row_factory = sqlite3.Row
+    adotar('SELECT * FROM aniversariantes ORDER BY mes, dia', 'cartao2',
+           lambda r: (r['nome'], '\n'.join(filter(None, [
+               f"{r['dia']:02d}/{r['mes']:02d}", r['cargo']]))))
+    adotar('SELECT * FROM escalas ORDER BY ordem, id', 'cartao3',
+           lambda r: (r['turno'], '\n'.join(filter(None, [
+               r['equipe'], r['horario'], r['efetivo']]))))
+    adotar('SELECT * FROM chamados ORDER BY ordem, id', 'cartao4',
+           lambda r: (r['titulo'], '\n'.join(filter(None, [
+               r['numero'], r['situacao'], r['data']]))))
+    adotar("SELECT * FROM links WHERE grupo='reserva' ORDER BY ordem, id", 'cartao5',
+           lambda r: (r['titulo'], '\n'.join(filter(None, [
+               r['descricao'], r['situacao']]))))
+    con.row_factory = None
+
+    con.execute("INSERT INTO config (chave,valor) VALUES ('cartoes_migrados','1')")
+
+
 def init_db():
     """Cria o banco e o conteúdo inicial.
 
@@ -615,12 +786,37 @@ def init_db():
             ('lateral',  'texto_tam',  "TEXT DEFAULT ''"),
             ('lateral',  'texto_cor',  "TEXT DEFAULT ''"),
             ('lateral',  'fundo_cor',  "TEXT DEFAULT ''"),
+            # A qual cartão o item pertence. Vazio nas instalações antigas, em
+            # que `lateral` era um bloco só — a migração abaixo os adota.
+            ('lateral',  'cartao',  "TEXT DEFAULT ''"),
+            # Conteúdo que o item pode carregar além do texto.
+            ('lateral',  'imagem',  "TEXT DEFAULT ''"),
+            ('lateral',  'video',   "TEXT DEFAULT ''"),
+            ('lateral',  'url_rot', "TEXT DEFAULT ''"),
             ('lateral',  'data',     "TEXT DEFAULT ''"),
             ('ramais',   'destaque', 'INTEGER NOT NULL DEFAULT 0'),
             ('usuarios', 'ultimo_acesso', "TEXT DEFAULT ''")):
         existentes = {c[1] for c in con.execute(f'PRAGMA table_info({tabela})')}
         if coluna not in existentes:
             con.execute(f'ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}')
+
+    _semear_cartoes(con)
+
+    # O texto dos botões era um ajuste só, valendo para sistemas e atalhos ao
+    # mesmo tempo. Agora cada cartão tem o seu. Quem tinha personalizado herda o
+    # valor nos dois — sem isto a mudança apagaria a escolha em silêncio.
+    guardadas = {r[0]: r[1] for r in con.execute('SELECT chave, valor FROM config')}
+    for antiga, sufixo in (('botao_sigla_tam', 'titulo_tam'),
+                           ('botao_sigla_cor', 'titulo_cor'),
+                           ('botao_nome_tam',  'texto_tam'),
+                           ('botao_nome_cor',  'texto_cor')):
+        if antiga not in guardadas:
+            continue
+        for pref in ('sistemas', 'atalhos'):
+            nova = f'{pref}_{sufixo}'
+            if nova not in guardadas:
+                con.execute('INSERT INTO config (chave,valor) VALUES (?,?)',
+                            (nova, guardadas[antiga]))
 
     # A chefia de plantão saiu do portal. A tabela some só se estiver vazia:
     # numa instalação que chegou a preencher, apagar seria destruir dado sem
@@ -727,11 +923,40 @@ MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
 # Quantos itens cada cartão do painel mostra. O que passar disso fica na
 # página "ver todos" — assim os cartões mantêm altura parecida e a página não
 # cresce sem controle conforme os blocos vão sendo preenchidos.
+# Abas da seção "Sistemas e atalhos". Reservas saíram daqui: o conteúdo delas
+# é editado junto com os demais cartões, em "Blocos do painel".
 GRUPOS_LINK = {
     'sistema': 'Acesso rápido aos sistemas',
     'atalho':  'Atalhos úteis',
-    'reserva': 'Reservas rápidas',
 }
+
+
+def nome_do_bloco(chave, padrao):
+    """Como o bloco se chama hoje, na língua da unidade.
+
+    A aba mostra o nome que foi dado ao cartão, não o rótulo de fábrica: quem
+    renomeou "Aniversariantes" para "Datas importantes" acha a aba com esse
+    nome. O que a aba *faz* continua o mesmo — os campos e o desenho de cada
+    bloco são próprios dele. Bloco sem cartão (o menu lateral) usa o padrão.
+    """
+    return cfg(f'titulo_{chave}') if chave in dict(TITULOS_CARTAO) else padrao
+
+
+def abas_links(atual):
+    """Barra de abas da seção "Sistemas e atalhos": (rótulo, endereço, ativa).
+
+    O menu lateral mora noutra tabela e é editado pelo motor de blocos, mas
+    para quem usa é a mesma seção. Montando a barra num lugar só, as duas telas
+    mostram as mesmas abas e o menu deixa de estar em dois lugares ao mesmo
+    tempo — antes ele aparecia em "Blocos do painel", onde ninguém procurava.
+    """
+    plural = {'sistema': 'sistemas', 'atalho': 'atalhos'}
+    itens = [(chave, nome_do_bloco(plural[chave], rotulo),
+              url_for('admin_links', grupo=chave))
+             for chave, rotulo in GRUPOS_LINK.items()]
+    itens.append(('menu', BLOCOS['menu']['titulo'],
+                  url_for('admin_painel', bloco='menu')))
+    return [(rotulo, href, chave == atual) for chave, rotulo, href in itens]
 
 LIMITES = {
     'comunicados': 4, 'sistemas': 16, 'atalhos': 8,
@@ -741,6 +966,11 @@ LIMITES = {
 
 # De onde cada bloco lê os itens na página "ver todos".
 FONTES = {
+    # Os cinco cartões do painel: mesma consulta, filtrada pelo cartão.
+    **{c: ('lateral',
+           "SELECT * FROM lateral WHERE ativo=1 AND cartao='" + c + "'"
+           ' ORDER BY ordem, id', n, 'comunicados')
+       for c, n, *_ in CARTOES_SEMENTE},
     'comunicados':     ('lateral', 'SELECT * FROM lateral WHERE ativo=1 ORDER BY ordem, id',
                         'Comunicados importantes', 'comunicados'),
     'atalhos':         ('links', "SELECT * FROM links WHERE ativo=1 AND grupo='atalho'"
@@ -846,6 +1076,12 @@ def _injeta():
             # assim só entra no <style> um valor da lista fechada.
             'fonte_comunicado': FONTES_TEXTO.get(
                 cfg('com_fonte'), FONTES_TEXTO['padrao'])[1],
+            # Uma pilha de fontes por cartão, já resolvida: o template não deve
+            # escolher família, e assim só entra no <style> valor da lista.
+            'aparencia_cartoes': [
+                (pref, FONTES_TEXTO.get(cfg(f'{pref}_fonte'),
+                                        FONTES_TEXTO['padrao'])[1])
+                for pref, *_ in CARTAO_APARENCIA.values()],
             'icones_proprios': icones_enviados(), 'prefixo_icone': ICONE_ARQ,
             'aviso_chamados': aviso_chamados,
             'aviso_comunicados': aviso_comunicados,
@@ -1042,6 +1278,10 @@ def index():
     def quantos(consulta):
         return con.execute(consulta).fetchone()[0]
 
+    def quantos_cartao(conexao, chave):
+        return conexao.execute('SELECT COUNT(*) FROM lateral'
+                               ' WHERE ativo=1 AND cartao=?', (chave,)).fetchone()[0]
+
     # A faixa de indicadores do layout tem cinco cartões. Estes são os cinco
     # números que a unidade realmente tem no banco — contador de módulo que
     # ainda não existe seria enfeite, e enfeite com cara de dado engana quem lê.
@@ -1051,13 +1291,15 @@ def index():
         (quantos('SELECT COUNT(*) FROM ramais WHERE ativo=1'),
          'Ramais', 'Cadastrados', 'telefone', 'verde'),
         (quantos('SELECT COUNT(*) FROM lateral WHERE ativo=1'),
-         'Comunicados', 'Publicados', 'megafone', 'laranja'),
-        (quantos('SELECT COUNT(*) FROM escalas WHERE ativo=1'),
-         'Escalas de hoje', 'Ativas', 'calendario', 'roxo'),
-        (quantos("SELECT COUNT(*) FROM chamados WHERE ativo=1"
-                 " AND situacao<>'concluido'"),
-         'Chamados de TI', 'Abertos', 'fone', 'vermelho'),
+         'Itens', 'Publicados', 'megafone', 'laranja'),
     ]
+    # Os dois ultimos indicadores acompanham os dois primeiros cartoes: com
+    # cartoes genericos nao ha mais "escala" nem "chamado" para contar, e
+    # numero com rotulo fixo sobre conteudo livre enganaria quem le.
+    for c, tom, icone in zip(cartoes_do_painel(so_ativos=True)[:2],
+                             ('roxo', 'vermelho'), ('calendario', 'fone')):
+        numeros.append((quantos_cartao(con, c['chave']), c['nome'],
+                        'Itens visíveis', icone, tom))
 
     sistemas_todos = con.execute(
         "SELECT * FROM links WHERE ativo=1 AND grupo='sistema'"
@@ -1069,8 +1311,27 @@ def index():
     destaques = ramais_do_painel(con)
     em_destaque = {r['id'] for r in destaques}
 
+    # Agrupados por região aqui, e não no template: assim o Jinja só percorre a
+    # lista da região que está desenhando, em vez de filtrar a lista inteira
+    # três vezes. Região desconhecida (banco antigo, valor editado à mão) cai
+    # em "baixo" — some do lugar certo é melhor que sumir da página.
+    # Os cinco cartoes do painel e os itens de cada um, agrupados por regiao.
+    itens_por_cartao = {}
+    for r in con.execute('SELECT * FROM lateral WHERE ativo=1 ORDER BY ordem, id'):
+        itens_por_cartao.setdefault(r['cartao'], []).append(r)
+    cartoes_painel = {chave: [] for chave in CARTAO_REGIOES}
+    for c in cartoes_do_painel(so_ativos=True):
+        regiao = c['regiao'] if c['regiao'] in CARTAO_REGIOES else 'baixo'
+        cartoes_painel[regiao].append((c, itens_por_cartao.get(c['chave'], [])))
+
+    cartoes_livres = {chave: [] for chave in CARTAO_REGIOES}
+    for c in con.execute('SELECT * FROM cartoes WHERE ativo=1 ORDER BY ordem, id'):
+        cartoes_livres.setdefault(
+            c['regiao'] if c['regiao'] in CARTAO_REGIOES else 'baixo', []).append(c)
+
     return render_template(
         'index.html', numeros=numeros, saudacao=saudacao(),
+        cartoes_livres=cartoes_livres, cartoes_painel=cartoes_painel,
         # O corte vem antes do agrupamento: fatiar a lista já agrupada cortaria
         # categorias inteiras, não itens, e o limite deixaria de existir.
         sistemas=agrupar_por_categoria(sistemas_todos[:LIMITES['sistemas']]),
@@ -1101,14 +1362,21 @@ def index():
 
 # ── administração ──────────────────────────────────────────────────────────────
 
-def salva_upload(campo, atual=''):
+# Formatos de video que o navegador toca sozinho, sem plugin nem player
+# externo — o portal e de rede interna e nao carrega nada de fora.
+VIDEO_EXTS = {'.mp4', '.webm', '.ogg', '.ogv'}
+
+
+def salva_upload(campo, atual='', exts=None):
     """Grava um arquivo enviado e devolve o nome final (ou o atual, se nada veio)."""
     arq = request.files.get(campo)
     if not arq or not arq.filename:
         return atual
     ext = os.path.splitext(arq.filename)[1].lower()
-    if ext not in EXT_OK:
-        raise ValueError('Formato não aceito. Use PNG, JPG, WEBP ou GIF.')
+    if ext not in (exts or EXT_OK):
+        raise ValueError('Formato de vídeo não aceito. Use MP4, WEBM ou OGG.'
+                         if exts else
+                         'Formato não aceito. Use PNG, JPG, WEBP ou GIF.')
     nome = f"{secrets.token_hex(8)}{ext}"
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     arq.save(os.path.join(UPLOAD_DIR, nome))
@@ -1198,6 +1466,19 @@ def admin_links():
     if request.method == 'POST':
         acao = request.form.get('acao')
         ident = _int(request.form.get('id'))
+        if acao == 'titulo_cartao':
+            # 'sistema'/'atalho' são os grupos; os cartões chamam-se no plural.
+            grupo = request.form.get('grupo', 'sistema')
+            if grupo in GRUPOS_LINK:
+                salvar_titulo_cartao({'sistema': 'sistemas',
+                                      'atalho': 'atalhos'}[grupo])
+            return redirect(url_for('admin_links', grupo=grupo))
+        if acao == 'aparencia_cartao':
+            grupo = request.form.get('grupo', 'sistema')
+            if grupo in GRUPOS_LINK:
+                salvar_aparencia_cartao({'sistema': 'sistemas',
+                                         'atalho': 'atalhos'}[grupo])
+            return redirect(url_for('admin_links', grupo=grupo))
         if acao == 'ordenar':
             return reordenar('links')
         if acao == 'importar':
@@ -1270,6 +1551,14 @@ def admin_links():
         grupo = 'sistema'
     return render_template(
         'admin_links.html', editar=editar, grupo=grupo, grupos=GRUPOS_LINK,
+        abas=abas_links(grupo),
+        cartao=dados_titulo_cartao({'sistema': 'sistemas',
+                                    'atalho': 'atalhos'}[grupo]),
+        nome_bloco=nome_do_bloco({'sistema': 'sistemas',
+                                  'atalho': 'atalhos'}[grupo], GRUPOS_LINK[grupo]),
+        aparencia=dados_aparencia_cartao({'sistema': 'sistemas',
+                                          'atalho': 'atalhos'}[grupo]),
+        fontes=FONTES_TEXTO,
         # Alimenta o datalist do campo Categoria: reaproveitar o que já existe
         # evita "Segurança" e "Seguranca" virarem dois grupos.
         categorias=[r['categoria'] for r in con.execute(
@@ -1354,14 +1643,53 @@ def admin_lateral():
     if request.method == 'POST':
         acao = request.form.get('acao')
         ident = _int(request.form.get('id'))
+        # Qual dos cinco cartoes esta sendo editado. Vem do formulario no POST
+        # e da URL no GET; chave desconhecida cai no primeiro.
+        chave = request.form.get('cartao') or ''
+        if not cartao_por_chave(chave):
+            chave = CARTOES_SEMENTE[0][0]
+        volta = url_for('admin_lateral', cartao=chave)
+
+        if acao == 'titulo_cartao':
+            salvar_nome_cartao_painel(chave)
+            return redirect(volta)
+        if acao == 'aparencia_cartao':
+            salvar_aparencia_cartao(chave)
+            return redirect(volta)
         if acao == 'ordenar':
             return reordenar('lateral')
         if acao == 'excluir':
+            linha = con.execute('SELECT imagem, video FROM lateral WHERE id=?',
+                                (ident,)).fetchone()
+            # Arquivos enviados saem junto: item apagado deixaria orfao em
+            # uploads/, ocupando espaco sem nada apontando para ele.
+            if linha:
+                remove_upload(linha['imagem'])
+                remove_upload(linha['video'])
             con.execute('DELETE FROM lateral WHERE id=?', (ident,))
             flash('Item removido.', 'ok')
         else:
             urg  = request.form.get('urgencia', 'informacao')
             dest = request.form.get('destaque', 'nenhum')
+            atuais = con.execute('SELECT imagem, video FROM lateral WHERE id=?',
+                                 (ident,)).fetchone() if ident else None
+            try:
+                imagem = salva_upload('imagem', atuais['imagem'] if atuais else '')
+                video = salva_upload('video', atuais['video'] if atuais else '',
+                                     VIDEO_EXTS)
+            except ValueError as e:
+                flash(str(e), 'erro')
+                return redirect(volta)
+            for campo, novo, antigo in (('imagem', imagem, atuais['imagem'] if atuais else ''),
+                                        ('video', video, atuais['video'] if atuais else '')):
+                if novo != antigo:
+                    remove_upload(antigo)
+                if request.form.get('remover_' + campo):
+                    remove_upload(novo)
+                    if campo == 'imagem':
+                        imagem = ''
+                    else:
+                        video = ''
             dados = (request.form.get('tipo', 'aviso'),
                      request.form.get('titulo', '').strip(),
                      # strip() inteiro comeria a indentacao da primeira linha:
@@ -1381,32 +1709,132 @@ def admin_lateral():
                      if request.form.get('texto_tam', '').strip() else '',
                      cor_hexa(request.form.get('texto_cor'), ''),
                      cor_hexa(request.form.get('fundo_cor'), ''),
-                     request.form.get('data', '').strip())
+                     request.form.get('data', '').strip(),
+                     imagem, video,
+                     request.form.get('url_rot', '').strip(),
+                     chave)
             if not dados[1]:
                 flash('O título é obrigatório.', 'erro')
             elif ident:
                 con.execute('UPDATE lateral SET tipo=?,titulo=?,conteudo=?,url=?,'
                             'ordem=?,ativo=?,urgencia=?,destaque=?,titulo_tam=?,'
                             'titulo_cor=?,texto_tam=?,texto_cor=?,fundo_cor=?,'
-                            'data=? WHERE id=?', dados + (ident,))
+                            'data=?,imagem=?,video=?,url_rot=?,cartao=?'
+                            ' WHERE id=?', dados + (ident,))
                 flash('Item atualizado.', 'ok')
             else:
                 con.execute('INSERT INTO lateral (tipo,titulo,conteudo,url,ordem,'
                             'ativo,urgencia,destaque,titulo_tam,titulo_cor,'
-                            'texto_tam,texto_cor,fundo_cor,data)'
-                            ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', dados)
+                            'texto_tam,texto_cor,fundo_cor,data,imagem,video,'
+                            'url_rot,cartao)'
+                            ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', dados)
                 flash('Item adicionado.', 'ok')
         con.commit()
-        return redirect(url_for('admin_lateral'))
+        return redirect(volta)
 
+    chave = request.args.get('cartao') or ''
+    if not cartao_por_chave(chave):
+        chave = CARTOES_SEMENTE[0][0]
     editar = None
     if request.args.get('editar'):
-        editar = con.execute('SELECT * FROM lateral WHERE id=?',
-                             (_int(request.args['editar']),)).fetchone()
+        editar = con.execute('SELECT * FROM lateral WHERE id=? AND cartao=?',
+                             (_int(request.args['editar']), chave)).fetchone()
     return render_template(
         'admin_lateral.html', editar=editar, destaques=DESTAQUES_COMUNICADO,
         paleta=PALETA, paleta_fundo=PALETA_FUNDO,
-        itens=con.execute('SELECT * FROM lateral ORDER BY ordem, id').fetchall())
+        abas=abas_painel(chave), fontes=FONTES_TEXTO,
+        cartao_atual=cartao_por_chave(chave),
+        aparencia=dados_aparencia_cartao(chave),
+        itens=con.execute('SELECT * FROM lateral WHERE cartao=?'
+                          ' ORDER BY ordem, id', (chave,)).fetchall())
+
+
+@app.route('/admin/cartoes', methods=['GET', 'POST'])
+@admin_obrigatorio
+def admin_cartoes():
+    """Cartões livres do painel: título, foto e texto que a unidade escreve.
+
+    Os cartões fixos (ramais, escalas, chamados) sabem desenhar um tipo só de
+    lista. Este aqui não tem conteúdo próprio — mostra o que for escrito —, e é
+    por ele que se põe recado, foto de evento ou instrução no painel sem mexer
+    em template.
+    """
+    con = db()
+    if request.method == 'POST':
+        acao = request.form.get('acao')
+        ident = _int(request.form.get('id'))
+        if acao == 'ordenar':
+            return reordenar('cartoes')
+        if acao == 'excluir':
+            row = con.execute('SELECT imagem FROM cartoes WHERE id=?',
+                              (ident,)).fetchone()
+            # A foto sai junto: cartão excluído deixaria o arquivo órfão em
+            # uploads/, ocupando espaço sem nada apontando para ele.
+            if row:
+                remove_upload(row['imagem'])
+            con.execute('DELETE FROM cartoes WHERE id=?', (ident,))
+            flash('Cartão removido.', 'ok')
+        else:
+            atual = ''
+            if ident:
+                row = con.execute('SELECT imagem FROM cartoes WHERE id=?',
+                                  (ident,)).fetchone()
+                atual = row['imagem'] if row else ''
+            try:
+                imagem = salva_upload('imagem', atual)
+            except ValueError as e:
+                flash(str(e), 'erro')
+                return redirect(url_for('admin_cartoes'))
+            # Trocar a foto apaga a anterior, pelo mesmo motivo do excluir.
+            if imagem != atual:
+                remove_upload(atual)
+            if request.form.get('remover_imagem'):
+                remove_upload(imagem)
+                imagem = ''
+
+            regiao = request.form.get('regiao', 'baixo')
+            img_pos = request.form.get('img_pos', 'topo')
+            largura = _int(request.form.get('largura'), 1)
+            dados = (request.form.get('titulo', '').strip(),
+                     nome_icone(request.form.get('icone', '')),
+                     request.form.get('texto', '').strip(),
+                     imagem,
+                     img_pos if img_pos in CARTAO_IMG_POS else 'topo',
+                     request.form.get('url', '').strip(),
+                     request.form.get('url_rot', '').strip(),
+                     regiao if regiao in CARTAO_REGIOES else 'baixo',
+                     largura if largura in CARTAO_LARGURAS else 1,
+                     cor_hexa(request.form.get('titulo_cor'), ''),
+                     cor_hexa(request.form.get('texto_cor'), ''),
+                     cor_hexa(request.form.get('fundo_cor'), ''),
+                     _int(request.form.get('ordem')),
+                     1 if request.form.get('ativo') else 0)
+            if not dados[0]:
+                flash('O título é obrigatório.', 'erro')
+            elif ident:
+                con.execute('UPDATE cartoes SET titulo=?,icone=?,texto=?,imagem=?,'
+                            'img_pos=?,url=?,url_rot=?,regiao=?,largura=?,'
+                            'titulo_cor=?,texto_cor=?,fundo_cor=?,ordem=?,ativo=?'
+                            ' WHERE id=?', dados + (ident,))
+                flash('Cartão atualizado.', 'ok')
+            else:
+                con.execute('INSERT INTO cartoes (titulo,icone,texto,imagem,'
+                            'img_pos,url,url_rot,regiao,largura,titulo_cor,'
+                            'texto_cor,fundo_cor,ordem,ativo)'
+                            ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', dados)
+                flash('Cartão adicionado.', 'ok')
+        con.commit()
+        return redirect(url_for('admin_cartoes'))
+
+    editar = None
+    if request.args.get('editar'):
+        editar = con.execute('SELECT * FROM cartoes WHERE id=?',
+                             (_int(request.args['editar']),)).fetchone()
+    return render_template(
+        'admin_cartoes.html', editar=editar, regioes=CARTAO_REGIOES,
+        img_pos=CARTAO_IMG_POS, larguras=CARTAO_LARGURAS,
+        paleta=PALETA, paleta_fundo=PALETA_FUNDO,
+        itens=con.execute('SELECT * FROM cartoes ORDER BY ordem, id').fetchall())
 
 
 @app.route('/admin/ramais', methods=['GET', 'POST'])
@@ -1416,6 +1844,14 @@ def admin_ramais():
     if request.method == 'POST':
         acao = request.form.get('acao')
         ident = _int(request.form.get('id'))
+
+        if acao == 'titulo_cartao':
+            salvar_titulo_cartao('ramais')
+            return redirect(url_for('admin_ramais'))
+
+        if acao == 'aparencia_cartao':
+            salvar_aparencia_cartao('ramais')
+            return redirect(url_for('admin_ramais'))
 
         if acao == 'excluir':
             con.execute('DELETE FROM ramais WHERE id=?', (ident,))
@@ -1457,6 +1893,8 @@ def admin_ramais():
                              (_int(request.args['editar']),)).fetchone()
     return render_template(
         'admin_ramais.html', editar=editar,
+        cartao=dados_titulo_cartao('ramais'),
+        aparencia=dados_aparencia_cartao('ramais'), fontes=FONTES_TEXTO,
         itens=con.execute('SELECT * FROM ramais ORDER BY setor COLLATE NOCASE, id'
                           ).fetchall())
 
@@ -1554,6 +1992,10 @@ BLOCOS = {
         'campos': ['nome', 'icone', 'url', 'ordem'],
         'obrigatorios': ['nome'],
         'ordem': 'ordem, id',
+        # O menu não é um cartão do painel: é a barra da esquerda. Fica com
+        # "Sistemas e atalhos", que é onde se cuida de para onde as coisas
+        # levam. `secao` tira ele da barra de abas de "Blocos do painel".
+        'secao': 'links',
     },
     'chamados': {
         'titulo': 'Chamados de TI',
@@ -1561,8 +2003,123 @@ BLOCOS = {
         'obrigatorios': ['numero', 'titulo'],
         'ordem': 'ordem, id',
     },
+    'reservas': {
+        'titulo': 'Reservas rápidas',
+        'tabela': 'links',
+        # `simbolo` é o ícone da reserva no painel. Entra aqui porque esta
+        # passou a ser a única tela que edita reservas.
+        'campos': ['titulo', 'descricao', 'situacao', 'simbolo', 'url', 'ordem'],
+        'obrigatorios': ['titulo'],
+        'ordem': 'ordem, id',
+        # Reservas dividem a tabela `links` com sistemas e atalhos. Sem o filtro
+        # a aba listaria os três juntos; sem os fixos, uma reserva nova nasceria
+        # como sistema e apareceria no cartão errado.
+        'filtro': ('grupo=?', ('reserva',)),
+        'fixos': {'grupo': 'reserva'},
+    },
 }
 NUMERICOS = {'ordem', 'dia', 'mes'}
+# Campos que guardam nome de ícone. São dois nomes de coluna para a mesma
+# coisa: o menu usa `icone`; as reservas, `simbolo` — em `links`, `icone` é a
+# sigla que aparece no botão, não um ícone.
+ICONICOS = {'icone', 'simbolo'}
+
+
+def salvar_aparencia_cartao(chave_cartao):
+    """Grava, na tela do próprio cartão, a aparência que só a ele diz respeito.
+
+    As regras de validação são as mesmas de Aparência — tamanho preso à faixa
+    do campo, cor só em hexadecimal, fonte só da lista fechada. O que mudou foi
+    o lugar onde se edita, não o que é aceito.
+    """
+    con = db()
+    for campo, faixa in campos_aparencia(chave_cartao):
+        bruto = request.form.get(campo)
+        if campo.endswith('_tam'):
+            valor = medida(bruto, PADROES[campo], *faixa)
+        elif campo.endswith('_cor'):
+            valor = cor_hexa(bruto, PADROES[campo])
+        else:
+            valor = bruto if bruto in FONTES_TEXTO else PADROES[campo]
+        con.execute('INSERT INTO config (chave,valor) VALUES (?,?) '
+                    'ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor',
+                    (campo, valor))
+    con.commit()
+    flash('Aparência salva.', 'ok')
+
+
+def dados_titulo_cartao(chave):
+    """(chave, nome padrão) para a tela desenhar o campo de nome do cartão.
+
+    Chave sem cartão correspondente — o menu lateral é o caso — devolve None, e
+    a tela simplesmente não mostra o campo.
+    """
+    padroes = dict(TITULOS_CARTAO)
+    return (chave, padroes[chave]) if chave in padroes else (None, '')
+
+
+def cartoes_do_painel(so_ativos=False):
+    """Os cartões da página inicial, na ordem em que aparecem."""
+    extra = ' WHERE ativo=1' if so_ativos else ''
+    return db().execute('SELECT * FROM cartoes_painel' + extra +
+                        ' ORDER BY ordem, id').fetchall()
+
+
+def cartao_por_chave(chave):
+    return db().execute('SELECT * FROM cartoes_painel WHERE chave=?',
+                        (chave,)).fetchone()
+
+
+def salvar_nome_cartao_painel(chave):
+    """Nome do cartão do painel. Em branco volta ao nome de fábrica."""
+    padrao = dict((c, n) for c, n, *_ in CARTOES_SEMENTE).get(chave, chave)
+    nome = (request.form.get('titulo_cartao') or '').strip() or padrao
+    con = db()
+    con.execute('UPDATE cartoes_painel SET nome=? WHERE chave=?', (nome, chave))
+    con.commit()
+    flash('Nome do cartão salvo.', 'ok')
+
+
+def salvar_titulo_cartao(chave):
+    """Grava o nome do cartão do bloco, vindo do formulário da própria tela.
+
+    O nome mora em `config`, como antes; o que mudou é onde se edita. Ficava
+    tudo junto em Aparência, numa fileira de oito campos — para renomear um
+    bloco era preciso sair dele, achar o campo certo e voltar.
+    """
+    padrao = dict(TITULOS_CARTAO)[chave]
+    # Em branco volta ao padrão: cartão sem cabeçalho não ajuda ninguém, e é
+    # fácil apagar sem querer.
+    valor = (request.form.get('titulo_cartao') or '').strip() or padrao
+    con = db()
+    con.execute('INSERT INTO config (chave,valor) VALUES (?,?) '
+                'ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor',
+                (f'titulo_{chave}', valor))
+    con.commit()
+    flash('Nome do cartão salvo.', 'ok')
+
+
+def abas_painel(atual):
+    """Barra de abas de "Blocos do painel": (rótulo, endereço, ativa).
+
+    Comunicados aparecem aqui, junto dos outros cartões, mas continuam sendo
+    editados pela tela própria: só ela desenha urgência, destaque e as cores de
+    cada comunicado, que o formulário genérico de blocos não conhece. Um único
+    editor, listado no lugar onde se procura o conteúdo dos cartões.
+    """
+    return [(c['nome'], url_for('admin_lateral', cartao=c['chave']),
+             c['chave'] == atual) for c in cartoes_do_painel()]
+
+
+def _filtro(info):
+    """(cláusula, valores) do bloco — vazia quando ele tem tabela só sua.
+
+    Vale em toda consulta, não só na listagem: sem ela, um id forjado no
+    formulário editaria ou apagaria um sistema pela aba de reservas, já que as
+    três coisas moram na mesma tabela.
+    """
+    clausula, valores = info.get('filtro', ('', ()))
+    return clausula, list(valores)
 
 
 @app.route('/admin/painel', methods=['GET', 'POST'])
@@ -1578,10 +2135,20 @@ def admin_painel():
         acao = request.form.get('acao')
         ident = _int(request.form.get('id'))
 
+        clausula, filtrados = _filtro(info)
+        e_mais = f' AND {clausula}' if clausula else ''
+
+        if acao == 'titulo_cartao' and bloco in dict(TITULOS_CARTAO):
+            salvar_titulo_cartao(bloco)
+            return redirect(url_for('admin_painel', bloco=bloco))
+        if acao == 'aparencia_cartao' and bloco in CARTAO_APARENCIA:
+            salvar_aparencia_cartao(bloco)
+            return redirect(url_for('admin_painel', bloco=bloco))
         if acao == 'ordenar':
             return reordenar(tabela)
         if acao == 'excluir':
-            con.execute(f'DELETE FROM {tabela} WHERE id=?', (ident,))
+            con.execute(f'DELETE FROM {tabela} WHERE id=?{e_mais}',
+                        [ident] + filtrados)
             flash('Item removido.', 'ok')
         else:
             valores, faltando = [], []
@@ -1589,7 +2156,14 @@ def admin_painel():
                 bruto = (request.form.get(campo) or '').strip()
                 if campo in info['obrigatorios'] and not bruto:
                     faltando.append(campo)
-                valores.append(_int(bruto) if campo in NUMERICOS else bruto)
+                if campo in NUMERICOS:
+                    valores.append(_int(bruto))
+                elif campo in ICONICOS:
+                    # Nome de ícone forjado desenharia nada; `nome_icone` cai no
+                    # genérico e ainda traduz o emoji das instalações antigas.
+                    valores.append(nome_icone(bruto))
+                else:
+                    valores.append(bruto)
             if faltando:
                 flash('Preencha: ' + ', '.join(faltando) + '.', 'erro')
             else:
@@ -1597,10 +2171,14 @@ def admin_painel():
                 colunas = info['campos'] + ['ativo']
                 if ident:
                     atrib = ','.join(f'{c}=?' for c in colunas)
-                    con.execute(f'UPDATE {tabela} SET {atrib} WHERE id=?',
-                                valores + [ident])
+                    con.execute(f'UPDATE {tabela} SET {atrib} WHERE id=?{e_mais}',
+                                valores + [ident] + filtrados)
                     flash('Item atualizado.', 'ok')
                 else:
+                    # Colunas que o bloco impõe a todo item novo — é o que faz
+                    # a reserva nascer com grupo='reserva' em vez de 'sistema'.
+                    for coluna, valor in info.get('fixos', {}).items():
+                        colunas, valores = colunas + [coluna], valores + [valor]
                     if bloco == 'menu':
                         # A chave identifica o item na URL do módulo; sai do
                         # nome e ganha sufixo se já existir.
@@ -1624,13 +2202,23 @@ def admin_painel():
         bloco = 'escalas'
     info = BLOCOS[bloco]
     tabela = info.get('tabela', bloco)
+    clausula, filtrados = _filtro(info)
     editar = None
     if request.args.get('editar'):
-        editar = con.execute(f'SELECT * FROM {tabela} WHERE id=?',
-                             (_int(request.args['editar']),)).fetchone()
+        editar = con.execute(
+            f"SELECT * FROM {tabela} WHERE id=?{f' AND {clausula}' if clausula else ''}",
+            [_int(request.args['editar'])] + filtrados).fetchone()
+    da_secao_links = info.get('secao') == 'links'
     return render_template(
-        'admin_painel.html', bloco=bloco, info=info, blocos=BLOCOS, editar=editar,
-        itens=con.execute(f"SELECT * FROM {tabela} ORDER BY {info['ordem']}").fetchall())
+        'admin_painel.html', bloco=bloco, info=info, editar=editar,
+        abas=abas_links(bloco) if da_secao_links else abas_painel(bloco),
+        aba_topo='links' if da_secao_links else 'painel',
+        cartao=dados_titulo_cartao(bloco),
+        aparencia=dados_aparencia_cartao(bloco), fontes=FONTES_TEXTO,
+        nome_bloco=nome_do_bloco(bloco, info['titulo']),
+        itens=con.execute(
+            f"SELECT * FROM {tabela}{f' WHERE {clausula}' if clausula else ''}"
+            f" ORDER BY {info['ordem']}", filtrados).fetchall())
 
 
 # ── backup e restauração ───────────────────────────────────────────────────────
@@ -1866,29 +2454,14 @@ def admin_aparencia():
                                       PADROES['capa_titulo_tam'], 0.8, 4.0),
             'capa_texto_tam':  medida(request.form.get('capa_texto_tam'),
                                       PADROES['capa_texto_tam'], 0.6, 2.0),
-            'botao_sigla_tam': medida(request.form.get('botao_sigla_tam'),
-                                      PADROES['botao_sigla_tam'], 0.6, 1.6),
-            'botao_nome_tam':  medida(request.form.get('botao_nome_tam'),
-                                      PADROES['botao_nome_tam'], 0.5, 1.4),
             'capa_titulo_cor': cor_hexa(request.form.get('capa_titulo_cor'),
                                         PADROES['capa_titulo_cor']),
             'capa_texto_cor':  cor_hexa(request.form.get('capa_texto_cor'),
                                         PADROES['capa_texto_cor']),
-            'botao_sigla_cor': cor_hexa(request.form.get('botao_sigla_cor'),
-                                        PADROES['botao_sigla_cor']),
-            'botao_nome_cor':  cor_hexa(request.form.get('botao_nome_cor'),
-                                        PADROES['botao_nome_cor']),
-            'com_fonte':    (request.form.get('com_fonte')
-                             if request.form.get('com_fonte') in FONTES_TEXTO
-                             else PADROES['com_fonte']),
-            'com_titulo_tam': medida(request.form.get('com_titulo_tam'),
-                                     PADROES['com_titulo_tam'], 0.6, 2.0),
-            'com_texto_tam':  medida(request.form.get('com_texto_tam'),
-                                     PADROES['com_texto_tam'], 0.6, 2.0),
-            'com_titulo_cor': cor_hexa(request.form.get('com_titulo_cor'),
-                                       PADROES['com_titulo_cor']),
-            'com_texto_cor':  cor_hexa(request.form.get('com_texto_cor'),
-                                       PADROES['com_texto_cor']),
+            # O texto dos comunicados e o dos botões saíram daqui: cada um é
+            # editado na tela do cartão a que pertence (ver APARENCIA_CARTAO).
+            # Regravá-los aqui os devolveria ao padrão a cada salvamento, já
+            # que os campos não existem mais neste formulário.
             'fundo_modo':   (request.form.get('fundo_modo')
                              if request.form.get('fundo_modo') in FUNDO_MODOS
                              else PADROES['fundo_modo']),
@@ -1908,11 +2481,10 @@ def admin_aparencia():
                                      PADROES['cor_destaque']),
             'banner_seg':   str(max(2, min(60, _int(request.form.get('banner_seg'), 6)))),
         }
-        # Título em branco volta ao padrão: cartão sem cabeçalho não ajuda
-        # ninguém, e é fácil apagar sem querer.
-        for chave, padrao in TITULOS_CARTAO:
-            campo = f'titulo_{chave}'
-            novos[campo] = request.form.get(campo, '').strip() or padrao
+        # Os nomes dos cartões saíram daqui: cada um é editado na tela do
+        # próprio bloco. Regravá-los neste laço apagaria todos de volta ao
+        # padrão a cada vez que alguém salvasse Aparência — os campos não
+        # existem mais neste formulário, e `request.form.get` viria vazio.
 
         for k, v in novos.items():
             con.execute('INSERT INTO config (chave,valor) VALUES (?,?) '
@@ -1921,8 +2493,7 @@ def admin_aparencia():
         con.commit()
         flash('Aparência salva.', 'ok')
         return redirect(url_for('admin_aparencia'))
-    return render_template('admin_aparencia.html',
-                           titulos_cartao=TITULOS_CARTAO, fontes=FONTES_TEXTO,
+    return render_template('admin_aparencia.html', fontes=FONTES_TEXTO,
                            marca_aniversarios=marca_atual('aniversarios'))
 
 

@@ -1,5 +1,90 @@
 {#  Campos de formulário reaproveitados entre telas da administração. #}
 
+{#  Nome do cartão na página inicial, editado na tela do próprio bloco.
+
+    Formulário à parte, e não mais um campo no formulário do item: as telas já
+    têm um form para cadastrar item, e form dentro de form não existe em HTML.
+
+    O `csrf` vem por parâmetro de propósito — este arquivo é importado sem
+    `with context`, então o macro não enxerga o context processor. #}
+{% macro nome_cartao(valor, padrao, csrf, extra={}) %}
+  <form method="post" class="nome-cartao">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="acao" value="titulo_cartao">
+    {% for nome, v in extra.items() %}
+    <input type="hidden" name="{{ nome }}" value="{{ v }}">
+    {% endfor %}
+    <label>Nome deste cartão na página inicial</label>
+    <div class="nome-cartao-linha">
+      <input name="titulo_cartao" placeholder="{{ padrao }}" value="{{ valor }}">
+      <button class="btn" type="submit">Salvar nome</button>
+    </div>
+    <p class="dica">É o título que aparece no alto do cartão. Chame do jeito que
+      se fala na unidade — em branco, volta a “{{ padrao }}”.</p>
+  </form>
+{% endmacro %}
+
+{#  Aparência do cartão: fonte, tamanho e cor do título e do texto.
+
+    Um macro só para os oito cartões. O que muda entre eles é o prefixo dos
+    campos — `com_`, `escalas_`, `aniv_`… —, definido em CARTAO_APARENCIA e
+    igual ao das variáveis CSS emitidas em base.html.
+
+    Os rótulos "título" e "texto" apontam para coisas diferentes em cada
+    cartão: no de escalas o título é o turno; no de ramais, o setor, e o texto
+    é o número. Por isso `titulo_e`/`texto_e` chegam por parâmetro. #}
+{% macro aparencia_cartao(pref, cfg, fontes, csrf, titulo_e, texto_e, extra={}) %}
+  <form method="post" class="aparencia-cartao">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="acao" value="aparencia_cartao">
+    {% for nome, v in extra.items() %}
+    <input type="hidden" name="{{ nome }}" value="{{ v }}">
+    {% endfor %}
+    <label>Fonte</label>
+    <select name="{{ pref }}_fonte">
+      {% for chave, (rotulo, _) in fontes.items() %}
+      <option value="{{ chave }}"
+        {{ 'selected' if cfg[pref ~ '_fonte'] == chave }}>{{ rotulo }}</option>
+      {% endfor %}
+    </select>
+    <p class="dica">A lista é fechada de propósito: o servidor é de rede
+      interna, sem fonte baixada da internet, então só valem famílias que já
+      existem na máquina de quem lê.</p>
+    <div class="linha">
+      <div>
+        <label>Título — tamanho <small>(rem)</small></label>
+        <input name="{{ pref }}_titulo_tam" type="number" step="0.01" min="0.6" max="2"
+               value="{{ cfg[pref ~ '_titulo_tam'] }}">
+      </div>
+      <div>
+        <label>Título — cor</label>
+        <input name="{{ pref }}_titulo_cor" type="color"
+               value="{{ cfg[pref ~ '_titulo_cor'] }}">
+      </div>
+      <div>
+        <label>Texto — tamanho <small>(rem)</small></label>
+        <input name="{{ pref }}_texto_tam" type="number" step="0.01" min="0.5" max="2"
+               value="{{ cfg[pref ~ '_texto_tam'] }}">
+      </div>
+      <div>
+        <label>Texto — cor</label>
+        <input name="{{ pref }}_texto_cor" type="color"
+               value="{{ cfg[pref ~ '_texto_cor'] }}">
+      </div>
+    </div>
+    <p class="dica">Neste cartão, <strong>título</strong> é {{ titulo_e }} e
+      <strong>texto</strong> é {{ texto_e }}.
+      {%- if pref == 'com' %} Isto é o padrão de todos os comunicados; um que
+      precise ser diferente tem os mesmos campos no próprio cadastro, ao lado.
+      {%- endif %}</p>
+    <p class="dica">No <strong>tema escuro</strong> o portal usa cores próprias
+      — uma cor escolhida para cartão branco ficaria ilegível sobre cartão
+      escuro, e quem está lendo não teria como corrigir. Tamanho e fonte valem
+      nos dois temas.</p>
+    <div class="acoes"><button class="btn" type="submit">Salvar aparência</button></div>
+  </form>
+{% endmacro %}
+
 {#  Paleta de cores: amostras clicáveis + seletor livre ao lado.
 
     O valor real fica num campo escondido, porque a escolha pode ser "nenhuma"

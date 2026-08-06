@@ -1,18 +1,31 @@
 {% extends 'admin_base.html' %}
+{% import 'campos.html' as campos %}
 {% set aba = 'links' %}
 {% block titulo %}Sistemas{% endblock %}
 
 {% block admin %}
 <nav class="abas" style="margin-bottom:1rem">
-  {% for chave, nome in grupos.items() %}
-  <a href="{{ url_for('admin_links', grupo=chave) }}"
-     class="{{ 'ativa' if grupo == chave }}">{{ nome }}</a>
+  {% for rotulo, href, ativa in abas %}
+  <a href="{{ href }}" class="{{ 'ativa' if ativa }}">{{ rotulo }}</a>
   {% endfor %}
 </nav>
 
+{% if cartao[0] %}
+<section class="painel-caixa nome-cartao-caixa">
+  {{ campos.nome_cartao(cfg['titulo_' ~ cartao[0]], cartao[1], csrf_token,
+                        {'grupo': grupo}) }}
+  {% if aparencia %}
+  <h2 style="margin-top:1.2rem">Aparência do texto</h2>
+  {{ campos.aparencia_cartao(aparencia[1], cfg, fontes, csrf_token,
+                             aparencia[2], aparencia[3],
+                             {'grupo': grupo}) }}
+  {% endif %}
+</section>
+{% endif %}
+
 <div class="painel painel-duplo">
   <section class="painel-caixa">
-    <h2>{{ 'Editar' if editar else 'Novo' }} — {{ grupos[grupo] }}</h2>
+    <h2>{{ 'Editar' if editar else 'Novo' }} — {{ nome_bloco }}</h2>
     <form method="post">
       <input type="hidden" name="csrf" value="{{ csrf_token }}">
       <input type="hidden" name="id" value="{{ editar.id if editar else '' }}">
@@ -117,12 +130,12 @@
         opcional — sem ela, sai das iniciais do nome. O separador pode ser
         barra vertical, tabulação ou vários espaços.</p>
       <input type="hidden" name="grupo_destino" value="{{ grupo }}">
-      <p class="dica">Os itens entram em <strong>{{ grupos[grupo] }}</strong>
+      <p class="dica">Os itens entram em <strong>{{ nome_bloco }}</strong>
         — a aba selecionada acima.</p>
       <div class="acoes"><button class="btn btn-principal" type="submit">Importar</button></div>
     </form>
 
-    <h2 style="margin-top:1.5rem">{{ grupos[grupo] }} ({{ itens|length }})</h2>
+    <h2 style="margin-top:1.5rem">{{ nome_bloco }} ({{ itens|length }})</h2>
     <table class="tabela">
       <thead><tr><th></th><th></th><th>Título</th><th>Ordem</th><th>Situação</th><th></th></tr></thead>
       <tbody data-ordenavel="{{ url_for('admin_links') }}" data-csrf="{{ csrf_token }}"

@@ -30,15 +30,16 @@
     --capa-titulo-cor: {{ cfg.capa_titulo_cor }};
     --capa-texto-tam:  {{ cfg.capa_texto_tam }}rem;
     --capa-texto-cor:  {{ cfg.capa_texto_cor }};
-    --botao-sigla-tam: {{ cfg.botao_sigla_tam }}rem;
-    --botao-sigla-cor: {{ cfg.botao_sigla_cor }};
-    --botao-nome-tam:  {{ cfg.botao_nome_tam }}rem;
-    --botao-nome-cor:  {{ cfg.botao_nome_cor }};
-    --com-fonte:      {{ fonte_comunicado }};
-    --com-titulo-tam: {{ cfg.com_titulo_tam }}rem;
-    --com-titulo-cor: {{ cfg.com_titulo_cor }};
-    --com-texto-tam:  {{ cfg.com_texto_tam }}rem;
-    --com-texto-cor:  {{ cfg.com_texto_cor }};
+    {#  Um conjunto por cartão: fonte, tamanho e cor do título e do texto. O
+        prefixo vem de CARTAO_APARENCIA, e a pilha de fontes já chega
+        resolvida — o template não escolhe família. #}
+    {% for pref, fonte in aparencia_cartoes %}
+    --{{ pref }}-fonte:      {{ fonte }};
+    --{{ pref }}-titulo-tam: {{ cfg[pref ~ '_titulo_tam'] }}rem;
+    --{{ pref }}-titulo-cor: {{ cfg[pref ~ '_titulo_cor'] }};
+    --{{ pref }}-texto-tam:  {{ cfg[pref ~ '_texto_tam'] }}rem;
+    --{{ pref }}-texto-cor:  {{ cfg[pref ~ '_texto_cor'] }};
+    {% endfor %}
     --capa-cor:     {{ cfg.capa_cor }};
     --lateral-cor1: {{ cfg.lateral_cor1 }};
     --lateral-cor2: {{ cfg.lateral_cor2 }};

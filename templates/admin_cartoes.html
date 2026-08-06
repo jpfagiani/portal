@@ -1,0 +1,151 @@
+{% extends 'admin_base.html' %}
+{% import 'campos.html' as campos %}
+{% set aba = 'cartoes' %}
+{% block titulo %}Cartões livres{% endblock %}
+
+{% block admin %}
+<div class="painel painel-duplo">
+  <section class="painel-caixa">
+    <h2>{{ 'Editar cartão' if editar else 'Novo cartão' }}</h2>
+    {#  enctype obrigatório: sem ele o navegador manda só o nome do arquivo, e
+        a foto nunca chega ao servidor. #}
+    <form method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="id" value="{{ editar.id if editar else '' }}">
+
+      <label>Título *</label>
+      <input name="titulo" required value="{{ editar.titulo if editar else '' }}">
+
+      <label>Texto</label>
+      <textarea name="texto" rows="7">{{ editar.texto if editar else '' }}</textarea>
+      <p class="dica">Sai no painel <strong>exatamente como for digitado</strong>:
+        quebras de linha, linhas em branco e espaços seguidos são preservados.</p>
+
+      <h2 style="margin-top:1.4rem">Foto</h2>
+      <label>Imagem <small>(PNG, JPG, WEBP ou GIF)</small></label>
+      <input type="file" name="imagem" accept="image/png,image/jpeg,image/webp,image/gif">
+      {% if editar and editar.imagem %}
+      <img class="previa" style="max-height:120px;margin-top:.5rem;border-radius:9px"
+           src="{{ url_for('static', filename='uploads/' ~ editar.imagem) }}" alt="">
+      <label class="check"><input type="checkbox" name="remover_imagem">
+        Remover a foto deste cartão</label>
+      {% else %}
+      <p class="dica">Sem foto, o cartão mostra só título e texto.</p>
+      {% endif %}
+
+      <label>Posição da foto</label>
+      <select name="img_pos">
+        {% for chave, rotulo in img_pos.items() %}
+        <option value="{{ chave }}"
+          {{ 'selected' if (editar.img_pos if editar else 'topo') == chave }}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+
+      <h2 style="margin-top:1.4rem">Posição no painel</h2>
+      <label>Região</label>
+      <select name="regiao">
+        {% for chave, rotulo in regioes.items() %}
+        <option value="{{ chave }}"
+          {{ 'selected' if (editar.regiao if editar else 'baixo') == chave }}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+      <label>Largura</label>
+      <select name="largura">
+        {% for valor, rotulo in larguras.items() %}
+        <option value="{{ valor }}"
+          {{ 'selected' if (editar.largura if editar else 1) == valor }}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+      <p class="dica">A largura vale nas fileiras de cima e de baixo. Na faixa
+        do meio o cartão já ocupa a largura inteira. Em tela estreita todos
+        voltam a uma coluna — é o que evita texto por cima de foto no celular.</p>
+
+      <h2 style="margin-top:1.4rem">Aparência</h2>
+      <label>Cor do título</label>
+      {{ campos.paleta('titulo_cor', editar.titulo_cor if editar else '', paleta) }}
+      <label>Cor do texto</label>
+      {{ campos.paleta('texto_cor', editar.texto_cor if editar else '', paleta) }}
+      <label>Cor do fundo</label>
+      {{ campos.paleta('fundo_cor', editar.fundo_cor if editar else '',
+                       paleta_fundo, 'Fundo padrão') }}
+
+      {% set marcado = (editar.icone if editar else '') or 'prancheta' %}
+      <label>Ícone <small>(aparece ao lado do título)</small></label>
+      <div class="escolha-icone">
+        <label class="opcao-icone opcao-icone-nenhum" title="Sem ícone">
+          <input type="radio" name="icone" value="nenhum"
+                 {{ 'checked' if marcado == 'nenhum' }}>
+          <span>Sem ícone</span>
+        </label>
+        {% for nome in icones_proprios %}
+        {% set valor = prefixo_icone ~ nome %}
+        <label class="opcao-icone" title="{{ nome }} (enviado)">
+          <input type="radio" name="icone" value="{{ valor }}"
+                 {{ 'checked' if valor == marcado }}>
+          <span>{{ ic(valor) }}</span>
+        </label>
+        {% endfor %}
+        {% for nome in icones %}
+        <label class="opcao-icone" title="{{ nome }}">
+          <input type="radio" name="icone" value="{{ nome }}"
+                 {{ 'checked' if nome == marcado }}>
+          <span>{{ ic(nome) }}</span>
+        </label>
+        {% endfor %}
+      </div>
+
+      <h2 style="margin-top:1.4rem">Link</h2>
+      <label>Endereço <small>(opcional)</small></label>
+      <input name="url" placeholder="https://..." value="{{ editar.url if editar else '' }}">
+      <label>Texto do link <small>(padrão: “Abrir”)</small></label>
+      <input name="url_rot" value="{{ editar.url_rot if editar else '' }}">
+
+      <label>Ordem</label>
+      <input name="ordem" type="number" value="{{ editar.ordem if editar else 0 }}">
+      <label class="check"><input type="checkbox" name="ativo"
+        {{ 'checked' if (not editar or editar.ativo) }}> Exibir no painel</label>
+      <div class="acoes">
+        <button class="btn btn-principal" type="submit">Salvar</button>
+        {% if editar %}<a class="btn" href="{{ url_for('admin_cartoes') }}">Cancelar</a>{% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="painel-caixa">
+    <h2>Cartões livres</h2>
+    <table class="tabela">
+      <thead><tr><th></th><th>Título</th><th>Região</th><th>Largura</th><th>Ordem</th><th>Situação</th><th></th></tr></thead>
+      <tbody data-ordenavel="{{ url_for('admin_cartoes') }}" data-csrf="{{ csrf_token }}">
+        {% for i in itens %}
+        <tr data-id="{{ i.id }}">
+          <td class="pega" title="Arraste para reordenar">⠿</td>
+          <td><strong>{{ i.titulo }}</strong>
+            {% if i.imagem %}<br><small class="url">com foto</small>{% endif %}</td>
+          <td>{{ {'topo':'Cima','meio':'Meio','baixo':'Baixo'}.get(i.regiao, 'Baixo') }}</td>
+          <td>{{ i.largura }}</td>
+          <td data-coluna-ordem>{{ i.ordem }}</td>
+          <td>{% if i.ativo %}<span class="tag tag-ok">visível</span>
+              {% else %}<span class="tag">oculto</span>{% endif %}</td>
+          <td class="acoes-linha">
+            <a class="btn btn-sm" href="{{ url_for('admin_cartoes', editar=i.id) }}">Editar</a>
+            <form method="post" onsubmit="return confirm('Remover {{ i.titulo }}?')">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <input type="hidden" name="acao" value="excluir">
+              <input type="hidden" name="id" value="{{ i.id }}">
+              <button class="btn btn-sm btn-perigo" type="submit">Excluir</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="vazio">Nenhum cartão livre cadastrado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="dica">Os cartões livres entram <strong>depois</strong> dos cartões
+      fixos da região escolhida. Arraste pela alça <span class="pega">⠿</span>
+      para mudar a ordem entre eles — a mudança é salva na hora.</p>
+  </section>
+</div>
+<script src="{{ url_for('static', filename='ordenar.js') }}"></script>
+<script src="{{ url_for('static', filename='paleta.js') }}"></script>
+{% endblock %}

@@ -84,23 +84,11 @@
       </div>
     </section>
 
-    <section class="cartao">
-      {{ cabecalho('megafone', cfg.titulo_comunicados, url_for('lista', chave='comunicados'),
-             comunicados|length, limites.comunicados) }}
-      <div class="cartao-corpo comunicados">
-        {{ b.comunicados(comunicados[:limites.comunicados]) }}
-      </div>
-    </section>
 
-    <section class="cartao">
-      {{ cabecalho('bolo', cfg.titulo_aniversariantes, url_for('lista', chave='aniversariantes'),
-             aniversariantes|length, limites.aniversariantes) }}
-      {% set marca, marca_v = marca_aniversarios %}
-      <div class="cartao-corpo aniversarios {{ 'com-marca' if marca }}"
-           {% if marca %}style="--marca: url('{{ url_for('static', filename=marca) }}?v={{ marca_v }}')"{% endif %}>
-        {{ b.aniversarios(aniversariantes[:limites.aniversariantes]) }}
-      </div>
-    </section>
+    {#  Cartões livres entram no fim da fileira, na ordem definida em
+        Administração → Cartões livres. #}
+    {% for c, itens in cartoes_painel.topo %}{{ b.cartao_painel(c, itens) }}{% endfor %}
+    {% for c in cartoes_livres.topo %}{{ b.cartao_livre(c) }}{% endfor %}
   </div>
 
   <section class="cartao regiao-meio">
@@ -110,6 +98,14 @@
       {{ b.atalhos(atalhos[:limites.atalhos]) }}
     </div>
   </section>
+
+  {% for c, itens in cartoes_painel.meio %}{{ b.cartao_painel(c, itens) }}{% endfor %}
+
+  {% if cartoes_livres.meio %}
+  <div class="regiao-livre-meio">
+    {% for c in cartoes_livres.meio %}{{ b.cartao_livre(c) }}{% endfor %}
+  </div>
+  {% endif %}
 
   <div class="regiao-baixo">
     <section class="cartao">
@@ -130,29 +126,10 @@
       </div>
     </section>
 
-    <section class="cartao">
-      {{ cabecalho('calendario', cfg.titulo_escalas, url_for('lista', chave='escalas'),
-             escalas|length, limites.escalas) }}
-      <div class="cartao-corpo escalas">
-        {{ b.escalas(escalas[:limites.escalas]) }}
-      </div>
-    </section>
 
-    <section class="cartao">
-      {{ cabecalho('fone', cfg.titulo_chamados, url_for('lista', chave='chamados'),
-             chamados|length, limites.chamados) }}
-      <div class="cartao-corpo chamados">
-        {{ b.chamados(chamados[:limites.chamados]) }}
-      </div>
-    </section>
 
-    <section class="cartao">
-      {{ cabecalho('arquivo', cfg.titulo_reservas, url_for('lista', chave='reservas'),
-             reservas|length, limites.reservas) }}
-      <div class="cartao-corpo reservas">
-        {{ b.reservas(reservas[:limites.reservas]) }}
-      </div>
-    </section>
+    {% for c, itens in cartoes_painel.baixo %}{{ b.cartao_painel(c, itens) }}{% endfor %}
+    {% for c in cartoes_livres.baixo %}{{ b.cartao_livre(c) }}{% endfor %}
   </div>
 </main>
 

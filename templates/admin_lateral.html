@@ -1,15 +1,36 @@
 {% extends 'admin_base.html' %}
 {% import 'campos.html' as campos %}
-{% set aba = 'lateral' %}
-{% block titulo %}Comunicados{% endblock %}
+{#  Comunicados são um cartão do painel: a aba do topo e a barra de abas são as
+    de "Blocos do painel". A tela é esta, e não o formulário genérico de blocos,
+    porque só aqui cabem urgência, destaque e as cores de cada comunicado. #}
+{% set aba = 'painel' %}
+{% block titulo %}Blocos do painel{% endblock %}
 
 {% block admin %}
+<nav class="abas" style="margin-bottom:1rem">
+  {% for rotulo, href, ativa in abas %}
+  <a href="{{ href }}" class="{{ 'ativa' if ativa }}">{{ rotulo }}</a>
+  {% endfor %}
+</nav>
+
+<section class="painel-caixa nome-cartao-caixa">
+  {{ campos.nome_cartao(cartao_atual.nome, cartao_atual.chave|replace('cartao','Cartão '),
+                        csrf_token, {'cartao': cartao_atual.chave}) }}
+  {% if aparencia %}
+  <h2 style="margin-top:1.2rem">Aparência do texto</h2>
+  {{ campos.aparencia_cartao(aparencia[1], cfg, fontes, csrf_token,
+                             aparencia[2], aparencia[3],
+                             {'cartao': cartao_atual.chave}) }}
+  {% endif %}
+</section>
+
 <div class="painel painel-duplo">
   <section class="painel-caixa">
     <h2>{{ 'Editar item' if editar else 'Novo item' }}</h2>
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
       <input type="hidden" name="csrf" value="{{ csrf_token }}">
       <input type="hidden" name="id" value="{{ editar.id if editar else '' }}">
+      <input type="hidden" name="cartao" value="{{ cartao_atual.chave }}">
       <label>Tipo</label>
       <select name="tipo">
         <option value="aviso" {{ 'selected' if editar and editar.tipo=='aviso' }}>Aviso / informação</option>
@@ -49,13 +70,13 @@
       <div class="linha">
         <div>
           <label>Título — tamanho <small>(rem)</small></label>
-          <input name="titulo_tam" type="number" step="0.05" min="0.6" max="2"
+          <input name="titulo_tam" type="number" step="0.01" min="0.6" max="2"
                  placeholder="{{ cfg.com_titulo_tam }}"
                  value="{{ editar.titulo_tam if editar else '' }}">
         </div>
         <div>
           <label>Texto — tamanho <small>(rem)</small></label>
-          <input name="texto_tam" type="number" step="0.05" min="0.6" max="2"
+          <input name="texto_tam" type="number" step="0.01" min="0.6" max="2"
                  placeholder="{{ cfg.com_texto_tam }}"
                  value="{{ editar.texto_tam if editar else '' }}">
         </div>
@@ -79,22 +100,47 @@
         As linhas longas que dobram sozinhas saem justificadas.</p>
       <label>Endereço <small>(quando o tipo for Link)</small></label>
       <input name="url" placeholder="https://..." value="{{ editar.url if editar else '' }}">
+      <h2 style="margin-top:1.4rem">Imagem e vídeo</h2>
+      <label>Imagem <small>(PNG, JPG, WEBP ou GIF)</small></label>
+      <input type="file" name="imagem" accept="image/png,image/jpeg,image/webp,image/gif">
+      {% if editar and editar.imagem %}
+      <img class="previa" style="max-height:120px;margin-top:.5rem;border-radius:9px"
+           src="{{ url_for('static', filename='uploads/' ~ editar.imagem) }}" alt="">
+      <label class="check"><input type="checkbox" name="remover_imagem">
+        Remover a imagem deste item</label>
+      {% endif %}
+
+      <label>Vídeo <small>(MP4, WEBM ou OGG)</small></label>
+      <input type="file" name="video" accept="video/mp4,video/webm,video/ogg">
+      {% if editar and editar.video %}
+      <p class="dica">Arquivo atual: <code>{{ editar.video }}</code></p>
+      <label class="check"><input type="checkbox" name="remover_video">
+        Remover o vídeo deste item</label>
+      {% endif %}
+      <p class="dica">O vídeo fica <strong>no servidor</strong> e toca na
+        própria página. Vídeo do YouTube não é incorporado de propósito: o
+        portal é de rede interna e não carrega nada de fora — para apontar
+        para um, use o campo <em>Endereço</em> abaixo.</p>
+
+      <label>Texto do link <small>(padrão: “Abrir”)</small></label>
+      <input name="url_rot" value="{{ editar.url_rot if editar else '' }}">
+
       <label>Ordem</label>
       <input name="ordem" type="number" value="{{ editar.ordem if editar else 0 }}">
       <label class="check"><input type="checkbox" name="ativo"
-        {{ 'checked' if (not editar or editar.ativo) }}> Exibir na barra lateral</label>
+        {{ 'checked' if (not editar or editar.ativo) }}> Exibir no cartão</label>
       <div class="acoes">
         <button class="btn btn-principal" type="submit">Salvar</button>
-        {% if editar %}<a class="btn" href="{{ url_for('admin_lateral') }}">Cancelar</a>{% endif %}
+        {% if editar %}<a class="btn" href="{{ url_for('admin_lateral', cartao=cartao_atual.chave) }}">Cancelar</a>{% endif %}
       </div>
     </form>
   </section>
 
   <section class="painel-caixa">
-    <h2>Itens da barra lateral</h2>
+    <h2>Itens de {{ cartao_atual.nome }} ({{ itens|length }})</h2>
     <table class="tabela">
       <thead><tr><th></th><th>Título</th><th>Destaque</th><th>Ordem</th><th>Situação</th><th></th></tr></thead>
-      <tbody data-ordenavel="{{ url_for('admin_lateral') }}" data-csrf="{{ csrf_token }}">
+      <tbody data-ordenavel="{{ url_for('admin_lateral', cartao=cartao_atual.chave) }}" data-csrf="{{ csrf_token }}">
         {% for i in itens %}
         <tr data-id="{{ i.id }}">
           <td class="pega" title="Arraste para reordenar">⠿</td>
@@ -104,9 +150,10 @@
           <td>{% if i.ativo %}<span class="tag tag-ok">visível</span>
               {% else %}<span class="tag">oculto</span>{% endif %}</td>
           <td class="acoes-linha">
-            <a class="btn btn-sm" href="{{ url_for('admin_lateral', editar=i.id) }}">Editar</a>
+            <a class="btn btn-sm" href="{{ url_for('admin_lateral', cartao=cartao_atual.chave, editar=i.id) }}">Editar</a>
             <form method="post" onsubmit="return confirm('Remover {{ i.titulo }}?')">
               <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <input type="hidden" name="cartao" value="{{ cartao_atual.chave }}">
               <input type="hidden" name="acao" value="excluir">
               <input type="hidden" name="id" value="{{ i.id }}">
               <button class="btn btn-sm btn-perigo" type="submit">Excluir</button>
