@@ -16,7 +16,11 @@
   })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block titulo %}{{ cfg.site_sigla }}{% endblock %} — {{ cfg.site_sigla }}</title>
+{# O nome da página vem na frente da sigla — é o que distingue uma aba da outra
+   quando há várias abertas. Página que não se nomeia mostra só a sigla, em vez
+   do "CDPNI — CDPNI" que saía quando o bloco caía no valor padrão. #}
+{%- set nome_pagina %}{% block titulo %}{% endblock %}{% endset -%}
+<title>{% if nome_pagina|trim %}{{ nome_pagina|trim }} {% endif %}{{ cfg.site_sigla }}</title>
 <link rel="icon" href="{{ url_for('static', filename=logo_nome) }}?v={{ logo_versao }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <style>
