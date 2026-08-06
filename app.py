@@ -9,6 +9,7 @@ Requisitos: python3, flask, werkzeug. Banco: SQLite (arquivo dados.db).
 """
 
 import io
+import json
 import os
 import re
 import secrets
@@ -374,6 +375,13 @@ PADROES.update({f'titulo_{chave}': texto for chave, texto in TITULOS_CARTAO})
 # Os cinco cartões do painel, na posição que os blocos antigos ocupavam. O
 # nome é genérico de propósito: o cartão não é mais "de escala" nem "de
 # aniversário", serve para o que a unidade quiser pôr dentro.
+CARTOES_FIXOS = [
+    # chave        nome                          icone       regiao coluna ordem
+    ('sistemas',  'Acesso rápido aos sistemas', 'grade',     'topo',  1, -3),
+    ('atalhos',   'Atalhos úteis',              'marcador',  'meio',  3, -2),
+    ('ramais',    'Ramais mais utilizados',     'telefone',  'baixo', 1, -1),
+]
+
 CARTOES_SEMENTE = [
     # A ordem é global, não por região: ela ordena as abas da administração e,
     # dentro de cada região, a posição no painel. Numerar por região faria os
@@ -437,7 +445,7 @@ def dados_aparencia_cartao(chave):
 # viraria texto por cima de foto no primeiro notebook de tela menor.
 CARTAO_REGIOES = {
     'topo':  'Fileira de cima (ao lado de sistemas e comunicados)',
-    'meio':  'Faixa do meio (largura inteira)',
+    'meio':  'Faixa do meio (entre os atalhos e a fileira de baixo)',
     'baixo': 'Fileira de baixo (ao lado de ramais e escalas)',
 }
 # Onde a foto entra no cartão.
@@ -448,7 +456,42 @@ CARTAO_IMG_POS = {
 }
 # Quantas colunas o cartão ocupa. Mais que 3 não faz sentido: a fileira de
 # cima tem três colunas, e a de baixo encolhe sozinha conforme a tela.
-CARTAO_LARGURAS = {1: '1 coluna', 2: '2 colunas', 3: '3 colunas'}
+CARTAO_LARGURAS = {1: '1 coluna', 2: '2 colunas', 3: '3 colunas',
+                   4: '4 colunas'}
+# Em qual coluna o cartão começa. "Automática" é o que sempre houve: ele
+# entra na primeira vaga livre da fileira. Escolher fixa a posição — útil
+# para deixar um cartão sempre à direita, por exemplo.
+CARTAO_COLUNAS = {0: 'Automática (próxima vaga livre)', 1: '1ª coluna',
+                  2: '2ª coluna', 3: '3ª coluna', 4: '4ª coluna'}
+# Quantas colunas cada região tem de verdade. A de baixo é mais estreita por
+# cartão e cabe mais uma — era assim antes de existir configuração, e o mapa da
+# administração precisa desenhar o mesmo número, senão promete uma posição que
+# o painel não tem.
+COLUNAS_POR_REGIAO = {'topo': 3, 'meio': 3, 'baixo': 4}
+
+
+def distribuir_em_colunas(cartoes, colunas):
+    """Em qual coluna cada cartão realmente cai.
+
+    Coluna 0 quer dizer "a próxima vaga livre", que é como a grade do navegador
+    se comporta. Aqui o mesmo caminhar é refeito para o mapa poder mostrar a
+    posição de fato — antes ele empilhava todos os automáticos na primeira, e
+    quem olhava via um layout que não existia.
+    """
+    proxima = 1
+    for c in cartoes:
+        largura = min(c['largura'] or 1, colunas)
+        if c['coluna']:
+            inicio = min(c['coluna'], colunas)
+        else:
+            # Não cabendo no que resta da fileira, desce para a seguinte.
+            if proxima + largura - 1 > colunas:
+                proxima = 1
+            inicio = proxima
+        c['coluna_efetiva'] = inicio
+        proxima = inicio + largura
+        if proxima > colunas:
+            proxima = 1
 
 # Valores que entram numa folha de estilo não podem vir crus do formulário:
 # um ponto-e-vírgula no meio já emenda outra regra.
@@ -600,6 +643,11 @@ CREATE TABLE IF NOT EXISTS cartoes_painel (
     icone   TEXT DEFAULT 'prancheta',
     regiao  TEXT DEFAULT 'baixo',       -- topo | meio | baixo
     largura INTEGER NOT NULL DEFAULT 1,
+    coluna  INTEGER NOT NULL DEFAULT 0, -- 0 = próxima vaga livre; 1..3 = fixa
+    -- O que o cartão desenha por dentro. 'itens' é o cartão comum, de lista
+    -- livre; os demais são os três que têm desenho próprio e conteúdo vindo de
+    -- outro cadastro. Todos são posicionados do mesmo jeito.
+    tipo    TEXT NOT NULL DEFAULT 'itens',
     ordem   INTEGER NOT NULL DEFAULT 0,
     ativo   INTEGER NOT NULL DEFAULT 1
 );
@@ -614,6 +662,7 @@ CREATE TABLE IF NOT EXISTS cartoes (
     url_rot TEXT DEFAULT '',            -- rótulo do link no rodapé do cartão
     regiao  TEXT DEFAULT 'baixo',       -- topo | meio | baixo
     largura INTEGER NOT NULL DEFAULT 1, -- quantas colunas o cartão ocupa
+    coluna  INTEGER NOT NULL DEFAULT 0, -- 0 = a próxima livre; 1..3 = fixa
     titulo_cor TEXT DEFAULT '',
     texto_cor  TEXT DEFAULT '',
     fundo_cor  TEXT DEFAULT '',
@@ -701,6 +750,16 @@ def _fecha_db(exc):
 
 
 
+def _nome_guardado(con, chave, padrao):
+    """O nome que a unidade ja tinha dado ao cartao, se deu.
+
+    Lido direto da conexao, e nao por cfg(): isto roda no import do modulo,
+    fora de qualquer contexto de requisicao."""
+    linha = con.execute('SELECT valor FROM config WHERE chave=?',
+                        (f'titulo_{chave}',)).fetchone()
+    return (linha[0].strip() if linha and linha[0].strip() else padrao)
+
+
 def _semear_cartoes(con):
     """Cria os cinco cartões e adota o conteúdo dos blocos antigos.
 
@@ -710,6 +769,15 @@ def _semear_cartoes(con):
     tabelas de origem ficam de pé, intocadas: se algo se perder na tradução, o
     dado original continua lá para ser conferido.
     """
+    # Os tres de desenho proprio. Ordem negativa: continuam na frente dos
+    # demais, como sempre estiveram, ate alguem arrasta-los.
+    for chave, nome, icone, regiao, largura, ordem in CARTOES_FIXOS:
+        con.execute('INSERT OR IGNORE INTO cartoes_painel'
+                    ' (chave,nome,icone,regiao,largura,ordem,tipo,ativo)'
+                    ' VALUES (?,?,?,?,?,?,?,1)',
+                    (chave, _nome_guardado(con, chave, nome), icone, regiao,
+                     largura, ordem, chave))
+
     if con.execute("SELECT 1 FROM config WHERE chave='cartoes_migrados'").fetchone():
         return
     for chave, nome, icone, regiao, ordem in CARTOES_SEMENTE:
@@ -793,6 +861,9 @@ def init_db():
             ('lateral',  'imagem',  "TEXT DEFAULT ''"),
             ('lateral',  'video',   "TEXT DEFAULT ''"),
             ('lateral',  'url_rot', "TEXT DEFAULT ''"),
+            ('cartoes',  'coluna',  'INTEGER NOT NULL DEFAULT 0'),
+            ('cartoes_painel', 'coluna', 'INTEGER NOT NULL DEFAULT 0'),
+            ('cartoes_painel', 'tipo', "TEXT NOT NULL DEFAULT 'itens'"),
             ('lateral',  'data',     "TEXT DEFAULT ''"),
             ('ramais',   'destaque', 'INTEGER NOT NULL DEFAULT 0'),
             ('usuarios', 'ultimo_acesso', "TEXT DEFAULT ''")):
@@ -1323,6 +1394,13 @@ def index():
     for c in cartoes_do_painel(so_ativos=True):
         regiao = c['regiao'] if c['regiao'] in CARTAO_REGIOES else 'baixo'
         cartoes_painel[regiao].append((c, itens_por_cartao.get(c['chave'], [])))
+    # Os cartoes livres entram na mesma grade, misturados aos demais e na ordem
+    # de cada um — antes iam sempre para o fim da fileira.
+    for c in con.execute('SELECT * FROM cartoes WHERE ativo=1 ORDER BY ordem, id'):
+        regiao = c['regiao'] if c['regiao'] in CARTAO_REGIOES else 'baixo'
+        cartoes_painel[regiao].append((c, None))
+    for regiao in cartoes_painel:
+        cartoes_painel[regiao].sort(key=lambda par: par[0]['ordem'])
 
     cartoes_livres = {chave: [] for chave in CARTAO_REGIOES}
     for c in con.execute('SELECT * FROM cartoes WHERE ativo=1 ORDER BY ordem, id'):
@@ -1795,6 +1873,7 @@ def admin_cartoes():
             regiao = request.form.get('regiao', 'baixo')
             img_pos = request.form.get('img_pos', 'topo')
             largura = _int(request.form.get('largura'), 1)
+            coluna = _int(request.form.get('coluna'))
             dados = (request.form.get('titulo', '').strip(),
                      nome_icone(request.form.get('icone', '')),
                      request.form.get('texto', '').strip(),
@@ -1804,6 +1883,7 @@ def admin_cartoes():
                      request.form.get('url_rot', '').strip(),
                      regiao if regiao in CARTAO_REGIOES else 'baixo',
                      largura if largura in CARTAO_LARGURAS else 1,
+                     coluna if coluna in CARTAO_COLUNAS else 0,
                      cor_hexa(request.form.get('titulo_cor'), ''),
                      cor_hexa(request.form.get('texto_cor'), ''),
                      cor_hexa(request.form.get('fundo_cor'), ''),
@@ -1813,15 +1893,15 @@ def admin_cartoes():
                 flash('O título é obrigatório.', 'erro')
             elif ident:
                 con.execute('UPDATE cartoes SET titulo=?,icone=?,texto=?,imagem=?,'
-                            'img_pos=?,url=?,url_rot=?,regiao=?,largura=?,'
+                            'img_pos=?,url=?,url_rot=?,regiao=?,largura=?,coluna=?,'
                             'titulo_cor=?,texto_cor=?,fundo_cor=?,ordem=?,ativo=?'
                             ' WHERE id=?', dados + (ident,))
                 flash('Cartão atualizado.', 'ok')
             else:
                 con.execute('INSERT INTO cartoes (titulo,icone,texto,imagem,'
-                            'img_pos,url,url_rot,regiao,largura,titulo_cor,'
-                            'texto_cor,fundo_cor,ordem,ativo)'
-                            ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', dados)
+                            'img_pos,url,url_rot,regiao,largura,coluna,'
+                            'titulo_cor,texto_cor,fundo_cor,ordem,ativo)'
+                            ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', dados)
                 flash('Cartão adicionado.', 'ok')
         con.commit()
         return redirect(url_for('admin_cartoes'))
@@ -1833,8 +1913,72 @@ def admin_cartoes():
     return render_template(
         'admin_cartoes.html', editar=editar, regioes=CARTAO_REGIOES,
         img_pos=CARTAO_IMG_POS, larguras=CARTAO_LARGURAS,
+        colunas=CARTAO_COLUNAS,
         paleta=PALETA, paleta_fundo=PALETA_FUNDO,
         itens=con.execute('SELECT * FROM cartoes ORDER BY ordem, id').fetchall())
+
+
+@app.route('/admin/mapa', methods=['GET', 'POST'])
+@admin_obrigatorio
+def admin_mapa():
+    """Onde cada cartão fica no painel, arrastando em vez de por seletores.
+
+    Os dois cadastros aparecem juntos — os cartões do painel e os livres —,
+    porque a grade é a mesma: mostrar só metade deles faria alguém arrastar um
+    cartão para uma coluna que já está ocupada por outro, invisível aqui.
+    """
+    con = db()
+    if request.method == 'POST':
+        try:
+            posicoes = json.loads(request.form.get('posicoes') or '[]')
+        except ValueError:
+            flash('Não consegui ler o layout enviado.', 'erro')
+            return redirect(url_for('admin_mapa'))
+        for p in posicoes if isinstance(posicoes, list) else []:
+            ref = str(p.get('ref', ''))
+            tabela, _, chave = ref.partition(':')
+            if tabela not in ('painel', 'livre') or not chave:
+                continue
+            regiao = p.get('regiao')
+            coluna = _int(p.get('coluna'))
+            largura = _int(p.get('largura'), 1)
+            dados = (regiao if regiao in CARTAO_REGIOES else 'baixo',
+                     coluna if coluna in CARTAO_COLUNAS else 0,
+                     largura if largura in CARTAO_LARGURAS else 1,
+                     _int(p.get('ordem')))
+            if tabela == 'painel':
+                con.execute('UPDATE cartoes_painel SET regiao=?,coluna=?,'
+                            'largura=?,ordem=? WHERE chave=?', dados + (chave,))
+            else:
+                con.execute('UPDATE cartoes SET regiao=?,coluna=?,largura=?,'
+                            'ordem=? WHERE id=?', dados + (_int(chave),))
+        con.commit()
+        flash('Layout salvo.', 'ok')
+        return redirect(url_for('admin_mapa'))
+
+    cartoes = []
+    for c in con.execute('SELECT * FROM cartoes_painel ORDER BY ordem, id'):
+        quantos = con.execute('SELECT COUNT(*) FROM lateral WHERE cartao=?',
+                              (c['chave'],)).fetchone()[0]
+        cartoes.append({
+            'ref': 'painel:' + c['chave'], 'nome': c['nome'], 'icone': c['icone'],
+            'regiao': c['regiao'], 'largura': c['largura'], 'coluna': c['coluna'],
+            'descricao': ('conteúdo próprio' if c['tipo'] != 'itens'
+                          else f'{quantos} item(ns)'),
+            'oculto': not c['ativo']})
+    for c in con.execute('SELECT * FROM cartoes ORDER BY ordem, id'):
+        cartoes.append({
+            'ref': f"livre:{c['id']}", 'nome': c['titulo'], 'icone': c['icone'],
+            'regiao': c['regiao'], 'largura': c['largura'], 'coluna': c['coluna'],
+            'descricao': 'cartão livre', 'oculto': not c['ativo']})
+
+    for c in cartoes:
+        if c['regiao'] not in CARTAO_REGIOES:
+            c['regiao'] = 'baixo'
+    for regiao, colunas in COLUNAS_POR_REGIAO.items():
+        distribuir_em_colunas([c for c in cartoes if c['regiao'] == regiao], colunas)
+    return render_template('admin_mapa.html', cartoes=cartoes,
+                           regioes=CARTAO_REGIOES, colunas=COLUNAS_POR_REGIAO)
 
 
 @app.route('/admin/ramais', methods=['GET', 'POST'])

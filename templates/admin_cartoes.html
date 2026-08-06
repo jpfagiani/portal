@@ -56,9 +56,24 @@
           {{ 'selected' if (editar.largura if editar else 1) == valor }}>{{ rotulo }}</option>
         {% endfor %}
       </select>
-      <p class="dica">A largura vale nas fileiras de cima e de baixo. Na faixa
-        do meio o cartão já ocupa a largura inteira. Em tela estreita todos
-        voltam a uma coluna — é o que evita texto por cima de foto no celular.</p>
+      <label>Coluna inicial</label>
+      <select name="coluna">
+        {% for valor, rotulo in colunas.items() %}
+        <option value="{{ valor }}"
+          {{ 'selected' if (editar.coluna if editar else 0) == valor }}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+      <p class="dica">Com <strong>Automática</strong> o cartão entra na primeira
+        vaga livre da fileira, como sempre foi. Escolhendo uma coluna, ele fica
+        sempre ali — dá para deixar um cartão fixo à direita, por exemplo.
+        As fileiras de cima e do meio têm <strong>três colunas exatas</strong>;
+        a de baixo se ajusta à largura da tela, então ali a coluna escolhida é a
+        n-ésima das que couberem.</p>
+
+      <p class="dica">As três regiões são grades de três colunas, então largura
+        e coluna valem em todas. Para um cartão ocupar a faixa inteira, escolha
+        <strong>3 colunas</strong>. Em tela estreita todos voltam a uma coluna —
+        é o que evita texto por cima de foto no celular.</p>
 
       <h2 style="margin-top:1.4rem">Aparência</h2>
       <label>Cor do título</label>

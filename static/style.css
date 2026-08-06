@@ -304,7 +304,7 @@ body{
 /* Quatro colunas enquanto couberem 240px em cada uma. Eram quatro fixas com
    quebras em 1400px e 900px, e a de 1400 pegava tela de 1280 — a fileira caía
    para duas colunas largas e vazias antes de ficar apertada de verdade. */
-.regiao-baixo{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+.regiao-baixo{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
   gap:1rem;align-items:stretch}
 
 /* Cartão em coluna: o corpo ocupa a sobra, então cartões lado a lado terminam
@@ -982,9 +982,11 @@ tr.alvo-abaixo td,tr.alvo-abaixo th{box-shadow:inset 0 -3px 0 -1px var(--azul)}
 /* Cartão mais largo que uma coluna. Vale só onde a região é grade — na faixa
    do meio o cartão já ocupa a largura toda. */
 .regiao-topo .cartao[data-larg="2"],
-.regiao-baixo .cartao[data-larg="2"]{grid-column:span 2}
+.regiao-baixo .cartao[data-larg="2"]{grid-column-end:span 2}
 .regiao-topo .cartao[data-larg="3"],
-.regiao-baixo .cartao[data-larg="3"]{grid-column:span 3}
+.regiao-baixo .cartao[data-larg="3"]{grid-column-end:span 3}
+.regiao-baixo .cartao[data-larg="4"]{grid-column-end:span 4}
+.regiao-baixo .cartao[data-col="4"]{grid-column-start:4}
 
 /* A cor escolhida no cartão manda; sem ela, o fundo padrão. */
 .cartao-livre{background:var(--liv-fundo,var(--cartao))}
@@ -1076,3 +1078,86 @@ html[data-tema="escuro"] .img-fundo .livre-corpo::before{opacity:.12}
   display:inline-block;margin-top:.4rem;font-size:.72rem;font-weight:600;
 }
 .com-link:hover{text-decoration:underline}
+
+/* Coluna inicial escolhida no cartão. Sem `data-col` ele entra na próxima vaga
+   livre, que é o comportamento de sempre. `grid-column-start` fixa a posição e
+   o `span` de `data-larg` continua valendo por cima dela.
+
+   Vale só onde a região é grade: na faixa do meio o cartão já ocupa a largura
+   inteira, e forçar coluna ali não teria efeito. */
+.regiao-topo .cartao[data-col="1"],.regiao-baixo .cartao[data-col="1"]{grid-column-start:1}
+.regiao-topo .cartao[data-col="2"],.regiao-baixo .cartao[data-col="2"]{grid-column-start:2}
+.regiao-topo .cartao[data-col="3"],.regiao-baixo .cartao[data-col="3"]{grid-column-start:3}
+
+/* Em tela estreita a grade tem menos colunas do que a escolhida: manter a
+   posição empurraria o cartão para fora ou deixaria buracos. Aqui ele volta a
+   fluir, junto com o `span` que já era desfeito no mesmo ponto. */
+@media (max-width:900px){
+  .regiao-topo .cartao[data-col],
+  .regiao-baixo .cartao[data-col]{grid-column-start:auto}
+}
+
+/* A faixa do meio era um empilhamento de largura inteira, e ali "largura" e
+   "coluna inicial" eram aceitos e ignorados — campo que grava e nao faz nada
+   e pior que campo ausente. Agora e uma grade de tres colunas como a de cima,
+   entao os tres lugares se comportam igual. Cartao que deva ocupar a faixa
+   inteira escolhe Largura = 3 colunas. */
+.regiao-meio-grade{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:1rem;align-items:stretch;margin-bottom:1rem;
+}
+.regiao-meio-grade .cartao[data-larg="2"]{grid-column-end:span 2}
+.regiao-meio-grade .cartao[data-larg="3"]{grid-column-end:span 3}
+.regiao-meio-grade .cartao[data-col="1"]{grid-column-start:1}
+.regiao-meio-grade .cartao[data-col="2"]{grid-column-start:2}
+.regiao-meio-grade .cartao[data-col="3"]{grid-column-start:3}
+@media (max-width:900px){
+  .regiao-meio-grade{grid-template-columns:minmax(0,1fr)}
+  .regiao-meio-grade .cartao[data-larg],
+  .regiao-meio-grade .cartao[data-col]{grid-column:auto}
+}
+
+/* ── mapa do painel ────────────────────────────────────────────────────────
+   Uma miniatura da página inicial: três regiões, três colunas cada, e os
+   cartões como blocos que se arrasta entre as células. */
+
+.mapa-regiao{display:grid;grid-template-columns:repeat(var(--mapa-cols,3),minmax(0,1fr));
+  gap:.7rem;margin-top:.5rem}
+.mapa-celula{
+  min-height:110px;padding:.5rem;border-radius:10px;
+  border:2px dashed var(--borda-botao);background:var(--cartao-suave);
+  display:flex;flex-direction:column;gap:.5rem;
+}
+/* Realce da célula sob o cursor: sem ele não se sabe onde o cartão vai cair. */
+.mapa-celula.alvo{border-style:solid;border-color:var(--azul);
+  background:var(--tom-azul-fundo)}
+.mapa-coluna-nome{font-size:.64rem;color:var(--texto-fraco);letter-spacing:.3px}
+
+.mapa-cartao{
+  background:var(--cartao);border:1px solid var(--borda);border-radius:9px;
+  padding:.5rem .6rem;cursor:grab;box-shadow:var(--sombra);
+}
+.mapa-cartao:active{cursor:grabbing}
+/* Enquanto arrasta, o bloco fica esmaecido no lugar de origem — assim se vê
+   de onde ele saiu enquanto se procura onde soltar. */
+.mapa-cartao.arrastando{opacity:.4}
+.mapa-cartao b{display:block;font-size:.78rem}
+.mapa-cartao small{display:block;font-size:.66rem;color:var(--texto-fraco)}
+.mapa-ic{color:var(--azul);display:block;line-height:0;margin-bottom:.25rem}
+.mapa-larg{display:flex;align-items:center;gap:.4rem;margin-top:.4rem;
+  font-size:.66rem;color:var(--texto-fraco)}
+.mapa-larg .btn{padding:0 .4rem;line-height:1.5}
+
+@media (max-width:900px){
+  .mapa-regiao{grid-template-columns:minmax(0,1fr)}
+}
+
+/* Entre 900 e 1150px quatro colunas ficam estreitas demais para o cartao de
+   ramais, que tem busca dentro. Duas ali, e uma abaixo de 900. */
+@media (max-width:1150px){
+  .regiao-baixo{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .regiao-baixo .cartao[data-larg="3"],
+  .regiao-baixo .cartao[data-larg="4"]{grid-column-end:span 2}
+  .regiao-baixo .cartao[data-col="3"],
+  .regiao-baixo .cartao[data-col="4"]{grid-column-start:auto}
+}

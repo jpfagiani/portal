@@ -236,7 +236,8 @@
         url_for('static', filename='uploads/' ~ c.imagem) }}');{% endif -%}
   {% endset %}
   <section class="cartao cartao-livre img-{{ c.img_pos }}" style="{{ estilo }}"
-           {% if c.largura > 1 %}data-larg="{{ c.largura }}"{% endif %}>
+           {% if c.largura > 1 %}data-larg="{{ c.largura }}"{% endif %}
+           {% if c.coluna %}data-col="{{ c.coluna }}"{% endif %}>
     <div class="cartao-cab">
       <span class="cab-ic">{{ ic(c.icone) }}</span>
       <h2>{{ c.titulo }}</h2>
@@ -264,7 +265,7 @@
 {#  Cartao do painel: nome no cabecalho e a lista de itens dentro. Os cinco sao
     iguais — o que muda e o nome, a posicao e o que a unidade escreve. #}
 {% macro cartao_painel(c, itens) %}
-  <section class="cartao" {% if c.largura > 1 %}data-larg="{{ c.largura }}"{% endif %}>
+  <section class="cartao" {% if c.largura > 1 %}data-larg="{{ c.largura }}"{% endif %}{% if c.coluna %} data-col="{{ c.coluna }}"{% endif %}>
     <div class="cartao-cab">
       <span class="cab-ic">{{ ic(c.icone) }}</span>
       <h2>{{ c.nome }}</h2>

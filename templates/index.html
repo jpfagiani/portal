@@ -20,6 +20,44 @@
   </div>
 {% endmacro %}
 
+{#  Todo cartao passa por aqui. Os de tipo "itens" sao os genericos, montados em
+    blocos.html; os tres de desenho proprio (sistemas, atalhos, ramais) tem
+    conteudo vindo do cadastro deles, mas a posicao sai do mesmo registro — e
+    por isso que agora tambem podem ser movidos. `itens` vem None quando o
+    cartao e livre, que carrega o proprio conteudo. #}
+{% macro desenha(c, itens) %}
+  {% if itens is none %}{{ b.cartao_livre(c) }}
+  {% elif c.tipo == 'sistemas' %}
+    <section class="cartao" {{ posicao(c) }}>
+      {{ cabecalho('grade', c.nome, url_for('sistemas'), sistemas_total, limites.sistemas) }}
+      <div class="cartao-corpo">{{ b.ladrilhos(sistemas) }}</div>
+    </section>
+  {% elif c.tipo == 'atalhos' %}
+    <section class="cartao" {{ posicao(c) }}>
+      {{ cabecalho('marcador', c.nome, url_for('lista', chave='atalhos'),
+                   atalhos|length, limites.atalhos) }}
+      <div class="cartao-corpo">{{ b.atalhos(atalhos[:limites.atalhos]) }}</div>
+    </section>
+  {% elif c.tipo == 'ramais' %}
+    <section class="cartao" {{ posicao(c) }}>
+      {{ cabecalho('telefone', c.nome, url_for('ramais'), ramais_total, limites.ramais) }}
+      <div class="cartao-corpo ramais">
+        <div class="busca-cartao">
+          <span aria-hidden="true">{{ ic('lupa') }}</span>
+          <input type="search" id="filtro-ramais-painel"
+                 placeholder="Pesquisar ramal ou setor..." aria-label="Filtrar ramais">
+        </div>
+        {{ b.ramais(ramais_destaque[:limites.ramais],
+                    ramais_destaque[limites.ramais:] + ramais_extras) }}
+      </div>
+    </section>
+  {% else %}{{ b.cartao_painel(c, itens) }}
+  {% endif %}
+{% endmacro %}
+
+{#  Largura e coluna viram atributos; o CSS traduz para a grade. #}
+{% macro posicao(c) %}{% if c.largura > 1 %}data-larg="{{ c.largura }}"{% endif %}{% if c.coluna %} data-col="{{ c.coluna }}"{% endif %}{% endmacro %}
+
 {% block miolo %}
 {% set capa_titulo = cfg.capa_titulo or ('Portal ' ~ cfg.site_sigla) %}
 <main class="painel">
@@ -76,60 +114,17 @@
   </div>
 
   <div class="regiao-topo">
-    <section class="cartao">
-      {{ cabecalho('grade', cfg.titulo_sistemas, url_for('sistemas'),
-             sistemas_total, limites.sistemas) }}
-      <div class="cartao-corpo">
-        {{ b.ladrilhos(sistemas) }}
-      </div>
-    </section>
-
-
-    {#  Cartões livres entram no fim da fileira, na ordem definida em
-        Administração → Cartões livres. #}
-    {% for c, itens in cartoes_painel.topo %}{{ b.cartao_painel(c, itens) }}{% endfor %}
-    {% for c in cartoes_livres.topo %}{{ b.cartao_livre(c) }}{% endfor %}
+    {% for c, itens in cartoes_painel.topo %}{{ desenha(c, itens) }}{% endfor %}
   </div>
 
-  <section class="cartao regiao-meio">
-    {{ cabecalho('marcador', cfg.titulo_atalhos, url_for('lista', chave='atalhos'),
-             atalhos|length, limites.atalhos) }}
-    <div class="cartao-corpo">
-      {{ b.atalhos(atalhos[:limites.atalhos]) }}
-    </div>
-  </section>
-
-  {% for c, itens in cartoes_painel.meio %}{{ b.cartao_painel(c, itens) }}{% endfor %}
-
-  {% if cartoes_livres.meio %}
-  <div class="regiao-livre-meio">
-    {% for c in cartoes_livres.meio %}{{ b.cartao_livre(c) }}{% endfor %}
+  {% if cartoes_painel.meio %}
+  <div class="regiao-meio-grade">
+    {% for c, itens in cartoes_painel.meio %}{{ desenha(c, itens) }}{% endfor %}
   </div>
   {% endif %}
 
   <div class="regiao-baixo">
-    <section class="cartao">
-      {{ cabecalho('telefone', cfg.titulo_ramais, url_for('ramais'),
-             ramais_total, limites.ramais) }}
-      <div class="cartao-corpo ramais">
-        <div class="busca-cartao">
-          <span aria-hidden="true">{{ ic('lupa') }}</span>
-          <input type="search" id="filtro-ramais-painel"
-                 placeholder="Pesquisar ramal ou setor..." aria-label="Filtrar ramais">
-        </div>
-        {{ b.ramais(ramais_destaque[:limites.ramais],
-            ramais_destaque[limites.ramais:] + ramais_extras) }}
-        {% if eh_admin and ramais_sem_destaque and ramais_destaque %}
-        <p class="dica dica-admin">Mostrando os primeiros da lista. Marque os
-          principais em <a href="{{ url_for('admin_ramais') }}">Ramais</a>.</p>
-        {% endif %}
-      </div>
-    </section>
-
-
-
-    {% for c, itens in cartoes_painel.baixo %}{{ b.cartao_painel(c, itens) }}{% endfor %}
-    {% for c in cartoes_livres.baixo %}{{ b.cartao_livre(c) }}{% endfor %}
+    {% for c, itens in cartoes_painel.baixo %}{{ desenha(c, itens) }}{% endfor %}
   </div>
 </main>
 
