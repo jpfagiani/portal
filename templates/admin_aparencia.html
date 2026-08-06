@@ -168,19 +168,6 @@
       <p class="dica">Arquivo atual: <code>static/{{ logo_nome }}</code> — pode ser
         trocado por aqui ou substituindo o arquivo no servidor.</p>
 
-      <label>Marca d'água dos aniversariantes
-        <small>(PNG transparente ou SVG — um bolo, por exemplo)</small></label>
-      <input type="file" name="marca_aniversarios" accept="image/png,image/svg+xml,image/webp,image/jpeg">
-      {% set marca, marca_v = marca_aniversarios %}
-      {% if marca %}
-        <img class="previa previa-logo"
-             src="{{ url_for('static', filename=marca) }}?v={{ marca_v }}" alt="">
-        <p class="dica">Arquivo atual: <code>static/{{ marca }}</code> — aparece
-          esmaecida no canto do cartão, atrás dos nomes.</p>
-      {% else %}
-        <p class="vazio">Nenhuma marca d'água — o cartão fica sem imagem de fundo.</p>
-      {% endif %}
-
       <h2 style="margin-top:1.6rem">Banner rotativo</h2>
       <div class="linha">
         <div>
@@ -211,13 +198,6 @@
         <input type="hidden" name="csrf" value="{{ csrf_token }}">
         <input type="hidden" name="acao" value="remover_fundo">
         <button class="btn btn-sm btn-perigo" type="submit">Remover imagem de fundo</button>
-      </form>
-      {% endif %}
-      {% if marca_aniversarios[0] %}
-      <form method="post" onsubmit="return confirm(&quot;Remover a marca d'água?&quot;)">
-        <input type="hidden" name="csrf" value="{{ csrf_token }}">
-        <input type="hidden" name="acao" value="remover_marca">
-        <button class="btn btn-sm btn-perigo" type="submit">Remover marca d'água</button>
       </form>
       {% endif %}
     </div>

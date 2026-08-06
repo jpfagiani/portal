@@ -1010,6 +1010,9 @@ def nome_do_bloco(chave, padrao):
     nome. O que a aba *faz* continua o mesmo — os campos e o desenho de cada
     bloco são próprios dele. Bloco sem cartão (o menu lateral) usa o padrão.
     """
+    registrado = cartao_por_chave(chave)
+    if registrado:
+        return registrado['nome']
     return cfg(f'titulo_{chave}') if chave in dict(TITULOS_CARTAO) else padrao
 
 
@@ -1423,7 +1426,6 @@ def index():
         banners=con.execute('SELECT * FROM banners WHERE ativo=1 ORDER BY ordem, id').fetchall(),
         comunicados=con.execute('SELECT * FROM lateral WHERE ativo=1 ORDER BY ordem, id').fetchall(),
         escalas=con.execute('SELECT * FROM escalas WHERE ativo=1 ORDER BY ordem, id').fetchall(),
-        marca_aniversarios=marca_atual('aniversarios'),
         aniversariantes=con.execute(
             'SELECT * FROM aniversariantes WHERE ativo=1 AND mes=? ORDER BY dia',
             (mes,)).fetchall(),
@@ -1632,6 +1634,8 @@ def admin_links():
         abas=abas_links(grupo),
         cartao=dados_titulo_cartao({'sistema': 'sistemas',
                                     'atalho': 'atalhos'}[grupo]),
+        nome_atual=nome_do_bloco({'sistema': 'sistemas',
+                                  'atalho': 'atalhos'}[grupo], GRUPOS_LINK[grupo]),
         nome_bloco=nome_do_bloco({'sistema': 'sistemas',
                                   'atalho': 'atalhos'}[grupo], GRUPOS_LINK[grupo]),
         aparencia=dados_aparencia_cartao({'sistema': 'sistemas',
@@ -2038,6 +2042,7 @@ def admin_ramais():
     return render_template(
         'admin_ramais.html', editar=editar,
         cartao=dados_titulo_cartao('ramais'),
+        nome_atual=nome_do_bloco('ramais', 'Ramais mais utilizados'),
         aparencia=dados_aparencia_cartao('ramais'), fontes=FONTES_TEXTO,
         itens=con.execute('SELECT * FROM ramais ORDER BY setor COLLATE NOCASE, id'
                           ).fetchall())
@@ -2216,7 +2221,9 @@ def cartao_por_chave(chave):
 
 def salvar_nome_cartao_painel(chave):
     """Nome do cartão do painel. Em branco volta ao nome de fábrica."""
-    padrao = dict((c, n) for c, n, *_ in CARTOES_SEMENTE).get(chave, chave)
+    # Os dois conjuntos: os cartões genéricos e os três de conteúdo próprio.
+    nomes = dict((c, n) for c, n, *_ in CARTOES_SEMENTE + CARTOES_FIXOS)
+    padrao = nomes.get(chave, chave)
     nome = (request.form.get('titulo_cartao') or '').strip() or padrao
     con = db()
     con.execute('UPDATE cartoes_painel SET nome=? WHERE chave=?', (nome, chave))
@@ -2225,6 +2232,8 @@ def salvar_nome_cartao_painel(chave):
 
 
 def salvar_titulo_cartao(chave):
+    if cartao_por_chave(chave):
+        return salvar_nome_cartao_painel(chave)
     """Grava o nome do cartão do bloco, vindo do formulário da própria tela.
 
     O nome mora em `config`, como antes; o que mudou é onde se edita. Ficava
@@ -2251,8 +2260,13 @@ def abas_painel(atual):
     cada comunicado, que o formulário genérico de blocos não conhece. Um único
     editor, listado no lugar onde se procura o conteúdo dos cartões.
     """
+    # Só os cartões genéricos. Sistemas, Atalhos e Ramais estão no mesmo
+    # registro por causa da posição, mas o conteúdo deles vem de outro cadastro
+    # e cada um tem tela própria — uma aba aqui abriria uma lista que nunca
+    # terá item, e duplicaria o que já existe noutra seção.
     return [(c['nome'], url_for('admin_lateral', cartao=c['chave']),
-             c['chave'] == atual) for c in cartoes_do_painel()]
+             c['chave'] == atual)
+            for c in cartoes_do_painel() if c['tipo'] == 'itens']
 
 
 def _filtro(info):
@@ -2568,19 +2582,15 @@ def admin_aparencia():
             _apaga_arquivos(FUNDO_NOMES)
             flash('Imagem de fundo removida.', 'ok')
             return redirect(url_for('admin_aparencia'))
-        if request.form.get('acao') == 'remover_marca':
-            _apaga_arquivos(tuple(f'marca-aniversarios{e}' for e in MARCA_EXTS))
             flash("Marca d'água removida.", 'ok')
             return redirect(url_for('admin_aparencia'))
 
         # Os uploads substituem os arquivos fixos static/fundo.<ext> e
         # static/logo.<ext>; trocar esses arquivos direto no servidor tem
         # exatamente o mesmo efeito.
-        marca_nomes = tuple(f'marca-aniversarios{e}' for e in MARCA_EXTS)
         for campo, base, nomes, exts in (
                 ('fundo', 'fundo', FUNDO_NOMES, {'.jpg', '.jpeg', '.png', '.webp'}),
-                ('logo',  'logo',  LOGO_ENVIADO, {'.png', '.jpg', '.jpeg', '.webp', '.svg'}),
-                ('marca_aniversarios', 'marca-aniversarios', marca_nomes, set(MARCA_EXTS))):
+                ('logo',  'logo',  LOGO_ENVIADO, {'.png', '.jpg', '.jpeg', '.webp', '.svg'}),):
             erro = _troca_imagem_fixa(campo, base, nomes, exts)
             if erro:
                 flash(erro, 'erro')
@@ -2637,8 +2647,7 @@ def admin_aparencia():
         con.commit()
         flash('Aparência salva.', 'ok')
         return redirect(url_for('admin_aparencia'))
-    return render_template('admin_aparencia.html', fontes=FONTES_TEXTO,
-                           marca_aniversarios=marca_atual('aniversarios'))
+    return render_template('admin_aparencia.html', fontes=FONTES_TEXTO)
 
 
 init_db()
