@@ -1434,25 +1434,32 @@ def index():
     # A faixa de indicadores do layout tem cinco cartões. Estes são os cinco
     # números que a unidade realmente tem no banco — contador de módulo que
     # ainda não existe seria enfeite, e enfeite com cara de dado engana quem lê.
+    # Cada indicador espelha um cartão: número, nome e ícone saem do próprio
+    # cartão, não de rótulos fixos aqui. Com cartões genéricos não há mais
+    # "escala" nem "chamado" para contar, e nome fixo sobre conteúdo livre
+    # enganaria quem lê — trocar o ícone do cartão troca o do indicador junto.
+    registrados = {c['chave']: c for c in cartoes_do_painel(so_ativos=True)}
+
+    def icone_de(chave, padrao):
+        cartao = registrados.get(chave)
+        return cartao['icone'] if cartao else padrao
+
     numeros = [
         (quantos("SELECT COUNT(*) FROM links WHERE ativo=1 AND grupo='sistema'"),
-         'Sistemas', 'Disponíveis', 'grade', 'azul'),
+         # Rótulo curto de propósito: o nome do cartão pode ser longo, e aqui
+         # ele dividiria espaço com o número numa caixa estreita.
+         'Sistemas', 'Disponíveis', icone_de('sistemas', 'grade'), 'azul'),
         (quantos('SELECT COUNT(*) FROM ramais WHERE ativo=1'),
-         'Ramais', 'Cadastrados', 'telefone', 'verde'),
+         'Ramais', 'Cadastrados', icone_de('ramais', 'telefone'), 'verde'),
         (quantos('SELECT COUNT(*) FROM lateral WHERE ativo=1'),
          'Itens', 'Publicados', 'megafone', 'laranja'),
     ]
-    # Os dois ultimos indicadores acompanham os dois primeiros cartoes: com
-    # cartoes genericos nao ha mais "escala" nem "chamado" para contar, e
-    # numero com rotulo fixo sobre conteudo livre enganaria quem le.
-    # Só os cartões de lista têm item para contar. Sem o filtro, o primeiro
-    # do registro é "Acesso rápido aos sistemas", que apareceria com zero.
-    com_itens = [c for c in cartoes_do_painel(so_ativos=True)
-                 if c['tipo'] == 'itens']
-    for c, tom, icone in zip(com_itens[1:3],
-                             ('roxo', 'vermelho'), ('calendario', 'fone')):
+    # Só os cartões de lista têm item para contar. Sem o filtro, o primeiro do
+    # registro é o de sistemas, que apareceria com zero.
+    com_itens = [c for c in registrados.values() if c['tipo'] == 'itens']
+    for c, tom in zip(com_itens[1:3], ('roxo', 'vermelho')):
         numeros.append((quantos_cartao(con, c['chave']), c['nome'],
-                        'Itens visíveis', icone, tom))
+                        'Itens visíveis', c['icone'], tom))
 
     sistemas_todos = con.execute(
         "SELECT * FROM links WHERE ativo=1 AND grupo='sistema'"
