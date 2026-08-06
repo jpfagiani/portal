@@ -1,6 +1,7 @@
 {% extends 'admin_base.html' %}
+{% import 'campos.html' as campos %}
 {% set aba = 'lateral' %}
-{% block titulo %}Barra lateral{% endblock %}
+{% block titulo %}Comunicados{% endblock %}
 
 {% block admin %}
 <div class="painel painel-duplo">
@@ -35,6 +36,36 @@
         em quem é sensível. Quem configurou o sistema para menos animação vê o
         título sublinhado, sem movimento.</p>
       <p class="dica">Use com parcimônia: <em>tudo</em> em destaque não destaca nada.</p>
+
+      <label>Cor do fundo <small>(quando o destaque é “Fundo colorido”)</small></label>
+      {{ campos.paleta('fundo_cor', editar.fundo_cor if editar else '',
+                       paleta_fundo, 'Cor da urgência') }}
+
+      <h2 style="margin-top:1.4rem">Aparência deste comunicado</h2>
+      <p class="dica">Em branco, vale o padrão de
+        <a href="{{ url_for('admin_aparencia') }}">Aparência</a>, que serve para
+        todos. Preencha aqui só o que este comunicado precisa ter diferente.</p>
+
+      <div class="linha">
+        <div>
+          <label>Título — tamanho <small>(rem)</small></label>
+          <input name="titulo_tam" type="number" step="0.05" min="0.6" max="2"
+                 placeholder="{{ cfg.com_titulo_tam }}"
+                 value="{{ editar.titulo_tam if editar else '' }}">
+        </div>
+        <div>
+          <label>Texto — tamanho <small>(rem)</small></label>
+          <input name="texto_tam" type="number" step="0.05" min="0.6" max="2"
+                 placeholder="{{ cfg.com_texto_tam }}"
+                 value="{{ editar.texto_tam if editar else '' }}">
+        </div>
+      </div>
+
+      <label>Cor do título</label>
+      {{ campos.paleta('titulo_cor', editar.titulo_cor if editar else '', paleta) }}
+
+      <label>Cor do texto</label>
+      {{ campos.paleta('texto_cor', editar.texto_cor if editar else '', paleta) }}
 
       <label>Data exibida <small>(livre, ex.: 15/07/2026)</small></label>
       <input name="data" value="{{ editar.data if editar else '' }}">
@@ -92,4 +123,5 @@
   </section>
 </div>
 <script src="{{ url_for('static', filename='ordenar.js') }}"></script>
+<script src="{{ url_for('static', filename='paleta.js') }}"></script>
 {% endblock %}

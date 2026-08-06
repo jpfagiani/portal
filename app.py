@@ -318,6 +318,23 @@ PADROES = {
 }
 FUNDO_MODOS = ('imagem', 'cor', 'nenhum')
 
+# Paleta oferecida nos seletores de cor. Escolher de uma lista curta evita o
+# arco-íris que sai de um seletor livre — e todas aqui têm contraste suficiente
+# para texto em cartão claro. O seletor livre continua ao lado, para quem
+# precisar de uma cor específica da unidade.
+PALETA = [
+    ('#1e293b', 'Grafite'),   ('#7c8ba1', 'Cinza'),     ('#2563eb', 'Azul'),
+    ('#1d4ed8', 'Azul forte'),('#16a34a', 'Verde'),     ('#0f766e', 'Verde-água'),
+    ('#e08a2a', 'Âmbar'),     ('#c2410c', 'Laranja'),   ('#e0503c', 'Vermelho'),
+    ('#b91c1c', 'Vermelho forte'), ('#6d5ae0', 'Roxo'), ('#a21caf', 'Magenta'),
+]
+# Fundos: mesmas famílias, em tom claro — texto escuro por cima continua legível.
+PALETA_FUNDO = [
+    ('#e5edfd', 'Azul claro'),  ('#e3f6ec', 'Verde claro'), ('#fdf0e2', 'Âmbar claro'),
+    ('#fdeae7', 'Vermelho claro'), ('#ece9fc', 'Roxo claro'), ('#f0f3f9', 'Cinza claro'),
+    ('#fff8d6', 'Amarelo'),     ('#e6fbff', 'Ciano claro'),
+]
+
 # Como o comunicado chama atenção, além do selo de urgência.
 DESTAQUES_COMUNICADO = {
     'nenhum': 'Sem destaque',
@@ -592,6 +609,12 @@ def init_db():
             ('lateral',  'urgencia', "TEXT NOT NULL DEFAULT 'informacao'"),
             # nenhum | fundo | pulso — chama atenção sem depender de emoji
             ('lateral',  'destaque', "TEXT DEFAULT 'nenhum'"),
+            # Ajustes por comunicado. Em branco: vale o padrão de Aparência.
+            ('lateral',  'titulo_tam', "TEXT DEFAULT ''"),
+            ('lateral',  'titulo_cor', "TEXT DEFAULT ''"),
+            ('lateral',  'texto_tam',  "TEXT DEFAULT ''"),
+            ('lateral',  'texto_cor',  "TEXT DEFAULT ''"),
+            ('lateral',  'fundo_cor',  "TEXT DEFAULT ''"),
             ('lateral',  'data',     "TEXT DEFAULT ''"),
             ('ramais',   'destaque', 'INTEGER NOT NULL DEFAULT 0'),
             ('usuarios', 'ultimo_acesso', "TEXT DEFAULT ''")):
@@ -829,6 +852,18 @@ def _injeta():
             'usuario_nome': session.get('nome'),
             'ultimo_acesso': session.get('ultimo_acesso'),
             'eh_admin': bool(session.get('admin'))}
+
+
+@app.template_filter('texto_longo')
+def _texto_longo(texto, linhas=5, caracteres=320):
+    """O comunicado não cabe no cartão do painel?
+
+    Decidido aqui, e não no CSS, porque a folha não tem como saber se o texto
+    transbordou — e esmaecer o fim de um comunicado curto pareceria defeito.
+    Conta as duas coisas: muitas linhas curtas ocupam altura igual a poucas
+    linhas longas."""
+    texto = texto or ''
+    return len(texto.splitlines()) > linhas or len(texto) > caracteres
 
 
 @app.template_filter('linhas')
@@ -1337,18 +1372,29 @@ def admin_lateral():
                      1 if request.form.get('ativo') else 0,
                      urg if urg in ('urgente', 'comunicado', 'informacao') else 'informacao',
                      dest if dest in DESTAQUES_COMUNICADO else 'nenhum',
+                     # Vazio quer dizer "usa o padrão de Aparência" — por isso
+                     # o padrão dos validadores aqui é a string vazia.
+                     medida(request.form.get('titulo_tam'), '', 0.6, 2.0)
+                     if request.form.get('titulo_tam', '').strip() else '',
+                     cor_hexa(request.form.get('titulo_cor'), ''),
+                     medida(request.form.get('texto_tam'), '', 0.6, 2.0)
+                     if request.form.get('texto_tam', '').strip() else '',
+                     cor_hexa(request.form.get('texto_cor'), ''),
+                     cor_hexa(request.form.get('fundo_cor'), ''),
                      request.form.get('data', '').strip())
             if not dados[1]:
                 flash('O título é obrigatório.', 'erro')
             elif ident:
                 con.execute('UPDATE lateral SET tipo=?,titulo=?,conteudo=?,url=?,'
-                            'ordem=?,ativo=?,urgencia=?,destaque=?,data=?'
-                            ' WHERE id=?', dados + (ident,))
+                            'ordem=?,ativo=?,urgencia=?,destaque=?,titulo_tam=?,'
+                            'titulo_cor=?,texto_tam=?,texto_cor=?,fundo_cor=?,'
+                            'data=? WHERE id=?', dados + (ident,))
                 flash('Item atualizado.', 'ok')
             else:
                 con.execute('INSERT INTO lateral (tipo,titulo,conteudo,url,ordem,'
-                            'ativo,urgencia,destaque,data)'
-                            ' VALUES (?,?,?,?,?,?,?,?,?)', dados)
+                            'ativo,urgencia,destaque,titulo_tam,titulo_cor,'
+                            'texto_tam,texto_cor,fundo_cor,data)'
+                            ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', dados)
                 flash('Item adicionado.', 'ok')
         con.commit()
         return redirect(url_for('admin_lateral'))
@@ -1359,6 +1405,7 @@ def admin_lateral():
                              (_int(request.args['editar']),)).fetchone()
     return render_template(
         'admin_lateral.html', editar=editar, destaques=DESTAQUES_COMUNICADO,
+        paleta=PALETA, paleta_fundo=PALETA_FUNDO,
         itens=con.execute('SELECT * FROM lateral ORDER BY ordem, id').fetchall())
 
 

@@ -306,14 +306,15 @@ body{
   background:var(--cartao);border:1px solid var(--borda);border-radius:var(--raio);
   overflow:hidden;box-shadow:var(--sombra);display:flex;flex-direction:column;
 }
-/* Corpo colado no cabeçalho: a folga que sobra vira mais uma fileira de
-   botões no cartão de sistemas, em vez de espaço morto no pé. */
-.cartao-corpo{padding:.65rem 1rem .8rem;flex:1}
+/* Respiro igual acima e abaixo do conteúdo: com valores diferentes, o bloco
+   de botões parece empurrado para baixo dentro do cartão. A folga que sobra
+   vira mais uma fileira, em vez de espaço morto no pé. */
+.cartao-corpo{padding:.55rem 1rem;flex:1}
 /* Cartão vazio e alto: o aviso fica no meio, não colado no topo. */
 .cartao-corpo:has(>.sem-registro:only-child){display:flex;flex-direction:column}
 .cartao-corpo>.sem-registro:only-child{margin:auto 0}
 
-.cartao-cab{display:flex;align-items:center;gap:.55rem;padding:.7rem 1rem;
+.cartao-cab{display:flex;align-items:center;gap:.55rem;padding:.7rem 1rem .6rem;
   border-bottom:1px solid var(--borda-suave)}
 .cab-ic{color:var(--azul);display:block;line-height:0}
 .cartao-cab h2{font-size:.73rem;font-weight:700;letter-spacing:.6px;
@@ -850,9 +851,9 @@ tr.alvo-abaixo td,tr.alvo-abaixo th{box-shadow:inset 0 -3px 0 -1px var(--azul)}
 /* Aviso de busca sem resultado no cartão de ramais. */
 .ramais-nada{font-size:.78rem;color:var(--texto-fraco);padding:.8rem 0;text-align:center}
 .ramais .ramais-nada[hidden]{display:none}
-/* Contador do "ver todos": aparece só quando o cartão esconde alguma coisa. */
-.ver{background:var(--tom-azul-fundo);padding:2px 8px;border-radius:999px;font-size:.68rem}
-.ver:hover{background:var(--azul);color:#fff;text-decoration:none}
+/* "Ver todos": link simples, no mesmo canto de todos os cartões. */
+.ver{font-size:.7rem}
+.ver:hover{text-decoration:underline}
 
 
 /* ── destaque do comunicado ────────────────────────────────────────────────
@@ -860,14 +861,13 @@ tr.alvo-abaixo td,tr.alvo-abaixo th{box-shadow:inset 0 -3px 0 -1px var(--azul)}
    comunicado em Administração → Comunicados. */
 
 /* Fundo tingido na cor da urgência, com uma tarja na lateral. */
+/* Caixa inteira arredondada, sem tarja na lateral: a tarja era da cor da
+   urgência e brigava com o fundo escolhido no comunicado — dava um risco azul
+   ao lado de um fundo amarelo. A urgência já aparece no símbolo e no selo.
+   `border-bottom:none` tira a linha divisória que cortaria a caixa ao meio. */
 .comunicado.destaque-fundo{
-  border-radius:9px;padding:.55rem .7rem;margin:.15rem 0;
-  border-left:3px solid var(--tom-azul);background:var(--tom-azul-fundo);
+  border-radius:10px;padding:.6rem .75rem;margin:.2rem 0;border-bottom:none;
 }
-.comunicado.destaque-fundo.tom-urgente{
-  border-left-color:var(--tom-vermelho);background:var(--tom-vermelho-fundo)}
-.comunicado.destaque-fundo.tom-comunicado{
-  border-left-color:var(--tom-laranja);background:var(--tom-laranja-fundo)}
 
 /* "Piscando" aqui é uma pulsação lenta de opacidade, não um liga-desliga:
    texto que apaga por completo fica ilegível na hora errada, e cintilação
@@ -881,4 +881,62 @@ tr.alvo-abaixo td,tr.alvo-abaixo th{box-shadow:inset 0 -3px 0 -1px var(--azul)}
 /* Quem pediu menos animação no sistema não recebe nenhuma. */
 @media (prefers-reduced-motion: reduce){
   .comunicado.destaque-pulso .titulo{animation:none;text-decoration:underline}
+}
+
+/* ── paleta de cores da administração ──────────────────────────────────── */
+
+.paleta{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem;margin-top:.3rem}
+.paleta-amostra{
+  width:26px;height:26px;border-radius:7px;cursor:pointer;padding:0;
+  background:var(--amostra,var(--cartao));border:2px solid transparent;
+  box-shadow:inset 0 0 0 1px rgba(16,30,60,.14);
+}
+.paleta-amostra:hover{transform:scale(1.08)}
+.paleta-amostra.ativa{border-color:var(--texto);box-shadow:inset 0 0 0 1px var(--cartao)}
+/* "Padrão" é escolha, não cor: mostra a palavra em vez de um quadrado vazio. */
+.paleta-padrao{
+  width:auto;padding:0 .55rem;height:26px;font-size:.66rem;font-weight:600;
+  font-family:var(--fonte);color:var(--texto-fraco);background:var(--cartao-suave);
+  border:1px solid var(--borda);border-radius:7px;
+}
+.paleta-padrao.ativa{border-color:var(--azul);color:var(--azul);box-shadow:none}
+.paleta-livre{
+  width:26px;height:26px;border-radius:7px;overflow:hidden;cursor:pointer;
+  border:2px dashed var(--borda-botao);display:grid;place-items:center;margin:0;
+}
+.paleta.livre-ativa .paleta-livre{border-style:solid;border-color:var(--texto)}
+.paleta-livre input{width:200%;height:200%;padding:0;border:none;cursor:pointer}
+/* Nome da cor para leitor de tela, sem ocupar espaço na página. */
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);
+  white-space:nowrap}
+
+/* Fundo do destaque: a cor escolhida no comunicado manda; sem ela, a da
+   urgência. */
+/* Fundo do destaque: a cor escolhida no comunicado manda; sem ela, a da
+   urgência. */
+.comunicado.destaque-fundo{background:var(--com-fundo,var(--tom-azul-fundo))}
+.comunicado.destaque-fundo.tom-urgente{background:var(--com-fundo,var(--tom-vermelho-fundo))}
+.comunicado.destaque-fundo.tom-comunicado{background:var(--com-fundo,var(--tom-laranja-fundo))}
+
+/* Comunicado longo no painel: mostra o começo e esmaece o fim. O texto inteiro
+   fica em "Ver todos" — cartão que cresce com o comunicado estica a fileira
+   toda, e os vizinhos ficam com um vão embaixo.
+
+   O corte vale só no painel: na página da lista o texto sai completo.
+   `mask-image` desbota o próprio texto, então funciona igual sobre fundo
+   branco ou sobre o fundo colorido do destaque. */
+
+/* O comunicado cortado ocupa a altura que sobrar no cartão, em vez de parar no
+   meio e deixar um vão branco embaixo. `flex-basis` é o que conta na hora de
+   medir a altura natural da fileira — sem ele o texto inteiro voltaria a puxar
+   o cartão para cima. `min-height:0` em toda a corrente: sem isso o item flex
+   se recusa a encolher abaixo do próprio conteúdo e o corte não acontece. */
+.painel .cartao-corpo.comunicados{display:flex;flex-direction:column}
+.painel .comunicados .comunicado:has(p.cortado){flex:1 1 auto;min-height:0}
+.painel .comunicados .comunicado:has(p.cortado) .conteudo{
+  display:flex;flex-direction:column;min-height:0}
+.painel .comunicado p.cortado{
+  flex:1 1 7.5em;min-height:0;overflow:hidden;
+  -webkit-mask-image:linear-gradient(#000 68%,transparent);
+          mask-image:linear-gradient(#000 68%,transparent);
 }

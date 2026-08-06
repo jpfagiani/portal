@@ -11,6 +11,15 @@
   {% for c in itens %}
   {% set u = c.urgencia|default('informacao') %}
   {% set d = c.destaque|default('nenhum') %}
+  {#  Cada ajuste vira uma variável CSS no próprio item. Só entram as que foram
+      preenchidas — as demais continuam herdando o padrão de Aparência. #}
+  {% set estilo %}
+    {%- if c.titulo_tam %}--com-titulo-tam:{{ c.titulo_tam }}rem;{% endif -%}
+    {%- if c.titulo_cor %}--com-titulo-cor:{{ c.titulo_cor }};{% endif -%}
+    {%- if c.texto_tam %}--com-texto-tam:{{ c.texto_tam }}rem;{% endif -%}
+    {%- if c.texto_cor %}--com-texto-cor:{{ c.texto_cor }};{% endif -%}
+    {%- if c.fundo_cor %}--com-fundo:{{ c.fundo_cor }};{% endif -%}
+  {% endset %}
   {% set interno %}
     <span class="com-ic com-{{ u }}">{{ ic({'urgente':'alerta',
       'comunicado':'megafone'}.get(u, 'calendario')) }}</span>
@@ -20,14 +29,16 @@
         <span class="selo selo-{{ u }}">{{ {'urgente':'Urgente',
           'comunicado':'Aviso'}.get(u, 'Novo') }}</span>
       </span>
-      {% if c.conteudo %}<p>{{ c.conteudo|linhas }}</p>{% endif %}
+      {% if c.conteudo %}
+      <p class="{{ 'cortado' if c.conteudo|texto_longo }}">{{ c.conteudo|linhas }}</p>
+    {% endif %}
       {% if c.data %}<span class="quando">{{ c.data }}</span>{% endif %}
     </span>
   {% endset %}
   {% if c.tipo == 'link' and c.url %}
-    <a class="comunicado destaque-{{ d }} tom-{{ u }}" href="{{ c.url }}" target="_blank" rel="noopener">{{ interno }}</a>
+    <a class="comunicado destaque-{{ d }} tom-{{ u }}" style="{{ estilo }}" href="{{ c.url }}" target="_blank" rel="noopener">{{ interno }}</a>
   {% else %}
-    <div class="comunicado destaque-{{ d }} tom-{{ u }}">{{ interno }}</div>
+    <div class="comunicado destaque-{{ d }} tom-{{ u }}" style="{{ estilo }}">{{ interno }}</div>
   {% endif %}
   {% else %}
   {{ vazio('Nenhum comunicado publicado.', 'megafone') }}

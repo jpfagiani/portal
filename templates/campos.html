@@ -1,0 +1,26 @@
+{#  Campos de formulário reaproveitados entre telas da administração. #}
+
+{#  Paleta de cores: amostras clicáveis + seletor livre ao lado.
+
+    O valor real fica num campo escondido, porque a escolha pode ser "nenhuma"
+    (voltar ao padrão) — e um <input type="color"> não tem como representar
+    ausência de cor: ele sempre devolve alguma. #}
+{% macro paleta(nome, valor, cores, rotulo_padrao='Padrão') %}
+  <div class="paleta" data-paleta>
+    <input type="hidden" name="{{ nome }}" value="{{ valor }}" data-paleta-valor>
+    {% if rotulo_padrao %}
+    <button type="button" class="paleta-amostra paleta-padrao {{ 'ativa' if not valor }}"
+            data-cor="" title="{{ rotulo_padrao }}">{{ rotulo_padrao }}</button>
+    {% endif %}
+    {% for cor, nome_cor in cores %}
+    <button type="button" class="paleta-amostra {{ 'ativa' if valor|lower == cor|lower }}"
+            style="--amostra: {{ cor }}" data-cor="{{ cor }}" title="{{ nome_cor }}">
+      <span class="sr">{{ nome_cor }}</span>
+    </button>
+    {% endfor %}
+    <label class="paleta-livre" title="Outra cor">
+      <input type="color" value="{{ valor or '#2563eb' }}" data-paleta-livre>
+      <span class="sr">Outra cor</span>
+    </label>
+  </div>
+{% endmacro %}

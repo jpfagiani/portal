@@ -7,17 +7,16 @@
     conforme é preenchida. Cada bloco mostra até um limite; o "ver todos" abre
     a lista completa em outra aba. #}
 
-{#  O "ver todos" aparece só quando o cartão está escondendo alguma coisa:
-    sem isso, ou polui todos os cabeçalhos, ou o que passa do limite fica
-    inalcançável. #}
-{% macro cabecalho(icone, titulo, total=0, limite=0, href=none) %}
+{#  "Ver todos" em todos os cartões, sempre no mesmo lugar: o cabeçalho vira
+    previsível e ninguém precisa descobrir quais blocos escondem coisa. Quando
+    há mais do que cabe, a quantidade vai no title — informação útil sem virar
+    um número solto ao lado do título. #}
+{% macro cabecalho(icone, titulo, href, total=0, limite=0) %}
   <div class="cartao-cab">
     <span class="cab-ic">{{ ic(icone) }}</span>
     <h2>{{ titulo }}</h2>
-    {% if href and total > limite %}
     <a class="ver" href="{{ href }}" target="_blank" rel="noopener"
-       title="Ver os {{ total }} itens">+{{ total - limite }}</a>
-    {% endif %}
+       {% if total > limite %}title="Ver todos os {{ total }}"{% endif %}>Ver todos</a>
   </div>
 {% endmacro %}
 
@@ -78,24 +77,24 @@
 
   <div class="regiao-topo">
     <section class="cartao">
-      {{ cabecalho('grade', cfg.titulo_sistemas, sistemas_total, limites.sistemas,
-             url_for('sistemas')) }}
+      {{ cabecalho('grade', cfg.titulo_sistemas, url_for('sistemas'),
+             sistemas_total, limites.sistemas) }}
       <div class="cartao-corpo">
         {{ b.ladrilhos(sistemas) }}
       </div>
     </section>
 
     <section class="cartao">
-      {{ cabecalho('megafone', cfg.titulo_comunicados, comunicados|length,
-             limites.comunicados, url_for('lista', chave='comunicados')) }}
+      {{ cabecalho('megafone', cfg.titulo_comunicados, url_for('lista', chave='comunicados'),
+             comunicados|length, limites.comunicados) }}
       <div class="cartao-corpo comunicados">
         {{ b.comunicados(comunicados[:limites.comunicados]) }}
       </div>
     </section>
 
     <section class="cartao">
-      {{ cabecalho('bolo', cfg.titulo_aniversariantes, aniversariantes|length,
-             limites.aniversariantes, url_for('lista', chave='aniversariantes')) }}
+      {{ cabecalho('bolo', cfg.titulo_aniversariantes, url_for('lista', chave='aniversariantes'),
+             aniversariantes|length, limites.aniversariantes) }}
       {% set marca, marca_v = marca_aniversarios %}
       <div class="cartao-corpo aniversarios {{ 'com-marca' if marca }}"
            {% if marca %}style="--marca: url('{{ url_for('static', filename=marca) }}?v={{ marca_v }}')"{% endif %}>
@@ -105,8 +104,8 @@
   </div>
 
   <section class="cartao regiao-meio">
-    {{ cabecalho('marcador', cfg.titulo_atalhos, atalhos|length, limites.atalhos,
-             url_for('lista', chave='atalhos')) }}
+    {{ cabecalho('marcador', cfg.titulo_atalhos, url_for('lista', chave='atalhos'),
+             atalhos|length, limites.atalhos) }}
     <div class="cartao-corpo">
       {{ b.atalhos(atalhos[:limites.atalhos]) }}
     </div>
@@ -114,8 +113,8 @@
 
   <div class="regiao-baixo">
     <section class="cartao">
-      {{ cabecalho('telefone', cfg.titulo_ramais, ramais_total, limites.ramais,
-             url_for('ramais')) }}
+      {{ cabecalho('telefone', cfg.titulo_ramais, url_for('ramais'),
+             ramais_total, limites.ramais) }}
       <div class="cartao-corpo ramais">
         <div class="busca-cartao">
           <span aria-hidden="true">{{ ic('lupa') }}</span>
@@ -132,24 +131,24 @@
     </section>
 
     <section class="cartao">
-      {{ cabecalho('calendario', cfg.titulo_escalas, escalas|length, limites.escalas,
-             url_for('lista', chave='escalas')) }}
+      {{ cabecalho('calendario', cfg.titulo_escalas, url_for('lista', chave='escalas'),
+             escalas|length, limites.escalas) }}
       <div class="cartao-corpo escalas">
         {{ b.escalas(escalas[:limites.escalas]) }}
       </div>
     </section>
 
     <section class="cartao">
-      {{ cabecalho('fone', cfg.titulo_chamados, chamados|length, limites.chamados,
-             url_for('lista', chave='chamados')) }}
+      {{ cabecalho('fone', cfg.titulo_chamados, url_for('lista', chave='chamados'),
+             chamados|length, limites.chamados) }}
       <div class="cartao-corpo chamados">
         {{ b.chamados(chamados[:limites.chamados]) }}
       </div>
     </section>
 
     <section class="cartao">
-      {{ cabecalho('arquivo', cfg.titulo_reservas, reservas|length, limites.reservas,
-             url_for('lista', chave='reservas')) }}
+      {{ cabecalho('arquivo', cfg.titulo_reservas, url_for('lista', chave='reservas'),
+             reservas|length, limites.reservas) }}
       <div class="cartao-corpo reservas">
         {{ b.reservas(reservas[:limites.reservas]) }}
       </div>
