@@ -1355,7 +1355,10 @@ def _separar_paginas_laterais(con, instalacao_nova):
       página da lateral e o item do topo volta ao que era."""
     if con.execute("SELECT 1 FROM config WHERE chave='paginas_separadas'").fetchone():
         return
-    ordem = con.execute('SELECT COALESCE(MAX(ordem),-1)+1 FROM paginas_lateral').fetchone()[0]
+    # Sem a marca, a migração nunca terminou: recomeça do zero (uma tentativa
+    # interrompida não pode deixar itens repetidos).
+    con.execute('DELETE FROM paginas_lateral')
+    ordem = 0
     usadas = {r[0] for r in con.execute('SELECT chave FROM paginas_lateral')}
 
     def nova(chave_base, nome, icone, url, ativo=1):
@@ -1373,17 +1376,21 @@ def _separar_paginas_laterais(con, instalacao_nova):
         for chave, nome, icone in PAGINAS_SEMENTE:
             nova(chave, nome, icone, '')
     else:
-        for r in con.execute("SELECT * FROM menu_itens WHERE chave NOT IN"
-                             " ('inicio','ramais','admin') ORDER BY ordem, id").fetchall():
-            nova(r['chave'], r['nome'], r['icone'], r['url'], r['ativo'])
+        # Sem row_factory aqui (init_db usa tuplas): colunas por posição.
+        for chave, nome, icone, url, ativo in con.execute(
+                "SELECT chave,nome,icone,url,ativo FROM menu_itens WHERE chave NOT IN"
+                " ('inicio','ramais','admin') ORDER BY ordem, id").fetchall():
+            nova(chave, nome, icone, url, ativo)
         con.execute("DELETE FROM menu_itens WHERE chave NOT IN ('inicio','ramais','admin')")
-        for r in con.execute("SELECT * FROM menu_itens WHERE chave IN ('inicio','ramais')").fetchall():
-            nome, icone = MENU_PADRAO[r['chave']]
-            if r['nome'] != nome or r['url'] or r['icone'] != icone:
-                chave = nova(_slug(r['nome']), r['nome'], r['icone'], r['url'], r['ativo'])
-                con.execute('UPDATE pagina_blocos SET chave=? WHERE chave=?', (chave, r['chave']))
-                con.execute('UPDATE menu_itens SET nome=?,icone=?,url=\'\' WHERE id=?',
-                            (nome, icone, r['id']))
+        for rid, chave_s, nome_s, icone_s, url_s, ativo_s in con.execute(
+                "SELECT id,chave,nome,icone,url,ativo FROM menu_itens"
+                " WHERE chave IN ('inicio','ramais')").fetchall():
+            nome, icone = MENU_PADRAO[chave_s]
+            if nome_s != nome or url_s or (icone_s or '') != icone:
+                chave = nova(_slug(nome_s), nome_s, icone_s, url_s, ativo_s)
+                con.execute('UPDATE pagina_blocos SET chave=? WHERE chave=?', (chave, chave_s))
+                con.execute("UPDATE menu_itens SET nome=?,icone=?,url='' WHERE id=?",
+                            (nome, icone, rid))
     con.execute("INSERT INTO config (chave,valor) VALUES ('paginas_separadas','1')")
 
 
