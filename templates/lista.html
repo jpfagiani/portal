@@ -1,0 +1,26 @@
+{% extends 'shell.html' %}
+{% import 'blocos.html' as b with context %}
+{% set pagina = 'inicio' %}
+{% block titulo %}{{ titulo }}{% endblock %}
+
+{% block miolo %}
+<main class="pagina">
+  <section class="cartao cartao-lista">
+    <div class="cartao-cab">
+      <h2>{{ titulo }} ({{ itens|length }})</h2>
+    </div>
+    {% set marca, marca_v = marca_bloco %}
+    <div class="cartao-corpo {{ macro }} {{ 'com-marca' if marca }}"
+         {% if marca %}style="--marca: url('{{ url_for('static', filename=marca) }}?v={{ marca_v }}')"{% endif %}>
+      {% if macro == 'comunicados' %}{{ b.comunicados(itens) }}
+      {% elif macro == 'atalhos' %}{{ b.atalhos(itens) }}
+      {% elif macro == 'reservas' %}{{ b.reservas(itens) }}
+      {% elif macro == 'escalas' %}{{ b.escalas(itens) }}
+      {% elif macro == 'chamados' %}{{ b.chamados(itens) }}
+      {% elif macro == 'aniversarios' %}{{ b.aniversarios(itens) }}
+      {% endif %}
+    </div>
+  </section>
+  <p class="ramais-voltar"><a href="{{ url_for('index') }}">← Voltar ao início</a></p>
+</main>
+{% endblock %}

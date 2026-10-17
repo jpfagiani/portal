@@ -1,0 +1,235 @@
+{% extends 'shell.html' %}
+{% import 'blocos.html' as b with context %}
+{% set pagina = 'inicio' %}
+{% block titulo %}Portal{% endblock %}
+
+{#  Os cartões existem sempre, mesmo vazios, para a página não mudar de forma
+    conforme é preenchida. Cada bloco mostra até um limite; o "ver todos" abre
+    a lista completa em outra aba. #}
+
+{#  "Ver todos" em todos os cartões, sempre no mesmo lugar: o cabeçalho vira
+    previsível e ninguém precisa descobrir quais blocos escondem coisa. Quando
+    há mais do que cabe, a quantidade vai no title — informação útil sem virar
+    um número solto ao lado do título. #}
+{% macro cabecalho(icone, titulo, href, total=0, limite=0, editar='') %}
+  <div class="cartao-cab">
+    <span class="cab-ic">{{ ic(icone) }}</span>
+    {#  O próprio nome do cartão é o link para a lista completa — não há mais
+        um "Ver todos" ao lado. #}
+    {#  Administrador: o nome abre a edição do cartão. Os demais, a lista. #}
+    {% if modo_edicao and editar %}
+    <h2><a class="cab-link cab-editar" href="{{ editar }}"
+           title="Editar cartão: {{ titulo }}">{{ titulo }}</a></h2>
+    {% else %}
+    <h2><a class="cab-link" href="{{ href }}" target="_blank" rel="noopener"
+           title="{% if total > limite %}Ver todos os {{ total }}{% else %}Ver todos{% endif %}: {{ titulo }}">{{ titulo }}</a></h2>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{#  Todo cartao passa por aqui. Os de tipo "itens" sao os genericos, montados em
+    blocos.html; os tres de desenho proprio (sistemas, atalhos, ramais) tem
+    conteudo vindo do cadastro deles, mas a posicao sai do mesmo registro — e
+    por isso que agora tambem podem ser movidos. `itens` vem None quando o
+    cartao e livre, que carrega o proprio conteudo. #}
+{% macro desenha(c, itens) %}
+  {% if c.tipo == 'sistemas' %}
+    <section class="cartao" {{ posicao(c) }}>
+      {{ cabecalho('grade', c.nome, url_for('sistemas'), editar=url_for('admin_links', grupo='sistema')) }}
+      <div class="cartao-corpo">{{ b.ladrilhos(sistemas) }}</div>
+    </section>
+  {% elif c.tipo == 'atalhos' %}
+    <section class="cartao" {{ posicao(c) }}>
+      {{ cabecalho('marcador', c.nome, url_for('lista', chave='atalhos'), editar=url_for('admin_links', grupo='atalho')) }}
+      <div class="cartao-corpo">{{ b.atalhos(atalhos) }}</div>
+    </section>
+  {% elif c.tipo == 'ramais' %}
+    <section class="cartao" {{ posicao(c) }}>
+      {{ cabecalho('telefone', c.nome, url_for('ramais'), ramais_total, limites.ramais, url_for('admin_ramais')) }}
+      <div class="cartao-corpo ramais">
+        <div class="busca-cartao">
+          <span aria-hidden="true">{{ ic('lupa') }}</span>
+          <input type="search" id="filtro-ramais-painel"
+                 placeholder="Pesquisar ramal ou setor..." aria-label="Filtrar ramais">
+        </div>
+        {{ b.ramais(ramais_destaque[:limites.ramais],
+                    ramais_destaque[limites.ramais:] + ramais_extras) }}
+      </div>
+    </section>
+  {% else %}{{ b.cartao_painel(c, itens) }}
+  {% endif %}
+{% endmacro %}
+
+{#  Largura e coluna viram atributos; o CSS traduz para a grade. #}
+{% macro posicao(c) %}{{ b.pos(c) }}{% endmacro %}
+
+{% macro lista_paginas(paginas) %}
+    {% if paginas or modo_edicao %}
+    <nav class="lp-lista" aria-label="Páginas do portal">
+      <div class="lp-titulo">Páginas</div>
+      {% for item in paginas %}
+      <a href="{{ item.href }}"{% if item.externo %} target="_blank" rel="noopener"{% endif %}>
+        <span class="lp-ic">{{ ic(item.ic) }}</span><span>{{ item.nome }}</span></a>
+      {% else %}
+      <p class="lp-vazio">Nenhuma página criada ainda.</p>
+      {% endfor %}
+      {% if modo_edicao %}
+      <a class="lp-editar" href="{{ url_for('admin_painel', bloco='menu') }}">Editar páginas</a>
+      {% endif %}
+    </nav>
+    {% endif %}
+{% endmacro %}
+{% macro cartao_destaque(destaque) %}
+    {% if destaque %}
+    <{{ 'a' if destaque.href else 'div' }} class="lp-destaque"
+       {% if destaque.href %}href="{{ destaque.href }}"{% if destaque.externo %} target="_blank" rel="noopener"{% endif %}{% endif %}>
+      {% if destaque.rotulo %}<small>{{ destaque.rotulo }}</small>{% endif %}
+      <strong>{{ destaque.titulo }}</strong>
+      {% if destaque.texto %}<span>{{ destaque.texto }}</span>{% endif %}
+      {% if destaque.href and destaque.cta %}<b>{{ destaque.cta }} →</b>{% endif %}
+    </{{ 'a' if destaque.href else 'div' }}>
+    {% endif %}
+{% endmacro %}
+
+{% block miolo %}
+{% set capa_titulo = cfg.capa_titulo or ('Portal ' ~ cfg.site_sigla) %}
+<main class="painel">
+
+  <section class="capa" data-intervalo="{{ cfg.banner_seg }}">
+    {% if banners %}
+    <div class="banner-trilho">
+      {% for i in banners %}
+      <div class="slide {% if loop.first %}ativo{% endif %}"
+           {% if i.arquivo %}
+           {# A capa é muito mais larga do que alta, então o `cover` sempre
+              descarta parte da foto. `posicao` diz qual parte fica. #}
+           style="background-image:url('{{ url_for('static', filename='uploads/' ~ i.arquivo) }}');
+                  background-position:{{ i.posicao or '50% 50%' }}"
+           {% else %}style="background:{{ i.cor }}"{% endif %}
+           {% if i.titulo %}role="img" aria-label="{{ i.titulo }}"{% endif %}>
+        {% if i.url %}<a class="slide-link" href="{{ i.url }}" target="_blank"
+                         rel="noopener" aria-label="{{ i.titulo or 'Abrir' }}"></a>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if banners|length > 1 %}
+    <button class="banner-seta ant" aria-label="Imagem anterior">‹</button>
+    <button class="banner-seta prox" aria-label="Próxima imagem">›</button>
+    <div class="banner-pontos">
+      {% for i in banners %}<button class="ponto {% if loop.first %}ativo{% endif %}"
+        aria-label="Imagem {{ loop.index }}"></button>{% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <div class="capa-texto">
+      {#  Juntando as duas coisas: a saudação ocupa a primeira linha da capa
+          para quem está identificado; para quem só está de passagem vale a
+          "Linha de abertura" configurada em Aparência. #}
+      {% if usuario_nome %}
+      <small>{{ saudacao }}, {{ usuario_nome.split()[0] }}! <span aria-hidden="true">&#128075;</span></small>
+      {% elif cfg.capa_abertura %}<small>{{ cfg.capa_abertura }}</small>{% endif %}
+      <strong>{{ capa_titulo }}</strong>
+      {% if cfg.capa_texto or cfg.capa_texto2 %}
+      <p>{{ cfg.capa_texto }}{% if cfg.capa_texto2 %}<br>{{ cfg.capa_texto2 }}{% endif %}</p>
+      {% endif %}
+    </div>
+  </section>
+
+  {#  Abaixo do banner: à esquerda o menu de páginas (e o cartão "Em
+      destaque"), à direita os cartões do painel. As páginas abertas por esse
+      menu não repetem a lista — só mostram o conteúdo. #}
+  {#  O menu lateral só leva às páginas de conteúdo que o administrador cria.
+      Ramais tem cartão próprio aqui na inicial (e a faixa do topo), então o
+      item de menu "Ramais" não entra nesta lista. #}
+  {% set paginas = menu|rejectattr('chave', 'in', ['inicio', 'admin', 'ramais'])|list %}
+  {% set mostra_lateral = paginas or destaque or modo_edicao %}
+  <div class="corpo-painel{{ ' sem-lateral' if not mostra_lateral }}{{ ' livre-total' if livre }}">
+  {% if mostra_lateral and not livre %}
+  <aside class="lateral-paginas">
+    {{ lista_paginas(paginas) }}
+    {{ cartao_destaque(destaque) }}
+  </aside>
+  {% endif %}
+  <div class="corpo-conteudo">
+
+  {#  Barra do editor: só em /editor. Fora dele o administrador vê o portal
+      igual aos demais. #}
+  {% if modo_edicao %}
+  <div class="livre-barra editor-barra" data-livre-barra>
+    <strong class="editor-rotulo">Modo de edição</strong>
+    <span class="livre-ajuda">Clique no <b>nome de um cartão</b> para editá-lo.
+      As mudanças valem para todos.</span>
+    <a class="btn btn-sm" href="{{ url_for('index') }}">Ver o portal</a>
+    <a class="btn btn-sm" href="{{ url_for('admin') }}">Administração</a>
+    {% if livre %}
+    <button type="button" class="btn btn-principal btn-sm" data-livre-editar
+            data-sair="{{ url_for('index') }}">
+      Editar layout</button>
+    <button type="button" class="btn btn-sm" data-livre-ajustar hidden>
+      Ajustar todos ao conteúdo</button>
+    <form method="post" action="{{ url_for('admin_layout_livre') }}" class="livre-sair"
+          onsubmit="return confirm('Voltar ao layout em colunas? As posições livres ficam guardadas.')">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="acao" value="desativar">
+      <button class="btn btn-sm" type="submit">Voltar ao layout em colunas</button>
+    </form>
+    <span class="livre-ajuda" data-livre-ajuda hidden style="flex-basis:100%">
+      Arraste um cartão para movê-lo e o canto inferior direito para mudar o
+      tamanho. Clique duas vezes no canto para ajustar à altura do conteúdo.
+      Ao soltar, a posição é salva.</span>
+    {% else %}
+    <a class="btn btn-sm" href="{{ url_for('admin_mapa') }}">Mapa do painel</a>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if livre %}
+  <div class="tela-livre" data-livre data-csrf="{{ csrf_token }}"
+       data-salvar="{{ url_for('admin_cartao_pos') }}">
+    {#  A barra lateral também é do quadro: a lista de páginas e o cartão em
+        destaque são cartões como os outros, arrastáveis. #}
+    {% set lp = lateral_livre.get('paginas') %}
+    {% if lp and (paginas or modo_edicao) %}
+    <section class="cartao cartao-lateral" {{ b.pos(lp) }}>
+      <div class="cartao-corpo">{{ lista_paginas(paginas) }}</div>
+    </section>
+    {% endif %}
+    {% set ld = lateral_livre.get('destaque') %}
+    {% if ld and (destaque or modo_edicao) %}
+    <section class="cartao cartao-lateral" {{ b.pos(ld) }}>
+      <div class="cartao-corpo">
+        {% if destaque %}{{ cartao_destaque(destaque) }}
+        {% else %}<p class="lp-vazio">Cartão “Em destaque” desligado.
+          <a href="{{ url_for('admin_navegacao') }}">Ligar</a></p>{% endif %}
+      </div>
+    </section>
+    {% endif %}
+    {% for c, itens in cartoes_livre %}{{ desenha(c, itens) }}{% endfor %}
+  </div>
+  {% else %}
+  <div class="regiao-topo">
+    {% for c, itens in cartoes_painel.topo %}{{ desenha(c, itens) }}{% endfor %}
+  </div>
+
+  {% if cartoes_painel.meio %}
+  <div class="regiao-meio-grade">
+    {% for c, itens in cartoes_painel.meio %}{{ desenha(c, itens) }}{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="regiao-baixo">
+    {% for c, itens in cartoes_painel.baixo %}{{ desenha(c, itens) }}{% endfor %}
+  </div>
+  {% endif %}
+  </div>{# corpo-conteudo #}
+  </div>{# corpo-painel #}
+</main>
+
+<script src="{{ url_for('static', filename='ramais.js') }}"></script>
+{% if livre and modo_edicao %}<script src="{{ url_for('static', filename='livre.js') }}"></script>{% endif %}
+{#  static/encaixe.js (cartões com a altura do conteúdo, encaixados em colunas)
+    está desligado: as fileiras voltaram a ter a mesma altura. Para religar,
+    ponha de volta a linha:
+    <script src="{{ url_for('static', filename='encaixe.js') }}"></script>  #}
+{% if banners|length > 1 %}<script src="{{ url_for('static', filename='banner.js') }}"></script>{% endif %}
+{% endblock %}

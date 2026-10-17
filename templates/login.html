@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block titulo %}Acesso{% endblock %}
+{% block corpo_classe %}tela-login{% endblock %}
+
+{% block conteudo %}
+<div class="login-wrap">
+  <form class="login-caixa" method="post" autocomplete="on">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <div class="login-topo">
+      <img src="{{ url_for('static', filename=logo_nome) }}?v={{ logo_versao }}" alt="{{ cfg.site_sigla }}">
+      <h1>{{ cfg.site_nome }}</h1>
+      <p>{{ cfg.site_sub }}</p>
+    </div>
+    <div class="login-corpo">
+      {# Avisos vindos de outra página (ex.: após restaurar um backup, que
+         encerra a sessão) — sem isto a confirmação se perderia. #}
+      {% with mensagens = get_flashed_messages(with_categories=true) %}
+        {% for categoria, texto in mensagens %}
+          <div class="aviso aviso-{{ categoria }}">{{ texto }}</div>
+        {% endfor %}
+      {% endwith %}
+      {% if erro %}<div class="aviso aviso-erro">{{ erro }}</div>{% endif %}
+      <label for="usuario">Usuário</label>
+      <input id="usuario" name="usuario" type="text" autofocus autocomplete="username" required>
+      <label for="senha">Senha</label>
+      <input id="senha" name="senha" type="password" autocomplete="current-password" required>
+      <button class="btn btn-principal" type="submit">Entrar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

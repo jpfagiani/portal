@@ -1,0 +1,93 @@
+{% extends 'admin_base.html' %}
+{% set aba = 'mapa' %}
+{% block titulo %}Mapa do painel{% endblock %}
+
+{% block admin %}
+<div class="painel" data-mapa>
+  <section class="painel-caixa">
+    <h2>Mapa do painel</h2>
+    <p class="dica">Arraste cada cartão para a região e a coluna onde ele deve
+      ficar — solte <strong>entre dois cartões</strong> (a linha azul mostra o
+      ponto) para encaixá-lo no meio da coluna. Use <strong>−</strong> e
+      <strong>+</strong> para dizer quantas colunas ele ocupa e qual a altura
+      dele. Nada muda no portal até você clicar em
+      <strong>Salvar layout</strong>.</p>
+    <p class="dica"><strong>Altura em linhas.</strong> O painel é uma grade de
+      linhas iguais: um cartão ocupa 1, 2 ou 3 linhas, e por isso todos ficam
+      alinhados. Um cartão de <em>2 linhas</em> (uma imagem alta, por exemplo)
+      deixa uma célula livre ao lado, e o próximo cartão da coluna entra nela.
+      Se o conteúdo de um cartão de 1 linha não couber, a linha cresce.</p>
+    <p class="dica">Em telas estreitas o painel volta a uma coluna só,
+      independentemente do que for montado aqui — é o que evita cartões
+      espremidos no celular.</p>
+
+    <div class="dica" style="border:1px solid var(--borda-botao);border-radius:10px;padding:.8rem 1rem;margin-bottom:1rem">
+      <strong>Layout livre.</strong> Em vez de regiões e colunas, o painel vira
+      um quadro único onde você arrasta cada cartão para onde quiser, com linhas
+      de alinhamento, e a posição é salva ao soltar o mouse.
+      <form method="post" action="{{ url_for('admin_layout_livre') }}" style="margin-top:.6rem;display:flex;gap:.5rem;flex-wrap:wrap">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button class="btn btn-principal" name="acao" value="ativar">Ativar layout livre</button>
+        <button class="btn" name="acao" value="refazer"
+                onclick="return confirm('Recalcular as posições livres a partir das colunas abaixo?')">
+          Ativar refazendo a partir das colunas</button>
+      </form>
+    </div>
+
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="posicoes" data-posicoes>
+
+      {% for chave, rotulo in regioes.items() %}
+      {% set n = colunas[chave] %}
+      <h2 style="margin-top:1.2rem">{{ rotulo }}
+        <small style="font-weight:400;color:var(--texto-fraco)">
+          — {{ n }} colunas</small></h2>
+      {#  O numero de celulas e o da regiao de verdade: a fileira de baixo tem
+          uma coluna a mais que as outras. Desenhar tres em todas prometeria uma
+          posicao que o painel nao tem. #}
+      <div class="mapa-regiao" style="--mapa-cols:{{ n }}">
+        {% for coluna in range(1, n + 1) %}
+        <div class="mapa-celula" data-celula data-regiao="{{ chave }}"
+             data-coluna="{{ coluna }}">
+          <span class="mapa-coluna-nome">{{ coluna }}ª coluna</span>
+          {% for c in cartoes if c.regiao == chave and c.coluna_efetiva == coluna %}
+          <div class="mapa-cartao" draggable="true" data-cartao="{{ c.ref }}"
+               data-larg="{{ c.largura }}" data-alt="{{ c.altura }}">
+            <span class="mapa-ic">{{ ic(c.icone) }}</span>
+            <b>{{ c.nome }}</b>
+            <small>{{ c.descricao }}</small>
+            <div class="mapa-larg">
+              <button type="button" class="btn btn-sm" data-larg-menos
+                      aria-label="Menos colunas">−</button>
+              <span data-larg-rotulo></span>
+              <button type="button" class="btn btn-sm" data-larg-mais
+                      aria-label="Mais colunas">+</button>
+            </div>
+            <div class="mapa-larg">
+              <button type="button" class="btn btn-sm" data-alt-menos
+                      aria-label="Menos altura">−</button>
+              <span data-alt-rotulo></span>
+              <button type="button" class="btn btn-sm" data-alt-mais
+                      aria-label="Mais altura">+</button>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+
+      <p class="dica" data-aviso hidden><strong>Há mudanças não salvas.</strong>
+        O portal continua como estava até você salvar.</p>
+      <div class="acoes" style="margin-top:1rem">
+        <button type="button" class="btn btn-principal" data-salvar disabled>
+          Salvar layout</button>
+        <a class="btn" href="{{ url_for('index') }}" target="_blank"
+           rel="noopener">Ver o painel</a>
+      </div>
+    </form>
+  </section>
+</div>
+<script src="{{ url_for('static', filename='mapa.js') }}"></script>
+{% endblock %}

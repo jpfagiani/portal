@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<script>
+  /* Antes de qualquer pintura: sem isto a página aparece clara e só depois
+     escurece, o que pisca a cada navegação. */
+  (function () {
+    try {
+      var t = localStorage.getItem('portal-tema');
+      if (!t && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) {
+        t = 'escuro';
+      }
+      document.documentElement.setAttribute('data-tema', t || 'claro');
+    } catch (e) { document.documentElement.setAttribute('data-tema', 'claro'); }
+  })();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{# O nome da página vem na frente da sigla — é o que distingue uma aba da outra
+   quando há várias abertas. Página que não se nomeia mostra só a sigla, em vez
+   do "CDPNI — CDPNI" que saía quando o bloco caía no valor padrão. #}
+{%- set nome_pagina %}{% block titulo %}{% endblock %}{% endset -%}
+<title>{% if nome_pagina|trim %}{{ nome_pagina|trim }} {% endif %}{{ cfg.site_sigla }}</title>
+<link rel="icon" href="{{ url_for('static', filename=logo_nome) }}?v={{ logo_versao }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='limpo.css') }}">
+<style>
+  /* Tipografia do conteúdo digitado à mão — definida em Administração →
+     Aparência. Tamanhos e cores são validados na gravação; aqui só entram
+     números e hexadecimais. */
+  :root{
+    --primaria: {{ cfg.cor_primaria }};
+    --destaque: {{ cfg.cor_destaque }};
+    --capa-titulo-tam: {{ cfg.capa_titulo_tam }}rem;
+    --capa-titulo-cor: {{ cfg.capa_titulo_cor }};
+    --capa-texto-tam:  {{ cfg.capa_texto_tam }}rem;
+    --capa-texto-cor:  {{ cfg.capa_texto_cor }};
+    {#  Um conjunto por cartão: fonte, tamanho e cor do título e do texto. O
+        prefixo vem de CARTAO_APARENCIA, e a pilha de fontes já chega
+        resolvida — o template não escolhe família. #}
+    {% for pref, fonte in aparencia_cartoes %}
+    --{{ pref }}-fonte:      {{ fonte }};
+    --{{ pref }}-titulo-tam: {{ cfg[pref ~ '_titulo_tam'] }}rem;
+    --{{ pref }}-titulo-cor: {{ cfg[pref ~ '_titulo_cor'] }};
+    --{{ pref }}-texto-tam:  {{ cfg[pref ~ '_texto_tam'] }}rem;
+    --{{ pref }}-texto-cor:  {{ cfg[pref ~ '_texto_cor'] }};
+    {% endfor %}
+    --capa-cor:     {{ cfg.capa_cor }};
+    --lateral-cor1: {{ cfg.lateral_cor1 }};
+    --lateral-cor2: {{ cfg.lateral_cor2 }};
+    /* Véu sobre a foto, na cor da capa: sem ele o texto some nas partes
+       claras da imagem. */
+    --capa-veu-cheio: {{ rgba(cfg.capa_cor, '0.94') }};
+    --capa-veu-zero:  {{ rgba(cfg.capa_cor, '0') }};
+  }
+  {% if cfg.fundo_modo == 'imagem' and fundo_nome %}
+  /* Foto da unidade atrás de tudo, clareada pelo véu para o texto dos cartões
+     continuar legível. O arquivo é fixo em static/ — trocá-lo troca o fundo, e
+     o ?v= (data do arquivo) evita o navegador servir a versão velha. */
+  :root{
+    --fundo-veu-alfa: {{ (cfg.fundo_veu|float / 100)|round(2) }};
+    --fundo-camadas:
+      linear-gradient(rgba(var(--fundo-veu-cor),var(--fundo-veu-alfa)),
+                      rgba(var(--fundo-veu-cor),var(--fundo-veu-alfa))),
+      url("{{ url_for('static', filename=fundo_nome) }}?v={{ fundo_versao }}");
+  }
+  {% elif cfg.fundo_modo == 'cor' %}
+  :root{ --fundo: {{ cfg.fundo_cor }}; }
+  {% endif %}
+</style>
+</head>
+<body class="{% block corpo_classe %}{% endblock %}">
+
+{% block conteudo %}{% endblock %}
+
+</body>
+</html>
