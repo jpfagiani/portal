@@ -20,8 +20,8 @@ from datetime import datetime
 from html.parser import HTMLParser
 from functools import wraps
 
-from flask import (Flask, abort, flash, g, jsonify, redirect, render_template,
-                   request, send_file, session, url_for)
+from flask import (Flask, abort, flash, g, get_flashed_messages, jsonify, redirect,
+                   render_template, request, send_file, session, url_for)
 from markupsafe import Markup, escape
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -1207,7 +1207,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.6.0'
+VERSAO = '1.7.0'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -1694,10 +1694,30 @@ def modulo(chave):
     row = db().execute('SELECT nome FROM paginas_lateral WHERE chave=?', (chave,)).fetchone()
     if not row:
         abort(404)
-    blocos = db().execute('SELECT * FROM pagina_blocos WHERE chave=? AND ativo=1'
-                          ' ORDER BY ordem, id', (chave,)).fetchall()
+    admin = bool(session.get('admin'))
+    # O administrador vê também os blocos ocultos (esmaecidos): é por eles que
+    # edita a página diretamente, com o botão direito.
+    linhas = db().execute('SELECT * FROM pagina_blocos WHERE chave=?'
+                          + ('' if admin else ' AND ativo=1') + ' ORDER BY ordem, id',
+                          (chave,)).fetchall()
+    cru = []
+    if admin:
+        for b in linhas:
+            html = ''
+            if b['tipo'] == 'texto':
+                html = (limpa_html(b['texto']) if b['formato'] == 'html'
+                        else texto_para_html(b['texto']))
+            cru.append({'id': b['id'], 'tipo': b['tipo'], 'ativo': bool(b['ativo']),
+                        'texto': html if b['tipo'] == 'texto' else (b['texto'] or ''),
+                        'url': b['url'] or '', 'larg': b['larg'], 'alinh': b['alinh'],
+                        'estilo': b['estilo'],
+                        'imagem': url_for('static', filename='uploads/' + b['arquivo'])
+                                  if b['arquivo'] else ''})
     return render_template('modulo.html', chave=chave, nome=row['nome'],
-                           blocos=agrupar_blocos(blocos))
+                           blocos=agrupar_blocos(linhas), edicao=admin, blocos_cru=cru,
+                           destinos=destinos_de_links() if admin else [],
+                           larguras=LARGURAS_IMG, alinhamentos=ROTULO_ALINHA,
+                           estilos=ESTILOS_TEXTO)
 
 
 @app.context_processor
@@ -3555,6 +3575,13 @@ TIPOS_BLOCO = {'subtitulo': 'Subtítulo', 'texto': 'Texto', 'imagem': 'Imagem',
                'botao': 'Botão de link'}
 
 
+def destinos_de_links():
+    """Páginas do portal para onde um link pode apontar: (nome, endereço)."""
+    return [('Início', '/'), ('Ramais', '/ramais'), ('Sistemas', '/sistemas')] + \
+        [(r['nome'], f"/modulo/{r['chave']}") for r in db().execute(
+            'SELECT nome,chave FROM paginas_lateral ORDER BY ordem, id')]
+
+
 @app.route('/admin/pagina/<chave>', methods=['GET', 'POST'])
 @admin_obrigatorio
 def admin_pagina(chave):
@@ -3565,6 +3592,16 @@ def admin_pagina(chave):
     if not item:
         abort(404)
     volta = url_for('admin_pagina', chave=chave)
+    ajax = bool(request.form.get('ajax'))
+    ultimo = {'id': 0}
+
+    def fim(destino):
+        """Fim de uma ação: redireciona, ou, na edição direta pela página
+        (ajax), responde em JSON com o erro, se houve."""
+        if not ajax:
+            return redirect(destino)
+        erros = [m for c, m in get_flashed_messages(with_categories=True) if c == 'erro']
+        return jsonify(ok=not erros, erro=' '.join(erros), id=ultimo['id']), (400 if erros else 200)
 
     if request.method == 'POST':
         acao = request.form.get('acao')
@@ -3581,7 +3618,7 @@ def admin_pagina(chave):
                 con.execute('DELETE FROM pagina_blocos WHERE id=?', (ident,))
                 con.commit()
                 flash('Bloco removido.', 'ok')
-            return redirect(volta)
+            return fim(volta)
 
         if acao == 'mover':
             ids = [r['id'] for r in con.execute(
@@ -3594,7 +3631,7 @@ def admin_pagina(chave):
                 for pos, bid in enumerate(ids):
                     con.execute('UPDATE pagina_blocos SET ordem=? WHERE id=?', (pos, bid))
                 con.commit()
-            return redirect(f'{volta}#b{ident}')
+            return fim(f'{volta}#b{ident}')
 
         tipo = request.form.get('tipo') if request.form.get('tipo') in TIPOS_BLOCO else 'texto'
         if atual:
@@ -3623,7 +3660,7 @@ def admin_pagina(chave):
                 arquivo = salva_upload('arquivo', atual['arquivo'] if atual else '')
             except ValueError as e:
                 flash(str(e), 'erro')
-                return redirect(volta)
+                return fim(volta)
             if atual and atual['arquivo'] and arquivo != atual['arquivo']:
                 remove_upload(atual['arquivo'])      # trocou a imagem: a antiga sai
             vazio = not arquivo
@@ -3639,7 +3676,8 @@ def admin_pagina(chave):
                         (texto, arquivo, ativo, larg, alinh, estilo, formato, url, ident))
             con.commit()
             flash('Bloco atualizado.', 'ok')
-            return redirect(url_for('admin_pagina', chave=chave, editar=ident) + f'#b{ident}')
+            ultimo['id'] = ident
+            return fim(url_for('admin_pagina', chave=chave, editar=ident) + f'#b{ident}')
         else:
             proxima = con.execute('SELECT COALESCE(MAX(ordem),-1)+1 FROM pagina_blocos'
                                   ' WHERE chave=?', (chave,)).fetchone()[0]
@@ -3648,9 +3686,21 @@ def admin_pagina(chave):
                 'alinh,estilo,formato,url) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
                 (chave, tipo, texto, arquivo, proxima, ativo, larg, alinh, estilo, formato, url))
             con.commit()
+            ultimo['id'] = novo.lastrowid
+            # "Adicionar aqui" (edição direta): entra logo depois do bloco indicado.
+            depois = request.form.get('depois', '')
+            if depois != '':
+                ids = [r['id'] for r in con.execute(
+                    'SELECT id FROM pagina_blocos WHERE chave=? AND id<>? ORDER BY ordem, id',
+                    (chave, novo.lastrowid))]
+                pos = ids.index(_int(depois)) + 1 if _int(depois) in ids else (0 if depois == '0' else len(ids))
+                ids.insert(pos, novo.lastrowid)
+                for n, bid in enumerate(ids):
+                    con.execute('UPDATE pagina_blocos SET ordem=? WHERE id=?', (n, bid))
+                con.commit()
             flash('Bloco adicionado.', 'ok')
-            return redirect(f'{volta}#b{novo.lastrowid}')
-        return redirect(volta)
+            return fim(f'{volta}#b{novo.lastrowid}')
+        return fim(volta)
 
     editar = None
     if request.args.get('editar'):
@@ -3666,9 +3716,7 @@ def admin_pagina(chave):
         'admin_pagina.html', item=item, editar=editar, tipos=TIPOS_BLOCO,
         html_editar=html_editar, larguras=LARGURAS_IMG, alinhamentos=ROTULO_ALINHA,
         estilos=ESTILOS_TEXTO, blocos=agrupar_blocos(linhas), total=len(linhas),
-        destinos=[('Início', '/'), ('Ramais', '/ramais'), ('Sistemas', '/sistemas')] +
-                 [(r['nome'], f"/modulo/{r['chave']}") for r in con.execute(
-                     'SELECT nome,chave FROM paginas_lateral ORDER BY ordem, id')])
+        destinos=destinos_de_links())
 
 
 init_db()
