@@ -738,6 +738,17 @@ CREATE TABLE IF NOT EXISTS menu_itens (
     ordem INTEGER NOT NULL DEFAULT 0,
     ativo INTEGER NOT NULL DEFAULT 1
 );
+-- A lista "Páginas" da tela inicial. É própria: não depende do menu do topo
+-- (menu_itens), então renomear um não mexe no outro.
+CREATE TABLE IF NOT EXISTS paginas_lateral (
+    id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    chave TEXT NOT NULL,
+    nome  TEXT NOT NULL,
+    icone TEXT DEFAULT '',
+    url   TEXT DEFAULT '',
+    ordem INTEGER NOT NULL DEFAULT 0,
+    ativo INTEGER NOT NULL DEFAULT 1
+);
 -- Os cartões da página inicial. Deixaram de ser cinco blocos especializados
 -- (escala, aniversário, chamado…) e passaram a ser cartões iguais entre si: o
 -- que muda de um para outro é o nome, a posição e o que se escreve dentro.
@@ -1072,6 +1083,7 @@ def init_db():
             ('pagina_blocos', 'alinh',   "TEXT DEFAULT 'centro'"),
             ('pagina_blocos', 'estilo',  "TEXT DEFAULT 'normal'"),
             ('pagina_blocos', 'formato', "TEXT DEFAULT 'texto'"),
+            ('pagina_blocos', 'url',     "TEXT DEFAULT ''"),
             ('ramais',   'destaque', 'INTEGER NOT NULL DEFAULT 0'),
             ('usuarios', 'ultimo_acesso', "TEXT DEFAULT ''")):
         existentes = {c[1] for c in con.execute(f'PRAGMA table_info({tabela})')}
@@ -1130,10 +1142,12 @@ def init_db():
                         (titulo, simbolo, ordem + i))
         con.execute("INSERT INTO config (chave,valor) VALUES ('seed_atalhos','1')")
 
-    if not con.execute('SELECT 1 FROM menu_itens LIMIT 1').fetchone():
+    instalacao_nova = not con.execute('SELECT 1 FROM menu_itens LIMIT 1').fetchone()
+    if instalacao_nova:
         for i, (chave, nome, icone, _) in enumerate(MENU):
             con.execute('INSERT INTO menu_itens (chave,nome,icone,ordem)'
                         ' VALUES (?,?,?,?)', (chave, nome, icone, i))
+    _separar_paginas_laterais(con, instalacao_nova)
 
     if not con.execute('SELECT 1 FROM lateral LIMIT 1').fetchone():
         con.execute("INSERT INTO lateral (tipo,titulo,conteudo,ordem) VALUES"
@@ -1193,7 +1207,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.5.0'
+VERSAO = '1.6.0'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -1308,16 +1322,82 @@ def lista(chave):
 MENU = [
     ('inicio',     'Início',              'inicio',     'index'),
     ('ramais',     'Ramais',              'telefone',   'ramais'),
-    ('servidores', 'Servidores',          'usuarios',   None),
-    ('documentos', 'Documentos',          'documento',  None),
-    ('escalas',    'Escalas',             'calendario', None),
-    ('chamados',   'Chamados de TI',      'fone',       None),
-    ('reservas',   'Reserva de Recursos', 'arquivo',    None),
-    ('relatorios', 'Relatórios',          'grafico',    None),
+]
+
+# Páginas da barra lateral de uma instalação nova. Nome genérico: quem instala
+# troca por o que fizer sentido; a chave só aparece no endereço da página.
+PAGINAS_SEMENTE = [
+    ('servidores', 'Link 1', 'usuarios'),
+    ('documentos', 'Link 2', 'documento'),
+    ('escalas',    'Link 3', 'calendario'),
+    ('chamados',   'Link 4', 'fone'),
+    ('reservas',   'Link 5', 'arquivo'),
+    ('relatorios', 'Link 6', 'grafico'),
 ]
 
 
 ROTAS_INTERNAS = {'inicio': 'index', 'ramais': 'ramais'}
+MENU_PADRAO = {chave: (nome, icone) for chave, nome, icone, _ in MENU}
+
+
+def _slug(texto):
+    return re.sub(r'[^a-z0-9]+', '-', (texto or '').lower().strip()).strip('-') or 'pagina'
+
+
+def _separar_paginas_laterais(con, instalacao_nova):
+    """Desvincula a lista "Páginas" do menu do topo, uma única vez.
+
+    Até a 1.4 as duas coisas eram a mesma tabela: renomear "Início" na lista
+    lateral mudava o topo do portal. Agora a lista tem tabela própria.
+    - Os itens que não são do sistema (nem Início, nem Ramais) passam para ela.
+    - Se Início ou Ramais tinham sido renomeados ou apontados para outro
+      endereço, é porque alguém os usava como link da lateral: viram uma
+      página da lateral e o item do topo volta ao que era."""
+    if con.execute("SELECT 1 FROM config WHERE chave='paginas_separadas'").fetchone():
+        return
+    ordem = con.execute('SELECT COALESCE(MAX(ordem),-1)+1 FROM paginas_lateral').fetchone()[0]
+    usadas = {r[0] for r in con.execute('SELECT chave FROM paginas_lateral')}
+
+    def nova(chave_base, nome, icone, url, ativo=1):
+        nonlocal ordem
+        chave, n = chave_base, 2
+        while chave in usadas or chave in ('inicio', 'ramais', 'admin'):
+            chave, n = f'{chave_base}-{n}', n + 1
+        usadas.add(chave)
+        con.execute('INSERT INTO paginas_lateral (chave,nome,icone,url,ordem,ativo)'
+                    ' VALUES (?,?,?,?,?,?)', (chave, nome, icone, url, ordem, ativo))
+        ordem += 1
+        return chave
+
+    if instalacao_nova:
+        for chave, nome, icone in PAGINAS_SEMENTE:
+            nova(chave, nome, icone, '')
+    else:
+        for r in con.execute("SELECT * FROM menu_itens WHERE chave NOT IN"
+                             " ('inicio','ramais','admin') ORDER BY ordem, id").fetchall():
+            nova(r['chave'], r['nome'], r['icone'], r['url'], r['ativo'])
+        con.execute("DELETE FROM menu_itens WHERE chave NOT IN ('inicio','ramais','admin')")
+        for r in con.execute("SELECT * FROM menu_itens WHERE chave IN ('inicio','ramais')").fetchall():
+            nome, icone = MENU_PADRAO[r['chave']]
+            if r['nome'] != nome or r['url'] or r['icone'] != icone:
+                chave = nova(_slug(r['nome']), r['nome'], r['icone'], r['url'], r['ativo'])
+                con.execute('UPDATE pagina_blocos SET chave=? WHERE chave=?', (chave, r['chave']))
+                con.execute('UPDATE menu_itens SET nome=?,icone=?,url=\'\' WHERE id=?',
+                            (nome, icone, r['id']))
+    con.execute("INSERT INTO config (chave,valor) VALUES ('paginas_separadas','1')")
+
+
+def montar_paginas():
+    """Itens da lista "Páginas" da tela inicial (tabela própria)."""
+    itens = []
+    for r in db().execute('SELECT * FROM paginas_lateral WHERE ativo=1 ORDER BY ordem, id'):
+        if r['url']:
+            destino, externo = r['url'], not r['url'].startswith('/')
+        else:
+            destino, externo = url_for('modulo', chave=r['chave']), False
+        itens.append({'chave': r['chave'], 'nome': r['nome'],
+                      'ic': r['icone'] or '▸', 'href': destino, 'externo': externo})
+    return itens
 
 
 def montar_menu():
@@ -1573,6 +1653,7 @@ def agrupar_blocos(linhas):
                 continue
             item = {'id': b['id'], 'arquivo': b['arquivo'], 'ativo': ativo,
                     'legenda': b['texto'] or '',
+                    'url': endereco_seguro(b['url']),
                     'larg': b['larg'] if b['larg'] in LARGURAS_IMG else 100,
                     'alinh': b['alinh'] if b['alinh'] in ALINHA_IMG else 'centro'}
             if saida and saida[-1]['tipo'] == 'imagens':
@@ -1582,7 +1663,12 @@ def agrupar_blocos(linhas):
         elif b['tipo'] == 'subtitulo':
             if (b['texto'] or '').strip():
                 saida.append({'tipo': 'subtitulo', 'id': b['id'], 'ativo': ativo,
-                              'texto': b['texto'].strip()})
+                              'texto': b['texto'].strip(), 'url': endereco_seguro(b['url'])})
+        elif b['tipo'] == 'botao':
+            if (b['texto'] or '').strip() and endereco_seguro(b['url']):
+                saida.append({'tipo': 'botao', 'id': b['id'], 'ativo': ativo,
+                              'texto': b['texto'].strip(), 'url': endereco_seguro(b['url']),
+                              'alinh': b['alinh'] if b['alinh'] in ALINHA_IMG else 'esq'})
         else:
             html = (limpa_html(b['texto']) if b['formato'] == 'html'
                     else texto_para_html(b['texto']))
@@ -1598,7 +1684,7 @@ def agrupar_blocos(linhas):
 
 @app.route('/modulo/<chave>')
 def modulo(chave):
-    row = db().execute('SELECT nome FROM menu_itens WHERE chave=?', (chave,)).fetchone()
+    row = db().execute('SELECT nome FROM paginas_lateral WHERE chave=?', (chave,)).fetchone()
     if not row:
         abort(404)
     blocos = db().execute('SELECT * FROM pagina_blocos WHERE chave=? AND ativo=1'
@@ -1633,6 +1719,7 @@ def _injeta():
             'fundo_nome': fundo, 'fundo_versao': fundo_v,
             'logo_nome': logo, 'logo_versao': logo_v,
             'tem_ramais': tem_ramais, 'menu': menu, 'versao': VERSAO,
+            'paginas_lateral': montar_paginas(),
             # calculado a cada resposta: a virada de ano não exige reiniciar
             'ano_atual': datetime.now().year,
             'meses': MESES,
@@ -2859,7 +2946,7 @@ BLOCOS = {
     },
     'menu': {
         'titulo': 'Menu lateral',
-        'tabela': 'menu_itens',
+        'tabela': 'paginas_lateral',
         'campos': ['nome', 'icone', 'url', 'ordem'],
         'obrigatorios': ['nome'],
         'ordem': 'ordem, id',
@@ -3044,10 +3131,10 @@ def admin_painel():
         if acao == 'ordenar':
             return reordenar(tabela)
         if acao == 'excluir':
-            if tabela == 'menu_itens':
+            if tabela == 'paginas_lateral':
                 # O conteúdo da página (textos e imagens) sai junto com o item;
                 # senão ficaria órfão, ocupando espaço em uploads/.
-                morto = con.execute('SELECT chave FROM menu_itens WHERE id=?',
+                morto = con.execute('SELECT chave FROM paginas_lateral WHERE id=?',
                                     (ident,)).fetchone()
                 if morto:
                     for b in con.execute('SELECT arquivo FROM pagina_blocos'
@@ -3093,7 +3180,7 @@ def admin_painel():
                         base = re.sub(r'[^a-z0-9]+', '-',
                                       valores[0].lower().strip()).strip('-') or 'item'
                         chave, n = base, 2
-                        while con.execute('SELECT 1 FROM menu_itens WHERE chave=?',
+                        while con.execute('SELECT 1 FROM paginas_lateral WHERE chave=?',
                                           (chave,)).fetchone():
                             chave, n = f'{base}-{n}', n + 1
                         colunas = colunas + ['chave']
@@ -3457,7 +3544,8 @@ def admin_navegacao():
     return render_template('admin_navegacao.html')
 
 
-TIPOS_BLOCO = {'subtitulo': 'Subtítulo', 'texto': 'Texto', 'imagem': 'Imagem'}
+TIPOS_BLOCO = {'subtitulo': 'Subtítulo', 'texto': 'Texto', 'imagem': 'Imagem',
+               'botao': 'Botão de link'}
 
 
 @app.route('/admin/pagina/<chave>', methods=['GET', 'POST'])
@@ -3466,7 +3554,7 @@ def admin_pagina(chave):
     """Editor do conteúdo de uma página do menu: subtítulos, textos formatados e
     imagens, com prévia da página ao lado do formulário."""
     con = db()
-    item = con.execute('SELECT * FROM menu_itens WHERE chave=?', (chave,)).fetchone()
+    item = con.execute('SELECT * FROM paginas_lateral WHERE chave=?', (chave,)).fetchone()
     if not item:
         abort(404)
     volta = url_for('admin_pagina', chave=chave)
@@ -3509,6 +3597,9 @@ def admin_pagina(chave):
         alinh = request.form.get('alinh') if request.form.get('alinh') in ALINHA_IMG else 'centro'
         estilo = request.form.get('estilo') if request.form.get('estilo') in ESTILOS_TEXTO else 'normal'
         formato, arquivo = 'texto', ''
+        # Para onde o clique leva (subtítulo, imagem e botão). Interno (/modulo/x)
+        # ou externo; qualquer outra coisa é descartada por `endereco_seguro`.
+        url = endereco_seguro(request.form.get('url', '')) if tipo != 'texto' else ''
         if tipo == 'texto':
             # O editor manda HTML; é limpo aqui, e só o resultado é guardado.
             texto, formato = limpa_html(request.form.get('html', '')), 'html'
@@ -3516,6 +3607,9 @@ def admin_pagina(chave):
         elif tipo == 'subtitulo':
             texto = request.form.get('texto', '').strip()[:200]
             vazio = not texto
+        elif tipo == 'botao':
+            texto = request.form.get('texto', '').strip()[:100]
+            vazio = not (texto and url)
         else:
             texto = request.form.get('texto', '').strip()[:300]
             try:
@@ -3530,11 +3624,12 @@ def admin_pagina(chave):
         ativo = 1 if request.form.get('ativo') else 0
         if vazio:
             flash('Escolha uma imagem para este bloco.' if tipo == 'imagem'
+                  else 'Informe o texto e o endereço do botão.' if tipo == 'botao'
                   else 'Escreva o conteúdo do bloco.', 'erro')
         elif atual:
             con.execute('UPDATE pagina_blocos SET texto=?,arquivo=?,ativo=?,larg=?,'
-                        'alinh=?,estilo=?,formato=? WHERE id=?',
-                        (texto, arquivo, ativo, larg, alinh, estilo, formato, ident))
+                        'alinh=?,estilo=?,formato=?,url=? WHERE id=?',
+                        (texto, arquivo, ativo, larg, alinh, estilo, formato, url, ident))
             con.commit()
             flash('Bloco atualizado.', 'ok')
             return redirect(url_for('admin_pagina', chave=chave, editar=ident) + f'#b{ident}')
@@ -3543,8 +3638,8 @@ def admin_pagina(chave):
                                   ' WHERE chave=?', (chave,)).fetchone()[0]
             novo = con.execute(
                 'INSERT INTO pagina_blocos (chave,tipo,texto,arquivo,ordem,ativo,larg,'
-                'alinh,estilo,formato) VALUES (?,?,?,?,?,?,?,?,?,?)',
-                (chave, tipo, texto, arquivo, proxima, ativo, larg, alinh, estilo, formato))
+                'alinh,estilo,formato,url) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+                (chave, tipo, texto, arquivo, proxima, ativo, larg, alinh, estilo, formato, url))
             con.commit()
             flash('Bloco adicionado.', 'ok')
             return redirect(f'{volta}#b{novo.lastrowid}')
@@ -3563,7 +3658,10 @@ def admin_pagina(chave):
     return render_template(
         'admin_pagina.html', item=item, editar=editar, tipos=TIPOS_BLOCO,
         html_editar=html_editar, larguras=LARGURAS_IMG, alinhamentos=ROTULO_ALINHA,
-        estilos=ESTILOS_TEXTO, blocos=agrupar_blocos(linhas), total=len(linhas))
+        estilos=ESTILOS_TEXTO, blocos=agrupar_blocos(linhas), total=len(linhas),
+        destinos=[('Início', '/'), ('Ramais', '/ramais'), ('Sistemas', '/sistemas')] +
+                 [(r['nome'], f"/modulo/{r['chave']}") for r in con.execute(
+                     'SELECT nome,chave FROM paginas_lateral ORDER BY ordem, id')])
 
 
 init_db()

@@ -223,3 +223,11 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .tela-livre>.cartao-lateral .lp-lista,.tela-livre>.cartao-lateral .lp-destaque{height:100%;box-sizing:border-box}
 .tela-livre>.cartao-lateral .lp-lista{overflow:auto;scrollbar-width:none}
 .tela-livre.editando>.cartao-lateral a{pointer-events:none}
+
+/* botão de link e subtítulo clicável nas páginas de conteúdo */
+.pagina-botao{margin:.4rem 0 1rem}
+.pagina-botao .btn{font-size:1rem;padding:.7rem 1.4rem}
+.pagina-subtitulo a{color:inherit;text-decoration:underline;text-decoration-color:var(--azul)}
+.pagina-subtitulo a:hover{color:var(--azul)}
+.pagina-imagens .pi{position:relative}
+.pi .bl-tag{background:rgba(255,255,255,.92);border-radius:4px;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

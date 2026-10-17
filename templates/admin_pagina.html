@@ -31,6 +31,7 @@
           <option value="texto">Texto (com formatação)</option>
           <option value="subtitulo">Subtítulo</option>
           <option value="imagem">Imagem</option>
+          <option value="botao">Botão de link</option>
         </select>
       {% endif %}
 
@@ -39,6 +40,26 @@
         <label for="campo-sub">Subtítulo</label>
         <input id="campo-sub" name="texto" maxlength="200"
                value="{{ editar.texto if editar and editar.tipo == 'subtitulo' else '' }}">
+        <label for="url-sub">Ao clicar, abrir (opcional)</label>
+        <input id="url-sub" name="url" list="destinos" maxlength="500" placeholder="escolha uma página ou cole um endereço https://..."
+               value="{{ editar.url if editar and editar.tipo == 'subtitulo' else '' }}">
+      </div>
+
+      {# Botão de link #}
+      <div data-tipo="botao" hidden>
+        <label for="campo-bot">Texto do botão</label>
+        <input id="campo-bot" name="texto" maxlength="100"
+               value="{{ editar.texto if editar and editar.tipo == 'botao' else '' }}">
+        <label for="url-bot">Para onde leva</label>
+        <input id="url-bot" name="url" list="destinos" maxlength="500" required placeholder="escolha uma página ou cole um endereço https://..."
+               value="{{ editar.url if editar and editar.tipo == 'botao' else '' }}">
+        <label for="campo-alinh-b">Posição</label>
+        <select name="alinh" id="campo-alinh-b">
+          {% for valor, rotulo in alinhamentos.items() %}
+          <option value="{{ valor }}" {{ 'selected' if (editar and editar.alinh == valor) or (not editar and valor == 'esq') }}>{{ rotulo }}</option>
+          {% endfor %}
+        </select>
+        <p class="dica">Um botão grande e visível que leva a outra página do portal ou a um site.</p>
       </div>
 
       {# Texto formatado #}
@@ -62,6 +83,10 @@
           <button type="button" data-cmd="justifyFull" title="Justificar">Just.</button>
           <span class="re-sep"></span>
           <button type="button" data-cmd="createLink" title="Transformar em link">Link</button>
+          <select id="re-pag" title="Transformar a seleção em link para uma página do portal" aria-label="Link para página">
+            <option value="">Link p/ página…</option>
+            {% for nome, end in destinos %}<option value="{{ end }}">{{ nome }}</option>{% endfor %}
+          </select>
           <button type="button" data-cmd="unlink" title="Remover o link">Sem link</button>
           <span class="re-sep"></span>
           <label class="re-cor" title="Cor do texto">Cor
@@ -106,6 +131,10 @@
         <input id="campo-leg" name="texto" maxlength="300"
                value="{{ editar.texto if editar and editar.tipo == 'imagem' else '' }}">
 
+        <label for="url-img">Ao clicar, abrir (opcional)</label>
+        <input id="url-img" name="url" list="destinos" maxlength="500" placeholder="escolha uma página ou cole um endereço https://..."
+               value="{{ editar.url if editar and editar.tipo == 'imagem' else '' }}">
+
         <div class="pe-duas">
           <div>
             <label for="campo-larg">Largura na página</label>
@@ -129,6 +158,9 @@
           “Metade”, três de “Um terço”…). A posição da primeira vale para a fileira.</p>
       </div>
 
+      <datalist id="destinos">
+        {% for nome, end in destinos %}<option value="{{ end }}">{{ nome }}</option>{% endfor %}
+      </datalist>
       <label class="check"><input type="checkbox" name="ativo"
         {{ 'checked' if (not editar or editar.ativo) }}> Exibir na página</label>
       <div class="acoes">
@@ -210,6 +242,10 @@
   });
   document.getElementById('re-cor').addEventListener('input', function () {
     comando('foreColor', this.value);
+  });
+  document.getElementById('re-pag').addEventListener('change', function () {
+    if (this.value) comando('createLink', this.value);
+    this.value = '';
   });
   document.getElementById('re-tam').addEventListener('change', function () {
     if (this.value) comando('fontSize', this.value);

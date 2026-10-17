@@ -142,7 +142,7 @@
   {#  O menu lateral só leva às páginas de conteúdo que o administrador cria.
       Ramais tem cartão próprio aqui na inicial (e a faixa do topo), então o
       item de menu "Ramais" não entra nesta lista. #}
-  {% set paginas = menu|rejectattr('chave', 'in', ['inicio', 'admin', 'ramais'])|list %}
+  {% set paginas = paginas_lateral %}
   {% set mostra_lateral = paginas or destaque or modo_edicao %}
   <div class="corpo-painel{{ ' sem-lateral' if not mostra_lateral }}{{ ' livre-total' if livre }}">
   {% if mostra_lateral and not livre %}

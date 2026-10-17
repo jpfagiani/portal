@@ -30,7 +30,14 @@
   {% if b.tipo == 'subtitulo' %}
     <div class="bl{{ ' bl-ed' if editor }}{{ ' bl-oculto' if not b.ativo }}{{ ' bl-sel' if editando == b.id }}" id="b{{ b.id }}">
       {% if editor %}{{ controles(b, chave, editando) }}{% endif %}
-      <h2 class="pagina-subtitulo">{{ b.texto }}</h2>
+      <h2 class="pagina-subtitulo">{% if b.url %}<a href="{{ b.url }}"{% if not b.url.startswith('/') %} target="_blank" rel="noopener"{% endif %}>{{ b.texto }}</a>{% else %}{{ b.texto }}{% endif %}</h2>
+    </div>
+
+  {% elif b.tipo == 'botao' %}
+    <div class="bl{{ ' bl-ed' if editor }}{{ ' bl-oculto' if not b.ativo }}{{ ' bl-sel' if editando == b.id }}" id="b{{ b.id }}">
+      {% if editor %}{{ controles(b, chave, editando) }}{% endif %}
+      <p class="pagina-botao" style="text-align:{{ {'esq':'left','centro':'center','dir':'right'}[b.alinh] }}">
+        <a class="btn btn-principal" href="{{ b.url }}"{% if not b.url.startswith('/') %} target="_blank" rel="noopener"{% endif %}>{{ b.texto }}</a></p>
     </div>
 
   {% elif b.tipo == 'texto' %}
@@ -47,8 +54,10 @@
               style="flex:0 0 calc({{ it.larg }}% - {{ ((1 - it.larg / 100) * 1.0)|round(2) }}rem)">
         {% if editor %}{{ controles(it, chave, editando) }}{% endif %}
         {% set src = url_for('static', filename='uploads/' ~ it.arquivo) %}
-        {% if editor %}<img src="{{ src }}" alt="{{ it.legenda }}">
-        {% else %}<a href="{{ src }}" target="_blank" rel="noopener"><img src="{{ src }}" alt="{{ it.legenda }}" loading="lazy"></a>{% endif %}
+        {# Com endereço, o clique na imagem leva até ele; sem, amplia a imagem. #}
+        {% set destino = it.url or src %}
+        {% if editor %}<img src="{{ src }}" alt="{{ it.legenda }}"{% if it.url %} title="Leva a: {{ it.url }}"{% endif %}>{% if it.url %}<span class="bl-tag" style="position:absolute;left:6px;bottom:6px">link → {{ it.url }}</span>{% endif %}
+        {% else %}<a href="{{ destino }}"{% if not destino.startswith('/') or destino == src %} target="_blank" rel="noopener"{% endif %}><img src="{{ src }}" alt="{{ it.legenda }}" loading="lazy"></a>{% endif %}
         {% if it.legenda %}<figcaption>{{ it.legenda }}</figcaption>{% endif %}
       </figure>
       {% endfor %}
