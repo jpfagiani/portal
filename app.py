@@ -501,6 +501,7 @@ PADROES.update({
 PADROES.update({
     # Um link por linha, no formato "Nome | endereço".
     'faixa_links':     'Ramais | /ramais\nSistemas | /sistemas',
+    'lista_paginas_ativa': '0',
     'destaque_ativo':  '0',
     'destaque_rotulo': 'Em destaque',
     'destaque_titulo': '',
@@ -3606,6 +3607,7 @@ def admin_navegacao():
                   if l.strip()][:20]
         novos = {
             'faixa_links':     '\n'.join(l[:200] for l in linhas),
+            'lista_paginas_ativa': '1' if request.form.get('lista_paginas_ativa') else '0',
             'destaque_ativo':  '1' if request.form.get('destaque_ativo') else '0',
             'destaque_rotulo': campo('destaque_rotulo', 40),
             'destaque_titulo': campo('destaque_titulo', 90),

@@ -172,13 +172,14 @@
   {% if not livre %}{% for reg in (cartoes_painel.topo, cartoes_painel.meio, cartoes_painel.baixo) %}
     {% for c, itens in reg %}{% if c.tipo == 'noticias' %}{% set ns.noticias = c %}{% endif %}{% endfor %}
   {% endfor %}{% endif %}
-  {% set mostra_lateral = paginas or destaque or modo_edicao or ns.noticias %}
+  {% set lista_on = cfg.lista_paginas_ativa == '1' %}
+  {% set mostra_lateral = (lista_on and (paginas or modo_edicao)) or destaque or ns.noticias %}
   <div class="corpo-painel{{ ' sem-lateral' if not mostra_lateral }}{{ ' livre-total' if livre }}">
   {% if mostra_lateral and not livre %}
   <aside class="lateral-paginas">
-    {{ lista_paginas(paginas) }}
-    {{ cartao_destaque(destaque) }}
     {% if ns.noticias %}{{ desenha(ns.noticias, none) }}{% endif %}
+    {% if lista_on %}{{ lista_paginas(paginas) }}{% endif %}
+    {{ cartao_destaque(destaque) }}
   </aside>
   {% endif %}
   <div class="corpo-conteudo">
@@ -219,7 +220,7 @@
     {#  A barra lateral também é do quadro: a lista de páginas e o cartão em
         destaque são cartões como os outros, arrastáveis. #}
     {% set lp = lateral_livre.get('paginas') %}
-    {% if lp and (paginas or modo_edicao) %}
+    {% if lp and cfg.lista_paginas_ativa == '1' and (paginas or modo_edicao) %}
     <section class="cartao cartao-lateral" {{ b.pos(lp) }}>
       <div class="cartao-corpo">{{ lista_paginas(paginas) }}</div>
     </section>

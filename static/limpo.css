@@ -356,3 +356,4 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .lateral-paginas .not-item strong{font-size:.8rem;line-height:1.3}
 .lateral-paginas .not-todas{font-size:.74rem}
 .regiao-topo .cartao[data-larg="3"] .ladrilhos{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.lateral-paginas>.cartao:first-child{padding-top:0}
