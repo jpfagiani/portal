@@ -459,7 +459,7 @@ PADROES.update({f'titulo_{chave}': texto for chave, texto in TITULOS_CARTAO})
 # aniversário", serve para o que a unidade quiser pôr dentro.
 CARTOES_FIXOS = [
     # chave        nome                          icone       regiao coluna ordem
-    ('sistemas',  'Acesso rápido aos sistemas', 'grade',     'topo',  1, -3),
+    ('sistemas',  'Acesso rápido aos sistemas', 'grade',     'topo',  3, -3),
     ('atalhos',   'Atalhos úteis',              'marcador',  'meio',  3, -2),
     ('ramais',    'Ramais mais utilizados',     'telefone',  'baixo', 1, -1),
     ('noticias',  'Últimas notícias',           'megafone',  'meio',  3, -1),
@@ -983,6 +983,13 @@ def _semear_cartoes(con):
     # Antes da guarda: tem marca propria e precisa rodar tambem em instalacao
     # que ja passou pela migracao anterior.
     _adotar_cartoes_livres(con)
+
+    # 1.8.0: "Acesso rápido" e "Atalhos" passam a largura total (uma vez só; quem
+    # ajustar depois não é desfeito) e o cartão de notícias vai para a lateral.
+    if not con.execute("SELECT 1 FROM config WHERE chave='layout_v18'").fetchone():
+        con.execute("UPDATE cartoes_painel SET largura=3, coluna=0"
+                    " WHERE chave IN ('sistemas','atalhos')")
+        con.execute("INSERT OR REPLACE INTO config (chave,valor) VALUES ('layout_v18','1')")
 
     if con.execute("SELECT 1 FROM config WHERE chave='cartoes_migrados'").fetchone():
         return

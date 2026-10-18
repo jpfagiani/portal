@@ -166,12 +166,19 @@
       Ramais tem cartão próprio aqui na inicial (e a faixa do topo), então o
       item de menu "Ramais" não entra nesta lista. #}
   {% set paginas = paginas_lateral %}
-  {% set mostra_lateral = paginas or destaque or modo_edicao %}
+  {#  O cartão "Últimas notícias" fica na lateral, abaixo das páginas (no layout
+      livre ele continua um cartão comum, arrastável). #}
+  {% set ns = namespace(noticias=none) %}
+  {% if not livre %}{% for reg in (cartoes_painel.topo, cartoes_painel.meio, cartoes_painel.baixo) %}
+    {% for c, itens in reg %}{% if c.tipo == 'noticias' %}{% set ns.noticias = c %}{% endif %}{% endfor %}
+  {% endfor %}{% endif %}
+  {% set mostra_lateral = paginas or destaque or modo_edicao or ns.noticias %}
   <div class="corpo-painel{{ ' sem-lateral' if not mostra_lateral }}{{ ' livre-total' if livre }}">
   {% if mostra_lateral and not livre %}
   <aside class="lateral-paginas">
     {{ lista_paginas(paginas) }}
     {{ cartao_destaque(destaque) }}
+    {% if ns.noticias %}{{ desenha(ns.noticias, none) }}{% endif %}
   </aside>
   {% endif %}
   <div class="corpo-conteudo">
@@ -231,17 +238,17 @@
   </div>
   {% else %}
   <div class="regiao-topo">
-    {% for c, itens in cartoes_painel.topo %}{{ desenha(c, itens) }}{% endfor %}
+    {% for c, itens in cartoes_painel.topo %}{% if c.tipo != 'noticias' %}{{ desenha(c, itens) }}{% endif %}{% endfor %}
   </div>
 
   {% if cartoes_painel.meio %}
   <div class="regiao-meio-grade">
-    {% for c, itens in cartoes_painel.meio %}{{ desenha(c, itens) }}{% endfor %}
+    {% for c, itens in cartoes_painel.meio %}{% if c.tipo != 'noticias' %}{{ desenha(c, itens) }}{% endif %}{% endfor %}
   </div>
   {% endif %}
 
   <div class="regiao-baixo">
-    {% for c, itens in cartoes_painel.baixo %}{{ desenha(c, itens) }}{% endfor %}
+    {% for c, itens in cartoes_painel.baixo %}{% if c.tipo != 'noticias' %}{{ desenha(c, itens) }}{% endif %}{% endfor %}
   </div>
   {% endif %}
   </div>{# corpo-conteudo #}
