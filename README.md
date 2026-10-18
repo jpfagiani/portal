@@ -198,7 +198,7 @@ git pull
 sudo ./atualizar.sh
 ```
 
-Copia apenas `app.py`, os templates e o CSS/JS, e reinicia o serviço. Banco de
+Copia apenas `app.py`, a pasta `modulos/`, os templates e o CSS/JS, e reinicia o serviço. Banco de
 dados, imagens enviadas, logo, foto de fundo e configurações ficam intactos.
 
 ## Operação
@@ -247,15 +247,46 @@ sudo ./desinstalar.sh    # remove o serviço; PRESERVA dados e imagens
 - Senhas guardadas com hash (PBKDF2, via Werkzeug) — nunca em texto puro.
 - Formulários protegidos contra CSRF; uploads limitados a 16 MB e às extensões
   PNG, JPG, WEBP e GIF.
+- Login com limite de tentativas (8 erros em 10 minutos por IP/usuário), cookies
+  `HttpOnly`/`SameSite`, cabeçalhos de segurança e páginas de erro próprias.
+  Defina `PORTAL_COOKIE_SEGURO=1` se o portal for servido por HTTPS.
+- Uploads conferidos pelo conteúdo (não só pela extensão). Textos formatados
+  passam por um filtro: só tags seguras; imagens só da biblioteca do portal.
+- Aba **Histórico**: quem alterou o quê e quando (sem senhas nem conteúdo).
+- O arquivo `secret.key` é gerado em cada instalação e **nunca** deve ir em
+  zip, e-mail ou repositório.
 - Sem HTTPS por padrão: é um portal de **rede interna**. Para expor fora da LAN,
   coloque um proxy reverso (nginx) com certificado na frente.
+
+## Biblioteca de mídia e notícias
+
+- **Administração → Mídia**: todas as imagens em um só lugar, com título, texto
+  alternativo e legenda. Mostra onde cada imagem está em uso, impede apagar a
+  que está em uso e permite substituir o arquivo mantendo todos os lugares.
+  Em qualquer campo de imagem (páginas, banners, cartões, notícias) há o botão
+  **Escolher da biblioteca**.
+- **Administração → Notícias**: título, subtítulo, resumo, capa, texto
+  formatado, categoria, destaque e link de destino. Situações: rascunho,
+  publicada, arquivada; com data futura a notícia fica **agendada** e aparece
+  sozinha na hora (sem agendador). Admin vê pré-visualização de rascunhos.
+- Público: `/noticias` (com categorias e paginação), `/noticias/<endereço>` e o
+  cartão "Últimas notícias" na página inicial (pode ser movido/ocultado como os
+  demais cartões).
+
+## Testes
+
+```bash
+python3 tests/test_modulos.py   # trabalha numa cópia temporária; não toca nos dados
+```
 
 ## Estrutura
 
 | Caminho | Papel |
 |---|---|
 | `app.py` | Aplicação Flask: login, página inicial e administração |
+| `modulos/` | Segurança, histórico, biblioteca de mídia e notícias (carregados pelo `app.py`) |
 | `templates/` | Páginas HTML (Jinja2) |
+| `tests/` | Testes automatizados dos módulos |
 | `static/style.css` | Estilo — azul institucional com o dourado do brasão |
 | `static/logo.*`, `static/fundo.*` | Identidade visual da unidade (trocáveis por arquivo) |
 | `static/banner.js` | Rotação automática do banner |

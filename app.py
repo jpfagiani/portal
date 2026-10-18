@@ -14,6 +14,7 @@ import os
 import re
 import secrets
 import sqlite3
+import sys
 import time
 import zipfile
 from datetime import datetime
@@ -263,6 +264,15 @@ app = Flask(__name__)
 # 64 MB: um backup carrega o banco mais a foto de fundo, o logo e as imagens
 # do banner. As imagens avulsas continuam limitadas pela extensão aceita.
 app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024
+# Cookie de sessão: inacessível ao JavaScript e não enviado em requisições de
+# outros sites. `Secure` só liga com PORTAL_COOKIE_SEGURO=1, que é para quando o
+# portal é servido por HTTPS — numa intranet em HTTP, o cookie seguro nunca
+# chegaria de volta e ninguém conseguiria entrar.
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.environ.get('PORTAL_COOKIE_SEGURO') == '1',
+)
 
 
 def _secret_key():
@@ -452,6 +462,7 @@ CARTOES_FIXOS = [
     ('sistemas',  'Acesso rápido aos sistemas', 'grade',     'topo',  1, -3),
     ('atalhos',   'Atalhos úteis',              'marcador',  'meio',  3, -2),
     ('ramais',    'Ramais mais utilizados',     'telefone',  'baixo', 1, -1),
+    ('noticias',  'Últimas notícias',           'megafone',  'meio',  3, -1),
 ]
 
 CARTOES_SEMENTE = [
@@ -1207,7 +1218,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.7.0'
+VERSAO = '1.8.0'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -1573,6 +1584,15 @@ class _LimpaHTML(HTMLParser):
         tag = _SINONIMOS.get(tag, tag)
         attrs = {k.lower(): (v or '') for k, v in attrs}
         emitida = None
+        if tag == 'img':
+            # Só imagens da própria biblioteca (static/uploads); nada de endereço
+            # externo, data: ou javascript:.
+            m = re.fullmatch(r'/static/uploads/([A-Za-z0-9._\-]+\.(?:png|jpe?g|gif|webp))',
+                             attrs.get('src', '').strip())
+            if m:
+                alt = escape(attrs.get('alt', '')[:300])
+                self.saida.append(f'<img src="/static/uploads/{m.group(1)}" alt="{alt}" loading="lazy">')
+            return
         if tag in _TAGS_OK:
             estilo = _estilo_limpo(attrs.get('style'))
             if original == 'font':                # <font color size> do editor
@@ -1679,7 +1699,7 @@ def agrupar_blocos(linhas):
         else:
             html = (limpa_html(b['texto']) if b['formato'] == 'html'
                     else texto_para_html(b['texto']))
-            if so_texto(html) or '<li' in html:
+            if so_texto(html) or '<li' in html or '<img' in html:
                 saida.append({'tipo': 'texto', 'id': b['id'], 'ativo': ativo,
                               'html': Markup(html),
                               'estilo': b['estilo'] if b['estilo'] in ESTILOS_TEXTO else 'normal'})
@@ -1880,9 +1900,16 @@ def login():
     if request.method == 'POST':
         usuario = (request.form.get('usuario') or '').strip()
         senha   = request.form.get('senha') or ''
+        espera = modulos.seguranca.espera_login(usuario)
+        if espera:
+            minutos = -(-espera // 60)
+            modulos.auditoria.registrar('login bloqueado', usuario, 'muitas tentativas', usuario=usuario)
+            return render_template(
+                'login.html', erro=f'Muitas tentativas de acesso. Tente de novo em {minutos} minuto(s).'), 429
         row = db().execute('SELECT * FROM usuarios WHERE usuario=? AND ativo=1',
                            (usuario,)).fetchone()
         if row and check_password_hash(row['senha_hash'], senha):
+            modulos.seguranca.limpa_falhas(usuario)
             session.clear()
             session['uid']   = row['id']
             session['user']  = row['usuario']
@@ -1891,6 +1918,7 @@ def login():
             # Guarda o acesso anterior antes de gravar o de agora — quem entra
             # quer ver quando esteve aqui da última vez, não o relógio atual.
             session['ultimo_acesso'] = row['ultimo_acesso'] or ''
+            modulos.auditoria.registrar('login', row['usuario'], 'acesso ao portal')
             con = db()
             con.execute("UPDATE usuarios SET ultimo_acesso=datetime('now','localtime')"
                         ' WHERE id=?', (row['id'],))
@@ -1902,6 +1930,8 @@ def login():
             if not destino.startswith('/') or destino.startswith('//'):
                 destino = url_for('index')
             return redirect(destino)
+        modulos.seguranca.registra_falha(usuario)
+        modulos.auditoria.registrar('login falhou', usuario, 'usuário ou senha inválidos', usuario=usuario)
         erro = 'Usuário ou senha inválidos.'
     return render_template('login.html', erro=erro)
 
@@ -2069,6 +2099,7 @@ def index():
 
     return render_template(
         'index.html', numeros=numeros, saudacao=saudacao(),
+        noticias_recentes=modulos.noticias.recentes(4),
         cartoes_painel=cartoes_painel, livre=livre, cartoes_livre=cartoes_livre,
         lateral_livre=lateral_livre,
         sistemas=agrupar_por_categoria(sistemas_todos),
@@ -2107,20 +2138,35 @@ def salva_upload(campo, atual='', exts=None):
     """Grava um arquivo enviado e devolve o nome final (ou o atual, se nada veio)."""
     arq = request.files.get(campo)
     if not arq or not arq.filename:
+        # Imagem escolhida na biblioteca (campo "<campo>_biblioteca"): reaproveita
+        # o arquivo já enviado em vez de gravar outra cópia.
+        escolhida = os.path.basename(request.form.get(campo + '_biblioteca', '') or '')
+        if (escolhida and not exts and modulos.midia.registrada(escolhida)
+                and os.path.isfile(os.path.join(UPLOAD_DIR, escolhida))):
+            return escolhida
         return atual
     ext = os.path.splitext(arq.filename)[1].lower()
     if ext not in (exts or EXT_OK):
         raise ValueError('Formato de vídeo não aceito. Use MP4, WEBM ou OGG.'
                          if exts else
                          'Formato não aceito. Use PNG, JPG, WEBP ou GIF.')
+    if not modulos.seguranca.conteudo_confere(arq, ext):
+        raise ValueError('O arquivo não é uma imagem ou vídeo válido: o conteúdo não '
+                         'corresponde ao formato informado.')
     nome = f"{secrets.token_hex(8)}{ext}"
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     arq.save(os.path.join(UPLOAD_DIR, nome))
+    modulos.midia.registrar_arquivo(nome, arq.filename,
+                                    os.path.getsize(os.path.join(UPLOAD_DIR, nome)))
     return nome
 
 
 def remove_upload(nome):
     if not nome:
+        return
+    # Imagem catalogada na biblioteca só sai por ela (e só se não estiver em uso):
+    # outra página, banner ou notícia pode estar usando o mesmo arquivo.
+    if modulos.midia.registrada(nome):
         return
     caminho = os.path.join(UPLOAD_DIR, secure_filename(nome))
     if os.path.isfile(caminho):
@@ -3647,7 +3693,7 @@ def admin_pagina(chave):
         if tipo == 'texto':
             # O editor manda HTML; é limpo aqui, e só o resultado é guardado.
             texto, formato = limpa_html(request.form.get('html', '')), 'html'
-            vazio = not (so_texto(texto) or '<li' in texto)
+            vazio = not (so_texto(texto) or '<li' in texto or '<img' in texto)
         elif tipo == 'subtitulo':
             texto = request.form.get('texto', '').strip()[:200]
             vazio = not texto
@@ -3718,6 +3764,13 @@ def admin_pagina(chave):
         estilos=ESTILOS_TEXTO, blocos=agrupar_blocos(linhas), total=len(linhas),
         destinos=destinos_de_links())
 
+
+# Recursos em módulos (ver modulos/__init__.py). Rodando como `python app.py`, o
+# módulo se chama __main__; o alias evita que os módulos importem uma segunda
+# cópia do núcleo.
+sys.modules.setdefault('app', sys.modules[__name__])
+import modulos                                  # noqa: E402  (registra as rotas)
+SCHEMA += modulos.SCHEMA
 
 init_db()
 

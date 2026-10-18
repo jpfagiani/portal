@@ -119,7 +119,7 @@
     if (aberta) aberta.remove();
     var bloco = o.bloco || null;
     var tipo = bloco ? bloco.tipo : (o.tipo || 'texto');
-    var arquivo = o.arquivo || null;
+    var arquivo = o.arquivo || null, biblioteca = '';
 
     var fundo = el('div', 'pe-fundo');
     var j = el('div', 'pe-janela');
@@ -236,9 +236,16 @@
         else { prev.hidden = true; }
       }
       function define(f) {
-        if (f && /^image\//.test(f.type)) { arquivo = f; mostra(); erro.textContent = ''; }
+        if (f && /^image\//.test(f.type)) { arquivo = f; biblioteca = ''; mostra(); erro.textContent = ''; }
         else erro.textContent = 'Escolha um arquivo de imagem (PNG, JPG, WEBP ou GIF).';
       }
+      var bib = el('button', 'btn btn-sm', 'Escolher da biblioteca'); bib.type = 'button';
+      bib.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (!window.SeletorMidia) { erro.textContent = 'A biblioteca não está disponível.'; return; }
+        window.SeletorMidia.abrir({lista: '/admin/midia/lista', enviar: '/admin/midia/enviar', csrf: csrf,
+          aoEscolher: function (i) { arquivo = null; biblioteca = i.arquivo; prev.src = i.url; prev.hidden = false; zona.classList.add('tem'); txt.querySelector('strong').textContent = i.nome; erro.textContent = ''; }});
+      });
       zona.addEventListener('click', function () { input.click(); });
       input.addEventListener('change', function () { if (input.files[0]) define(input.files[0]); });
       ['dragenter', 'dragover'].forEach(function (n) { zona.addEventListener(n, function (e) { e.preventDefault(); e.stopPropagation(); zona.classList.add('sobre'); }); });
@@ -248,7 +255,7 @@
         var its = (e.clipboardData || {}).items || [];
         for (var k = 0; k < its.length; k++) if (its[k].type.indexOf('image/') === 0) { define(its[k].getAsFile()); e.preventDefault(); return; }
       });
-      zona.appendChild(prev); zona.appendChild(txt); zona.appendChild(input);
+      zona.appendChild(prev); zona.appendChild(txt); zona.appendChild(bib); zona.appendChild(input);
       mostra();
       return zona;
     }
@@ -321,6 +328,7 @@
       Object.keys(campos).forEach(function (k) { fd.append(k, campos[k].value); });
       if (tipo === 'imagem') {
         if (arquivo) fd.append('arquivo', arquivo, arquivo.name);
+        else if (biblioteca) fd.append('arquivo_biblioteca', biblioteca);
         else if (!bloco) { erro.textContent = 'Escolha uma imagem.'; return; }
       }
       salvar.disabled = true;

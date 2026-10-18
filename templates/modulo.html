@@ -46,6 +46,7 @@
 <script type="application/json" id="dados-blocos">{{ blocos_cru|tojson }}</script>
 <script type="application/json" id="dados-destinos">{{ destinos|tojson }}</script>
 <script type="application/json" id="dados-opcoes">{{ {'larguras': larguras.items()|list, 'alinhamentos': alinhamentos.items()|list, 'estilos': estilos.items()|list}|tojson }}</script>
+<script src="{{ url_for('static', filename='midia-seletor.js') }}"></script>
 <script src="{{ url_for('static', filename='pagina-edicao.js') }}"></script>
 {% endif %}
 {% endblock %}

@@ -43,6 +43,29 @@
       {{ cabecalho('marcador', c.nome, url_for('lista', chave='atalhos'), editar=url_for('admin_links', grupo='atalho')) }}
       <div class="cartao-corpo">{{ b.atalhos(atalhos) }}</div>
     </section>
+  {% elif c.tipo == 'noticias' %}
+    {% if noticias_recentes or modo_edicao %}
+    <section class="cartao" {{ posicao(c) }}>
+      <div class="cartao-cab">
+        <span class="cab-ic">{{ ic(c.icone) }}</span>
+        <h2>{% if modo_edicao %}<a class="cab-link cab-editar" href="{{ url_for('admin_noticias') }}" title="Gerenciar notícias">{{ c.nome }}</a>
+            {% else %}<a class="cab-link" href="{{ url_for('noticias') }}">{{ c.nome }}</a>{% endif %}</h2>
+      </div>
+      <div class="cartao-corpo not-lista">
+        {% for n in noticias_recentes %}
+        {% set destino = n.destino_url or url_for('noticia', slug=n.slug) %}
+        <a class="not-item" href="{{ destino }}"{% if destino.startswith('http') %} target="_blank" rel="noopener"{% endif %}>
+          {% if n.capa %}<img src="{{ url_for('static', filename='uploads/' ~ n.capa) }}" alt="" loading="lazy">{% endif %}
+          <span><small>{% if n.categoria %}{{ n.categoria }} · {% endif %}{{ n.publicar_em|data_br }}</small>
+            <strong>{{ n.titulo }}</strong></span>
+        </a>
+        {% else %}
+        <p class="vazio">Nenhuma notícia publicada ainda.</p>
+        {% endfor %}
+        {% if noticias_recentes %}<a class="not-todas" href="{{ url_for('noticias') }}">Ver todas as notícias →</a>{% endif %}
+      </div>
+    </section>
+    {% endif %}
   {% elif c.tipo == 'ramais' %}
     <section class="cartao" {{ posicao(c) }}>
       {{ cabecalho('telefone', c.nome, url_for('ramais'), ramais_total, limites.ramais, url_for('admin_ramais')) }}

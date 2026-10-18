@@ -1,0 +1,43 @@
+{% extends 'shell.html' %}
+{% set pagina = 'noticias' %}
+{% block titulo %}Notícias{% endblock %}
+{% block miolo %}
+<main class="pagina pagina-noticias">
+  <div class="migalha"><a href="{{ url_for('index') }}">← Início</a><span>/</span><span>Notícias</span></div>
+  <h1 class="pagina-titulo">Notícias</h1>
+
+  {% if categorias %}
+  <nav class="not-cats" aria-label="Categorias">
+    <a href="{{ url_for('noticias') }}" class="{{ 'ativa' if not categoria }}">Todas</a>
+    {% for c in categorias %}<a href="{{ url_for('noticias', c=c) }}" class="{{ 'ativa' if categoria == c }}">{{ c }}</a>{% endfor %}
+  </nav>
+  {% endif %}
+
+  <div class="not-grade">
+    {% for n in itens %}
+    {% set destino = n.destino_url or url_for('noticia', slug=n.slug) %}
+    <article class="not-cartao{{ ' destaque' if n.destaque }}">
+      <a class="not-link" href="{{ destino }}"{% if destino.startswith('http') %} target="_blank" rel="noopener"{% endif %}>
+        {% if n.capa %}<img class="not-capa" src="{{ url_for('static', filename='uploads/' ~ n.capa) }}"
+                            alt="{{ n.capa_alt or midia_alt(n.capa, '') }}" loading="lazy">{% endif %}
+        <div class="not-texto">
+          <small>{% if n.categoria %}{{ n.categoria }} · {% endif %}{{ n.publicar_em|data_br }}</small>
+          <h2>{{ n.titulo }}</h2>
+          {% if n.resumo or n.subtitulo %}<p>{{ n.resumo or n.subtitulo }}</p>{% endif %}
+        </div>
+      </a>
+    </article>
+    {% else %}
+    <p class="vazio">Nenhuma notícia publicada{{ ' nesta categoria' if categoria }}.</p>
+    {% endfor %}
+  </div>
+
+  {% if paginas > 1 %}
+  <p class="hist-pag">
+    {% if pagina > 1 %}<a class="btn btn-sm" href="{{ url_for('noticias', c=categoria, p=pagina-1) }}">← Mais recentes</a>{% endif %}
+    <span>Página {{ pagina }} de {{ paginas }}</span>
+    {% if pagina < paginas %}<a class="btn btn-sm" href="{{ url_for('noticias', c=categoria, p=pagina+1) }}">Mais antigas →</a>{% endif %}
+  </p>
+  {% endif %}
+</main>
+{% endblock %}

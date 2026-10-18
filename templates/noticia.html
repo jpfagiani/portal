@@ -1,0 +1,32 @@
+{% extends 'shell.html' %}
+{% set pagina = 'noticias' %}
+{% block titulo %}{{ n.titulo }}{% endblock %}
+{% block meta %}{% if n.meta or n.resumo %}<meta name="description" content="{{ n.meta or n.resumo }}">{% endif %}{% endblock %}
+{% block miolo %}
+<main class="pagina pagina-noticia">
+  <div class="migalha"><a href="{{ url_for('index') }}">← Início</a><span>/</span><a href="{{ url_for('noticias') }}">Notícias</a></div>
+  {% if previa %}
+  <div class="pe-dica"><span><strong>Pré-visualização.</strong> Esta notícia está <b>{{ situacao|lower }}</b> e só você a vê.
+    {% if eh_admin %}<a href="{{ url_for('admin_noticias', editar=n.id) }}">Voltar à edição</a>{% endif %}</span></div>
+  {% endif %}
+  <article class="noticia">
+    <header>
+      {% if n.categoria %}<span class="noticia-cat">{{ n.categoria }}</span>{% endif %}
+      <h1 class="pagina-titulo">{{ n.titulo }}</h1>
+      {% if n.subtitulo %}<p class="noticia-sub">{{ n.subtitulo }}</p>{% endif %}
+      <p class="noticia-meta">{% if n.publicar_em %}{{ n.publicar_em|data_br }}{% endif %}{% if n.autor %} · {{ n.autor }}{% endif %}</p>
+    </header>
+    {% if n.capa %}
+    <figure class="noticia-capa">
+      <img src="{{ url_for('static', filename='uploads/' ~ n.capa) }}" alt="{{ n.capa_alt or midia_alt(n.capa, '') }}">
+      {% if n.legenda %}<figcaption>{{ n.legenda }}</figcaption>{% endif %}
+    </figure>
+    {% endif %}
+    <div class="pagina-texto noticia-corpo">{{ corpo }}</div>
+  </article>
+  <div class="acoes pagina-acoes">
+    <a class="btn" href="{{ url_for('noticias') }}">Todas as notícias</a>
+    {% if eh_admin %}<a class="btn" href="{{ url_for('admin_noticias', editar=n.id) }}">Editar</a>{% endif %}
+  </div>
+</main>
+{% endblock %}
