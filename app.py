@@ -1227,7 +1227,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.1'
+VERSAO = '1.9.2'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -1405,6 +1405,13 @@ def _migrar_v19(con, instalacao_nova):
                 con.execute("INSERT INTO paginas_lateral (chave,nome,icone,url,ordem,ativo)"
                             " VALUES ('noticias-link','Link 1','','/noticias',?,1)", (menor - 1,))
         marca('menu_links_v19b')
+
+    # 1.9.2: "Ramais" sai da barra de seções; ficam só o cartão da tela inicial e
+    # a página /ramais (aberta pelo nome do cartão). Só desligado, nunca apagado:
+    # dá para religar em Administração → Painel → Menu.
+    if not feito('menu_ramais_v192'):
+        con.execute("UPDATE menu_itens SET ativo=0 WHERE chave='ramais'")
+        marca('menu_ramais_v192')
 
 
 def _separar_paginas_laterais(con, instalacao_nova):
