@@ -357,3 +357,76 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .lateral-paginas .not-todas{font-size:.74rem}
 .regiao-topo .cartao[data-larg="3"] .ladrilhos{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
 .lateral-paginas>.cartao:first-child{padding-top:0}
+
+/* ── cabeçalho em três andares, no estilo dos grandes portais ──────────────
+   1) faixa escura: links de informação à esquerda, data e conta à direita;
+   2) cabeçalho: marca grande, busca e ferramentas;
+   3) barra de seções: colada ao cabeçalho e fixa ao rolar a página. */
+
+/* 1 ─ faixa escura */
+.faixa-info-miolo{justify-content:space-between;flex-wrap:nowrap;min-height:2.6rem;gap:1rem}
+.faixa-links{display:flex;flex-wrap:wrap;align-items:center;gap:0 1.5rem;min-width:0}
+.faixa-conta{display:flex;align-items:center;gap:1.1rem;flex-shrink:0}
+.faixa-conta a,.faixa-data{font-size:.72rem;font-weight:600;letter-spacing:.05em;
+  text-transform:uppercase;color:#e5e9f2;text-decoration:none;white-space:nowrap}
+.faixa-data{font-weight:500;opacity:.7;text-transform:capitalize;letter-spacing:.02em}
+.faixa-conta a:hover{color:#fff;text-decoration:underline;text-underline-offset:3px}
+.faixa-usuario{max-width:12rem;overflow:hidden;text-overflow:ellipsis}
+.faixa-conta a.faixa-entrar{background:#fbbf24;color:#1a1a1a;padding:.42rem .95rem;
+  border-radius:4px;font-weight:800;letter-spacing:.04em}
+.faixa-conta a.faixa-entrar:hover{background:#f59e0b;color:#000;text-decoration:none}
+
+/* 2 ─ cabeçalho */
+.topo-limpo{position:static;border-bottom:0;padding:1.1rem 1rem 1rem;gap:1.5rem}
+.marca-topo{gap:.9rem}
+.marca-topo img{width:58px;height:58px}
+.marca-topo strong{font-size:1.9rem;font-weight:900;letter-spacing:-.02em;line-height:1}
+.marca-topo small{font-size:.74rem;margin-top:.25rem}
+.topo-limpo .busca{margin-left:auto;flex:0 1 340px;max-width:340px}
+.topo-limpo .busca input{padding:.7rem .9rem .7rem 2.3rem;font-size:.82rem;border-radius:4px;
+  background:var(--cartao-suave)}
+
+/* 3 ─ barra de seções */
+.barra-secoes{position:sticky;top:0;z-index:40;background:var(--cartao);
+  border-top:2px solid var(--texto);border-bottom:1px solid var(--borda);
+  box-shadow:0 1px 0 var(--cartao)}
+.barra-secoes-lista{display:flex;align-items:stretch;gap:0 1.7rem;padding:0 1rem;
+  overflow-x:auto;scrollbar-width:none}
+.barra-secoes-lista::-webkit-scrollbar{display:none}
+.barra-secoes-lista:has(a:nth-child(7)){justify-content:space-between}
+.barra-secoes a{flex:0 0 auto;padding:.85rem 0 .8rem;font-size:.74rem;font-weight:800;
+  letter-spacing:.02em;text-transform:uppercase;text-decoration:none;color:var(--texto);
+  border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.barra-secoes a:hover{color:var(--azul)}
+.barra-secoes a.ativo{color:var(--azul);border-bottom-color:var(--azul)}
+.barra-secoes a:focus-visible{outline:2px solid var(--azul);outline-offset:-2px}
+
+@media (max-width:900px){
+  .faixa-data{display:none}
+  .faixa-info-miolo{min-height:2.3rem}
+  .topo-limpo{flex-wrap:wrap;gap:.8rem;padding:.8rem 1rem}
+  .marca-topo img{width:44px;height:44px}
+  .marca-topo strong{font-size:1.45rem}
+  .topo-direita{order:2;margin-left:auto}
+  .topo-limpo .busca{order:3;flex:1 1 100%;max-width:none}
+  /* como no Terra: botões arredondados que rolam para o lado */
+  .barra-secoes{border-top:0;border-bottom:1px solid var(--borda)}
+  .barra-secoes-lista{gap:.5rem;padding:.55rem 1rem}
+  .barra-secoes a{padding:.5rem .95rem;border:0;margin:0;border-radius:999px;
+    background:var(--cartao-suave);font-size:.72rem}
+  .barra-secoes a.ativo{background:var(--azul);color:#fff}
+}
+@media (max-width:480px){
+  .faixa-links a,.faixa-links span{font-size:.66rem}
+  .faixa-links{gap:0 1rem}
+}
+
+/* ── melhorias da tela inicial ──────────────────────────────────────────── */
+/* Sem imagem no banner, a capa vira uma chamada compacta com filete de cor,
+   em vez de um bloco grande e vazio. */
+.capa:not(:has(.slide)){height:auto;min-height:0;border-radius:10px;
+  border-left:6px solid var(--azul);margin-bottom:.4rem}
+.capa:not(:has(.slide)) .capa-texto{position:static;padding:1.1rem 1.6rem;width:auto}
+.capa:not(:has(.slide)) .capa-texto strong{font-size:min(var(--capa-titulo-tam,1.75rem),1.7rem)}
+/* Data da faixa escura: mais contraste */
+.faixa-data{opacity:.85}

@@ -1748,6 +1748,17 @@ def modulo(chave):
                            estilos=ESTILOS_TEXTO)
 
 
+DIAS_SEMANA = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira',
+               'sexta-feira', 'sábado', 'domingo']
+
+
+def data_extenso():
+    """"segunda-feira, 19 de outubro" — para a faixa do topo. Calculada a cada
+    resposta, pelo mesmo motivo do ano do rodapé."""
+    h = datetime.now()
+    return f'{DIAS_SEMANA[h.weekday()]}, {h.day} de {MESES[h.month - 1].lower()}'
+
+
 @app.context_processor
 def _injeta():
     fundo, fundo_v = fundo_atual()
@@ -1777,6 +1788,7 @@ def _injeta():
             'paginas_lateral': montar_paginas(),
             # calculado a cada resposta: a virada de ano não exige reiniciar
             'ano_atual': datetime.now().year,
+            'data_extenso': data_extenso(),
             'meses': MESES,
             'mes_numero': datetime.now().month,
             'mes_atual_nome': MESES[datetime.now().month - 1],

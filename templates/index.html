@@ -67,6 +67,8 @@
     </section>
     {% endif %}
   {% elif c.tipo == 'ramais' %}
+    {#  Sem ramal para mostrar, o cartão só aparece no editor. #}
+    {% if (ramais_destaque or ramais_extras) or modo_edicao %}
     <section class="cartao" {{ posicao(c) }}>
       {{ cabecalho('telefone', c.nome, url_for('ramais'), ramais_total, limites.ramais, url_for('admin_ramais')) }}
       <div class="cartao-corpo ramais">
@@ -79,6 +81,7 @@
                     ramais_destaque[limites.ramais:] + ramais_extras) }}
       </div>
     </section>
+    {% endif %}
   {% else %}{{ b.cartao_painel(c, itens) }}
   {% endif %}
 {% endmacro %}
@@ -173,11 +176,14 @@
     {% for c, itens in reg %}{% if c.tipo == 'noticias' %}{% set ns.noticias = c %}{% endif %}{% endfor %}
   {% endfor %}{% endif %}
   {% set lista_on = cfg.lista_paginas_ativa == '1' %}
-  {% set mostra_lateral = (lista_on and (paginas or modo_edicao)) or destaque or ns.noticias %}
+  {#  O cartão de notícias só ocupa a lateral quando há notícia (ou no editor);
+      senão a coluna ficava reservada, vazia, empurrando tudo para a direita. #}
+  {% set mostra_lateral = (lista_on and (paginas or modo_edicao)) or destaque
+                          or (ns.noticias and (noticias_recentes or modo_edicao)) %}
   <div class="corpo-painel{{ ' sem-lateral' if not mostra_lateral }}{{ ' livre-total' if livre }}">
   {% if mostra_lateral and not livre %}
   <aside class="lateral-paginas">
-    {% if ns.noticias %}{{ desenha(ns.noticias, none) }}{% endif %}
+    {% if ns.noticias and (noticias_recentes or modo_edicao) %}{{ desenha(ns.noticias, none) }}{% endif %}
     {% if lista_on %}{{ lista_paginas(paginas) }}{% endif %}
     {{ cartao_destaque(destaque) }}
   </aside>
