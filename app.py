@@ -1227,7 +1227,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.0'
+VERSAO = '1.9.1'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -1394,6 +1394,17 @@ def _migrar_v19(con, instalacao_nova):
                     n += 1
                     con.execute(f'UPDATE {tabela} SET nome=? WHERE id=?', (f'Link {n}', rid))
         marca('menu_links_v19')
+
+    # 1.9.1: "Ramais" volta a ser Ramais (o Link 1 não é mais dele) e o Link 1
+    # passa a levar às Notícias, como primeira página da lista.
+    if not feito('menu_links_v19b'):
+        if not instalacao_nova:
+            con.execute("UPDATE menu_itens SET nome='Ramais' WHERE chave='ramais' AND nome='Link 1'")
+            if not con.execute("SELECT 1 FROM paginas_lateral WHERE chave='noticias-link'").fetchone():
+                menor = con.execute('SELECT COALESCE(MIN(ordem),0) FROM paginas_lateral').fetchone()[0]
+                con.execute("INSERT INTO paginas_lateral (chave,nome,icone,url,ordem,ativo)"
+                            " VALUES ('noticias-link','Link 1','','/noticias',?,1)", (menor - 1,))
+        marca('menu_links_v19b')
 
 
 def _separar_paginas_laterais(con, instalacao_nova):
@@ -3690,8 +3701,8 @@ TIPOS_BLOCO = {'subtitulo': 'Subtítulo', 'texto': 'Texto', 'imagem': 'Imagem',
 def destinos_de_links():
     """Páginas do portal para onde um link pode apontar: (nome, endereço)."""
     return [('Início', '/'), ('Ramais', '/ramais'), ('Sistemas', '/sistemas')] + \
-        [(r['nome'], f"/modulo/{r['chave']}") for r in db().execute(
-            'SELECT nome,chave FROM paginas_lateral ORDER BY ordem, id')]
+        [(r['nome'], r['url'] if (r['url'] or '').startswith('/') else f"/modulo/{r['chave']}") for r in db().execute(
+            'SELECT nome,chave,url FROM paginas_lateral ORDER BY ordem, id')]
 
 
 @app.route('/admin/pagina/<chave>', methods=['GET', 'POST'])
