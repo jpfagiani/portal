@@ -153,6 +153,24 @@ ok(os.path.exists(os.path.join(portal.UPLOAD_DIR, arq)), 'a capa continua na bib
 r = c.post('/admin/noticias', data={'acao': 'salvar', 'titulo': 'sem csrf'})
 ok(r.status_code in (400, 403), 'POST sem token CSRF é recusado (%s)' % r.status_code)
 
+# ── cartões de texto e imagem ────────────────────────────────────────────────
+r = c.post('/admin/cartao-conteudo', data={'csrf': tok, 'nome': 'Horário', 'titulo_visivel': 'on',
+           'corpo': '<p>Das 8h às 17h</p><script>x()</script>'})
+j = r.get_json() or {}
+ok(j.get('ok'), 'cria cartão de texto e imagem')
+h = anon.get('/').get_data(as_text=True)
+ok('Das 8h às 17h' in h and 'x()' not in h, 'cartão aparece ao público, com HTML limpo')
+r = c.post('/admin/cartao-conteudo', data={'csrf': tok, 'chave': j.get('chave'), 'nome': 'Horário 2', 'titulo_visivel': 'on', 'corpo': '<p>Novo</p>'})
+ok(r.get_json().get('ok') and 'Horário 2' in anon.get('/').get_data(as_text=True), 'edita o cartão')
+ok(not c.post('/admin/cartao-conteudo', data={'csrf': tok, 'nome': '', 'corpo': ''}).get_json().get('ok'), 'cartão vazio é recusado')
+ok(anon.post('/admin/cartao-conteudo', data={'nome': 'x', 'corpo': 'y'}).status_code in (302, 400, 401, 403), 'visitante não cria cartão')
+ok(c.post('/admin/cartao-conteudo', data={'csrf': tok, 'chave': j.get('chave'), 'acao': 'excluir'}).get_json().get('ok'), 'exclui o cartão')
+c.post('/admin/layout-livre', data={'csrf': tok, 'acao': 'ativar'})
+ok(c.get('/editor').status_code == 200 and 'data-novo-conteudo' in c.get('/editor').get_data(as_text=True), 'editor tem o botão + Texto ou imagem')
+r = c.post('/admin/cartao-pos', data={'csrf': tok, 'posicoes': '[{"chave":"ramais","gx":0,"gy":0,"gw":3,"gh":14}]'})
+ok(r.status_code == 200, 'cartão pode ser fixado na lateral esquerda vazia (%s)' % r.status_code)
+c.post('/admin/layout-livre', data={'csrf': tok, 'acao': 'desativar'})
+
 # ── histórico ────────────────────────────────────────────────────────────────
 h = c.get('/admin/historico').get_data(as_text=True)
 ok('noticias' in h.lower() or 'Notícia' in h, 'histórico registra as ações do admin')

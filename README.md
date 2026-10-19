@@ -273,6 +273,13 @@ sudo ./desinstalar.sh    # remove o serviço; PRESERVA dados e imagens
   cartão "Últimas notícias" na página inicial (pode ser movido/ocultado como os
   demais cartões).
 
+## Cartões de texto e imagem
+
+Em **Editar portal**, o botão **+ Texto ou imagem** cria um cartão com texto
+formatado e imagens da biblioteca, no primeiro espaço vazio do quadro. Clique no
+nome do cartão para editá-lo ou excluí-lo. No layout livre, arraste para onde
+quiser, inclusive para a coluna da esquerda.
+
 ## Testes
 
 ```bash

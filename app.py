@@ -500,7 +500,7 @@ PADROES.update({
 # editados em Administração → Navegação.
 PADROES.update({
     # Um link por linha, no formato "Nome | endereço".
-    'faixa_links':     'Ramais | /ramais\nSistemas | /sistemas',
+    'faixa_links':     '',
     'lista_paginas_ativa': '0',
     'destaque_ativo':  '0',
     'destaque_rotulo': 'Em destaque',
@@ -1167,6 +1167,7 @@ def init_db():
             con.execute('INSERT INTO menu_itens (chave,nome,icone,ordem)'
                         ' VALUES (?,?,?,?)', (chave, nome, icone, i))
     _separar_paginas_laterais(con, instalacao_nova)
+    _migrar_v19(con, instalacao_nova)
 
     if not con.execute('SELECT 1 FROM lateral LIMIT 1').fetchone():
         con.execute("INSERT INTO lateral (tipo,titulo,conteudo,ordem) VALUES"
@@ -1226,7 +1227,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.8.0'
+VERSAO = '1.9.0'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -1361,6 +1362,38 @@ MENU_PADRAO = {chave: (nome, icone) for chave, nome, icone, _ in MENU}
 
 def _slug(texto):
     return re.sub(r'[^a-z0-9]+', '-', (texto or '').lower().strip()).strip('-') or 'pagina'
+
+
+def _migrar_v19(con, instalacao_nova):
+    """1.9: faixa escura do topo sem Ramais/Sistemas e itens do menu como
+    "Link N". Cada ajuste roda uma única vez; o que o administrador mudar
+    depois não é desfeito. (Sem row_factory aqui: colunas por posição.)"""
+    def feito(marca):
+        return con.execute('SELECT 1 FROM config WHERE chave=?', (marca,)).fetchone()
+
+    def marca(m):
+        con.execute("INSERT OR REPLACE INTO config (chave,valor) VALUES (?,'1')", (m,))
+
+    if not feito('faixa_v19'):
+        r = con.execute("SELECT valor FROM config WHERE chave='faixa_links'").fetchone()
+        if r:
+            padrao = ('ramais|/ramais', 'sistemas|/sistemas')
+            linhas = [l for l in r[0].splitlines()
+                      if re.sub(r'\s+', '', l).lower() not in padrao]
+            con.execute("UPDATE config SET valor=? WHERE chave='faixa_links'",
+                        ('\n'.join(linhas),))
+        marca('faixa_v19')
+
+    if not feito('menu_links_v19'):
+        if not instalacao_nova:
+            n = 0
+            for tabela in ('menu_itens', 'paginas_lateral'):
+                for rid, chave in con.execute(
+                        f"SELECT id,chave FROM {tabela} WHERE chave NOT IN ('inicio','admin')"
+                        ' ORDER BY ordem, id').fetchall():
+                    n += 1
+                    con.execute(f'UPDATE {tabela} SET nome=? WHERE id=?', (f'Link {n}', rid))
+        marca('menu_links_v19')
 
 
 def _separar_paginas_laterais(con, instalacao_nova):
@@ -2122,6 +2155,8 @@ def index():
         noticias_recentes=modulos.noticias.recentes(4),
         cartoes_painel=cartoes_painel, livre=livre, cartoes_livre=cartoes_livre,
         lateral_livre=lateral_livre,
+        destinos_links=destinos_de_links() if session.get('admin') else [],
+        dados_conteudo=modulos.cartoes.dados_edicao() if session.get('admin') else {},
         sistemas=agrupar_por_categoria(sistemas_todos),
         sistemas_total=len(sistemas_todos),
         atalhos=con.execute("SELECT * FROM links WHERE ativo=1 AND grupo='atalho'"
@@ -2665,6 +2700,15 @@ def _lateral_posicoes(con):
     return saida
 
 
+def lateral_desenhada(chave):
+    """A lista de páginas só ocupa o quadro quando está ligada em Navegação.
+    O cartão "Em destaque" aparece sempre no editor (desligado, com o convite
+    para ligar). Um cartão que não é desenhado não pode bloquear o espaço dele."""
+    if chave == 'paginas':
+        return cfg('lista_paginas_ativa') == '1'
+    return True
+
+
 def _lateral_gravar(con, chave, gx, gy, gw, gh):
     con.execute('INSERT INTO config (chave,valor) VALUES (?,?) '
                 'ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor',
@@ -2799,7 +2843,8 @@ def admin_cartao_pos():
         abort(400)
     cartoes = {r['chave']: dict(r) for r in con.execute(
         'SELECT * FROM cartoes_painel WHERE ativo=1')}
-    cartoes.update(_lateral_posicoes(con))
+    cartoes.update({k: v for k, v in _lateral_posicoes(con).items()
+                    if lateral_desenhada(k)})
     novos = {}
     for p in lista:
         chave = str(p.get('chave', ''))

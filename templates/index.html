@@ -1,5 +1,6 @@
 {% extends 'shell.html' %}
 {% import 'blocos.html' as b with context %}
+{% import 'rico.html' as r with context %}
 {% set pagina = 'inicio' %}
 {% block titulo %}Portal{% endblock %}
 
@@ -42,6 +43,16 @@
     <section class="cartao" {{ posicao(c) }}>
       {{ cabecalho('marcador', c.nome, url_for('lista', chave='atalhos'), editar=url_for('admin_links', grupo='atalho')) }}
       <div class="cartao-corpo">{{ b.atalhos(atalhos) }}</div>
+    </section>
+  {% elif c.tipo == 'conteudo' %}
+    <section class="cartao cartao-conteudo" {{ posicao(c) }}>
+      {% if cartao_titulo_visivel(c.chave) or modo_edicao %}
+      <div class="cartao-cab">
+        <h2>{% if modo_edicao %}<a class="cab-link cab-editar" href="#" data-editar-conteudo="{{ c.chave }}"
+              title="Editar texto e imagem deste cartão">{{ c.nome }}</a>{% else %}{{ c.nome }}{% endif %}</h2>
+      </div>
+      {% endif %}
+      <div class="cartao-corpo pagina-texto cartao-texto">{{ cartao_conteudo(c.chave) }}</div>
     </section>
   {% elif c.tipo == 'noticias' %}
     {% if noticias_recentes or modo_edicao %}
@@ -199,6 +210,8 @@
       As mudanças valem para todos.</span>
     <a class="btn btn-sm" href="{{ url_for('index') }}">Ver o portal</a>
     <a class="btn btn-sm" href="{{ url_for('admin') }}">Administração</a>
+    <button type="button" class="btn btn-sm btn-principal" data-novo-conteudo
+            title="Cria um cartão com texto e imagem em um espaço vazio">+ Texto ou imagem</button>
     {% if livre %}
     <button type="button" class="btn btn-principal btn-sm" data-livre-editar
             data-sair="{{ url_for('index') }}">
@@ -262,6 +275,33 @@
   </div>{# corpo-painel #}
 </main>
 
+{% if modo_edicao %}
+{#  Janela de edição dos cartões de texto e imagem (aberta por cartao-edicao.js). #}
+<div class="pe-fundo" id="conteudo-fundo" style="display:none">
+  <div class="pe-janela" role="dialog" aria-modal="true" aria-labelledby="conteudo-titulo">
+    <h3 id="conteudo-titulo">Cartão de texto e imagem</h3>
+    <form id="form-conteudo" method="post" action="{{ url_for('admin_cartao_conteudo') }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="chave" value="">
+      <label for="conteudo-nome">Título do cartão</label>
+      <input id="conteudo-nome" name="nome" maxlength="80" placeholder="Ex.: Comunicado, Horários, Aviso…">
+      <label class="check"><input type="checkbox" name="titulo_visivel" checked> Mostrar o título no portal</label>
+      <label>Texto e imagens</label>
+      {{ r.editor('corpo', '', destinos_links, csrf_token) }}
+      <p class="pe-erro" id="conteudo-erro" role="alert"></p>
+      <div class="pe-rodape">
+        <button type="button" class="btn btn-perigo btn-sm" id="conteudo-excluir" hidden>Excluir cartão</button>
+        <button type="button" class="btn" id="conteudo-cancelar">Cancelar</button>
+        <button type="submit" class="btn btn-principal">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script type="application/json" id="dados-conteudo">{{ dados_conteudo|tojson }}</script>
+<script src="{{ url_for('static', filename='midia-seletor.js') }}"></script>
+<script src="{{ url_for('static', filename='editor-rico.js') }}"></script>
+<script src="{{ url_for('static', filename='cartao-edicao.js') }}"></script>
+{% endif %}
 <script src="{{ url_for('static', filename='ramais.js') }}"></script>
 {% if livre and modo_edicao %}<script src="{{ url_for('static', filename='livre.js') }}"></script>{% endif %}
 {#  static/encaixe.js (cartões com a altura do conteúdo, encaixados em colunas)

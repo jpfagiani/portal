@@ -430,3 +430,13 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .capa:not(:has(.slide)) .capa-texto strong{font-size:min(var(--capa-titulo-tam,1.75rem),1.7rem)}
 /* Data da faixa escura: mais contraste */
 .faixa-data{opacity:.85}
+
+/* cartão de texto e imagem */
+.cartao-texto{font-size:.9rem;line-height:1.55;overflow-wrap:anywhere}
+.cartao-texto img{max-width:100%;height:auto;border-radius:8px}
+.cartao-texto>:first-child{margin-top:0}
+#conteudo-fundo{align-items:flex-start}
+#conteudo-fundo .pe-janela{width:min(780px,100%)}
+#conteudo-fundo label{display:block;font-weight:600;font-size:.85rem;margin:.7rem 0 .25rem}
+#conteudo-fundo label.check{font-weight:500}
+#conteudo-fundo input[name=nome]{width:100%}

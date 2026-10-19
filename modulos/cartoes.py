@@ -1,0 +1,109 @@
+"""Cartões livres de texto e imagem.
+
+Qualquer pessoa com acesso de administrador cria, na própria página inicial
+(modo "Editar portal"), um cartão com texto formatado e imagens da biblioteca,
+e o edita depois com um clique no nome dele. No layout livre o cartão novo cai
+no primeiro espaço vazio do quadro; no layout em colunas, na fileira de baixo.
+"""
+import secrets
+
+from flask import jsonify, request
+from markupsafe import Markup
+
+import app as nucleo
+
+app = nucleo.app
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS cartao_conteudo (
+    chave          TEXT PRIMARY KEY,
+    html           TEXT NOT NULL DEFAULT '',
+    titulo_visivel INTEGER NOT NULL DEFAULT 1
+);
+"""
+
+LARGURA_NOVO, ALTURA_NOVO = 3, 12       # em células do quadro livre (12 colunas)
+
+
+def conteudo(chave):
+    """HTML já limpo do cartão (guardado limpo, e limpo de novo ao ler)."""
+    r = nucleo.db().execute('SELECT html FROM cartao_conteudo WHERE chave=?', (chave,)).fetchone()
+    return Markup(nucleo.limpa_html(r['html'])) if r else Markup('')
+
+
+def titulo_visivel(chave):
+    r = nucleo.db().execute('SELECT titulo_visivel FROM cartao_conteudo WHERE chave=?', (chave,)).fetchone()
+    return bool(r['titulo_visivel']) if r else True
+
+
+def dados_edicao():
+    """Mapa chave -> dados, para o editor abrir o cartão já preenchido."""
+    saida = {}
+    for c in nucleo.db().execute(
+            "SELECT p.chave,p.nome,k.html,k.titulo_visivel FROM cartoes_painel p"
+            " JOIN cartao_conteudo k ON k.chave=p.chave WHERE p.tipo='conteudo'"):
+        saida[c['chave']] = {'nome': c['nome'], 'html': nucleo.limpa_html(c['html']),
+                             'titulo_visivel': bool(c['titulo_visivel'])}
+    return saida
+
+
+app.jinja_env.globals['cartao_conteudo'] = conteudo
+app.jinja_env.globals['cartao_titulo_visivel'] = titulo_visivel
+
+
+def vaga_livre(con, gw=LARGURA_NOVO, gh=ALTURA_NOVO):
+    """Primeiro espaço do quadro onde um cartão gw × gh não cobre nenhum outro."""
+    ocupados = [dict(r) for r in con.execute(
+        'SELECT gx,gy,gw,gh FROM cartoes_painel WHERE ativo=1 AND gw>0')]
+    for chave, p in nucleo._lateral_posicoes(con).items():
+        if nucleo.lateral_desenhada(chave):
+            ocupados.append(p)
+    for gy in range(0, 600):
+        for gx in range(0, nucleo.LIVRE_COLUNAS - gw + 1):
+            cand = {'gx': gx, 'gy': gy, 'gw': gw, 'gh': gh}
+            if not any(nucleo._livre_sobrepoe(cand, o) for o in ocupados):
+                return cand
+    return {'gx': 0, 'gy': 600, 'gw': gw, 'gh': gh}
+
+
+@app.route('/admin/cartao-conteudo', methods=['POST'])
+@nucleo.admin_obrigatorio
+def admin_cartao_conteudo():
+    """Cria, altera ou exclui um cartão de texto e imagem. Responde JSON."""
+    con = nucleo.db()
+    acao = request.form.get('acao', 'salvar')
+    chave = request.form.get('chave', '')
+    existente = con.execute("SELECT * FROM cartoes_painel WHERE chave=? AND tipo='conteudo'",
+                            (chave,)).fetchone() if chave else None
+
+    if acao == 'excluir':
+        if not existente:
+            return jsonify(ok=False, erro='Cartão não encontrado.'), 404
+        con.execute('DELETE FROM cartao_conteudo WHERE chave=?', (chave,))
+        con.execute('DELETE FROM cartoes_painel WHERE chave=?', (chave,))
+        con.commit()
+        return jsonify(ok=True)
+
+    nome = request.form.get('nome', '').strip()[:80]
+    html = nucleo.limpa_html(request.form.get('corpo', ''))
+    visivel = 1 if request.form.get('titulo_visivel') else 0
+    if not nome and not nucleo.so_texto(html) and '<img' not in html:
+        return jsonify(ok=False, erro='Escreva um texto, ou escolha uma imagem, ou dê um nome ao cartão.'), 400
+    nome = nome or 'Novo cartão'
+
+    if existente:
+        con.execute('UPDATE cartoes_painel SET nome=? WHERE chave=?', (nome, chave))
+        con.execute('INSERT INTO cartao_conteudo (chave,html,titulo_visivel) VALUES (?,?,?) '
+                    'ON CONFLICT(chave) DO UPDATE SET html=excluded.html, titulo_visivel=excluded.titulo_visivel',
+                    (chave, html, visivel))
+    else:
+        chave = 'conteudo-' + secrets.token_hex(4)
+        ordem = con.execute('SELECT COALESCE(MAX(ordem),0)+1 FROM cartoes_painel').fetchone()[0]
+        pos = vaga_livre(con) if nucleo.layout_livre_ativo() else {'gx': 0, 'gy': 0, 'gw': 0, 'gh': 0}
+        con.execute("INSERT INTO cartoes_painel (chave,nome,icone,regiao,largura,coluna,ordem,tipo,ativo,gx,gy,gw,gh)"
+                    " VALUES (?,?,'prancheta','baixo',1,0,?,'conteudo',1,?,?,?,?)",
+                    (chave, nome, ordem, pos['gx'], pos['gy'], pos['gw'], pos['gh']))
+        con.execute('INSERT INTO cartao_conteudo (chave,html,titulo_visivel) VALUES (?,?,?)',
+                    (chave, html, visivel))
+    con.commit()
+    return jsonify(ok=True, chave=chave)
