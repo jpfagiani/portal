@@ -218,6 +218,17 @@
       Editar layout</button>
     <button type="button" class="btn btn-sm" data-livre-ajustar hidden>
       Ajustar todos ao conteúdo</button>
+    <label class="livre-sobrepor" hidden title="Deixa um cartão ficar por cima de outro, para aproximar o conteúdo. As linhas-guia continuam aparecendo.">
+      <input type="checkbox" data-livre-sobrepor> Permitir sobrepor cartões</label>
+    <label class="livre-sobrepor" hidden title="Grade: o cartão salta de célula em célula. Fino e Livre: posiciona em pixels, para aproximar um cartão do outro.">
+      Encaixe
+      <select data-livre-encaixe>
+        <option value="grade">Grade</option>
+        <option value="8">Fino (8 px)</option>
+        <option value="1">Livre (1 px)</option>
+      </select></label>
+    <label class="livre-sobrepor" hidden title="No encaixe Fino ou Livre, o cartão gruda na borda dos vizinhos quando chega perto. Segure Alt para desligar.">
+      <input type="checkbox" data-livre-ima> Ímã nos vizinhos</label>
     <form method="post" action="{{ url_for('admin_layout_livre') }}" class="livre-sair"
           onsubmit="return confirm('Voltar ao layout em colunas? As posições livres ficam guardadas.')">
       <input type="hidden" name="csrf" value="{{ csrf_token }}">

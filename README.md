@@ -299,3 +299,50 @@ python3 tests/test_modulos.py   # trabalha numa cópia temporária; não toca no
 | `static/banner.js` | Rotação automática do banner |
 | `instalar.sh` / `desinstalar.sh` | Instalação e remoção no Debian |
 | `dados.db` | Banco SQLite (criado na primeira execução, fora do Git) |
+
+## Chave de sessão (`secret.key`)
+
+É o segredo que assina o login: quem tem a chave consegue forjar um cookie de
+administrador. Por isso ela **não fica na pasta do projeto**: o instalador cria
+`/var/lib/portal-sistemas` (só o usuário do serviço entra) e o portal guarda ali
+o `secret.key`, com permissão `0600`. Ela nunca vai num zip, num `git clone` nem no
+backup do painel.
+
+Ordem em que o portal procura a chave:
+
+1. `PORTAL_SECRET_KEY` — a chave direto no ambiente (mínimo 32 caracteres), por
+   exemplo com `Environment=` na unidade do systemd. Nenhum arquivo é criado;
+2. `PORTAL_KEY_FILE` — caminho de um arquivo escolhido por você;
+3. `/var/lib/portal-sistemas/secret.key` — padrão depois do instalador/atualizador;
+4. `secret.key` ao lado do `app.py` — só como reserva (desenvolvimento).
+
+Quem atualiza uma instalação antiga não precisa fazer nada: na primeira partida o
+portal **move** o `secret.key` antigo para a pasta nova (os usuários continuam
+logados) e apaga a cópia velha. Se a chave se perder, o portal gera outra e todos
+só precisam entrar de novo. Se o zip com a chave antiga circulou, apague o arquivo
+em `/var/lib/portal-sistemas` e reinicie o serviço: isso troca a chave.
+
+## Layout livre: sobrepor, encaixe fino e ímã
+
+Em **Editar layout** a barra do editor tem três controles:
+
+- **Permitir sobrepor cartões** — deixa um cartão ficar sobre outro. O último
+  movido fica na frente, e essa ordem vale para quem só visita.
+- **Encaixe** — *Grade* (salta de célula em célula, como sempre foi), *Fino*
+  (8 em 8 pixels) ou *Livre* (1 em 1 pixel). Nos dois últimos a posição é a
+  célula da grade mais um deslocamento em pixels, e é assim que um cartão chega
+  mais perto do outro do que a própria grade permite.
+- **Ímã nos vizinhos** — no encaixe Fino/Livre o cartão gruda na borda dos
+  outros quando chega a 8 px (encostado ou com o espaçamento padrão). Segure
+  **Alt** ao arrastar para desligar.
+
+A malha e as linhas verdes de alinhamento continuam aparecendo. Setas do teclado
+movem o cartão em foco; Shift + setas muda o tamanho. No celular os cartões vão
+em coluna e o deslocamento fino é ignorado. Sem "Permitir sobrepor", um cartão
+que invadiria outro volta para onde estava, em qualquer encaixe.
+
+A barra de seções do topo não lista "Ramais" (ele fica na faixa escura e tem
+cartão próprio na tela inicial).
+
+Na lista de ramais (Administração → Ramais) há caixas de seleção: marque um,
+vários (Shift marca um intervalo) ou todos e aplique uma ação em lote.

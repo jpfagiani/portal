@@ -31,7 +31,27 @@ BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 DB_PATH    = os.environ.get('INTRANET_DB', os.path.join(BASE_DIR, 'dados.db'))
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 UPLOAD_DIR = os.path.join(STATIC_DIR, 'uploads')
-KEY_FILE   = os.path.join(BASE_DIR, 'secret.key')
+# Chave de sessão (segredo: quem a tem forja um login de administrador). Fica
+# FORA da pasta do projeto sempre que possível, para não ir parar num zip, num
+# `git clone` ou numa cópia da pasta. Ordem de escolha:
+#   1. PORTAL_SECRET_KEY  — a própria chave, vinda do ambiente (mín. 32 caracteres);
+#   2. PORTAL_KEY_FILE    — caminho de um arquivo, escolhido por quem instala;
+#   3. /var/lib/portal-sistemas/secret.key — criada pelo instalador, só do serviço;
+#   4. secret.key ao lado do app.py — reserva (desenvolvimento e instalações antigas).
+KEY_LEGADO = os.path.join(BASE_DIR, 'secret.key')
+KEY_DIR_PADRAO = '/var/lib/portal-sistemas'
+
+
+def _caminho_da_chave():
+    explicito = os.environ.get('PORTAL_KEY_FILE', '').strip()
+    if explicito:
+        return explicito
+    if os.path.isdir(KEY_DIR_PADRAO) and os.access(KEY_DIR_PADRAO, os.W_OK | os.X_OK):
+        return os.path.join(KEY_DIR_PADRAO, 'secret.key')
+    return KEY_LEGADO
+
+
+KEY_FILE   = _caminho_da_chave()
 TRAVA_FILE = KEY_FILE + '.lock'
 EXT_OK     = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
 
@@ -275,6 +295,16 @@ app.config.update(
 )
 
 
+def _fecha_permissao(caminho):
+    """A chave só pode ser lida pelo dono (0600). Um zip ou uma cópia costuma
+    deixá-la aberta (0644); aqui ela é fechada de novo a cada partida."""
+    try:
+        if os.stat(caminho).st_mode & 0o077:
+            os.chmod(caminho, 0o600)
+    except OSError:
+        pass
+
+
 def _secret_key():
     """Chave de sessão persistente — sem ela, todo restart desloga os usuários.
 
@@ -291,12 +321,21 @@ def _secret_key():
     arquivo fica quando o disco enche — o modo 'w' trunca antes de escrever, e
     é a escrita que falha.
     """
+    # Chave vinda direto do ambiente (ex.: Environment= no serviço do systemd):
+    # nenhum arquivo, nada para vazar numa cópia da pasta.
+    do_ambiente = os.environ.get('PORTAL_SECRET_KEY', '').strip()
+    if do_ambiente:
+        if len(do_ambiente) < 32:
+            raise RuntimeError('PORTAL_SECRET_KEY precisa ter pelo menos 32 caracteres.')
+        return do_ambiente
+
     limite = time.monotonic() + 5
     while time.monotonic() < limite:
         try:
             with open(KEY_FILE, 'r') as f:
                 k = f.read().strip()
             if k:
+                _fecha_permissao(KEY_FILE)
                 return k
         except FileNotFoundError:
             pass
@@ -311,10 +350,25 @@ def _secret_key():
             time.sleep(0.05)
             continue
         try:
-            nova = secrets.token_hex(32)
+            # Instalação antiga: a chave estava ao lado do app.py. Leva a mesma
+            # para o lugar novo — os usuários continuam logados — e apaga a
+            # cópia velha, que era justamente o risco.
+            nova, legado = None, None
+            if KEY_FILE != KEY_LEGADO:
+                try:
+                    with open(KEY_LEGADO, 'r') as f:
+                        legado = f.read().strip() or None
+                except OSError:
+                    legado = None
+            nova = legado or secrets.token_hex(32)
             fd = os.open(KEY_FILE, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
             with os.fdopen(fd, 'w') as f:
                 f.write(nova)
+            if legado:
+                try:
+                    os.unlink(KEY_LEGADO)
+                except OSError:
+                    pass
             return nova
         finally:
             # Solta o marcador mesmo se a escrita falhar (disco cheio), senão a
@@ -1094,6 +1148,15 @@ def init_db():
             ('cartoes_painel', 'gy', 'INTEGER NOT NULL DEFAULT 0'),
             ('cartoes_painel', 'gw', 'INTEGER NOT NULL DEFAULT 0'),
             ('cartoes_painel', 'gh', 'INTEGER NOT NULL DEFAULT 0'),
+            # Ordem de empilhamento quando o administrador deixa cartões se
+            # sobreporem: maior fica na frente. 0 = ordem normal.
+            ('cartoes_painel', 'gz', 'INTEGER NOT NULL DEFAULT 0'),
+            # Ajuste fino: deslocamento em pixels sobre a célula da grade (posição
+            # e tamanho). 0 = exatamente na célula, como sempre foi.
+            ('cartoes_painel', 'fx', 'INTEGER NOT NULL DEFAULT 0'),
+            ('cartoes_painel', 'fy', 'INTEGER NOT NULL DEFAULT 0'),
+            ('cartoes_painel', 'fw', 'INTEGER NOT NULL DEFAULT 0'),
+            ('cartoes_painel', 'fh', 'INTEGER NOT NULL DEFAULT 0'),
             ('lateral',  'data',     "TEXT DEFAULT ''"),
             # Páginas de conteúdo: largura (% da página) e posição da imagem, estilo
             # do bloco de texto e se o texto é HTML formatado ou texto simples
@@ -2711,10 +2774,14 @@ def _lateral_posicoes(con):
     for chave, k in LATERAL_LIVRE.items():
         r = con.execute('SELECT valor FROM config WHERE chave=?', (k,)).fetchone()
         try:
-            gx, gy, gw, gh = [int(x) for x in (r['valor'] if r else '').split(',')]
+            n = [int(x) for x in (r['valor'] if r else '').split(',')]
+            if len(n) == 4:
+                n += [0, 0, 0, 0]          # gravado antes do ajuste fino
+            gx, gy, gw, gh, fx, fy, fw, fh = n
         except ValueError:
             continue
-        saida[chave] = {'chave': chave, 'gx': gx, 'gy': gy, 'gw': gw, 'gh': gh}
+        saida[chave] = {'chave': chave, 'gx': gx, 'gy': gy, 'gw': gw, 'gh': gh,
+                        'fx': fx, 'fy': fy, 'fw': fw, 'fh': fh}
     return saida
 
 
@@ -2727,10 +2794,12 @@ def lateral_desenhada(chave):
     return True
 
 
-def _lateral_gravar(con, chave, gx, gy, gw, gh):
+def _lateral_gravar(con, chave, gx, gy, gw, gh, fx=0, fy=0, fw=0, fh=0):
+    valor = (f'{gx},{gy},{gw},{gh},{fx},{fy},{fw},{fh}'
+             if (fx or fy or fw or fh) else f'{gx},{gy},{gw},{gh}')
     con.execute('INSERT INTO config (chave,valor) VALUES (?,?) '
                 'ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor',
-                (LATERAL_LIVRE[chave], f'{gx},{gy},{gw},{gh}'))
+                (LATERAL_LIVRE[chave], valor))
 
 
 def _lateral_garantir(con):
@@ -2850,8 +2919,9 @@ def admin_layout_livre():
 def admin_cartao_pos():
     """Salva a posição de um ou mais cartões no quadro livre.
 
-    Confere tudo junto antes de gravar: dentro do quadro, tamanho razoável e
-    sem sobrepor outro cartão. Se algo falha, nada é gravado."""
+    Confere tudo junto antes de gravar: dentro do quadro, tamanho razoável e,
+    a menos que o administrador tenha ligado "Permitir sobrepor", sem sobrepor
+    outro cartão. Se algo falha, nada é gravado."""
     con = db()
     try:
         lista = json.loads(request.form.get('posicoes') or '[]')
@@ -2863,7 +2933,8 @@ def admin_cartao_pos():
         'SELECT * FROM cartoes_painel WHERE ativo=1')}
     cartoes.update({k: v for k, v in _lateral_posicoes(con).items()
                     if lateral_desenhada(k)})
-    novos = {}
+    novos, pilha = {}, {}
+    sobrepor = request.form.get('sobrepor') == '1'
     for p in lista:
         chave = str(p.get('chave', ''))
         if chave not in cartoes:
@@ -2873,19 +2944,27 @@ def admin_cartao_pos():
         if not (0 <= gx and 1 <= gw and gx + gw <= LIVRE_COLUNAS
                 and 0 <= gy <= 10000 and LIVRE_ALT_MIN <= gh <= LIVRE_ALT_MAX):
             return jsonify(ok=False, erro='Posição fora do quadro.'), 400
+        # Ajuste fino em pixels (opcional; ausente = encaixado na célula).
+        fino = [max(-3000, min(3000, _int(p.get(k)))) for k in ('fx', 'fy', 'fw', 'fh')]
         cartoes[chave].update(gx=gx, gy=gy, gw=gw, gh=gh)
-        novos[chave] = (gx, gy, gw, gh)
-    pos = [c for c in cartoes.values() if c['gw'] > 0]
-    for i, a in enumerate(pos):
-        for b in pos[i + 1:]:
-            if _livre_sobrepoe(a, b):
-                return jsonify(ok=False, erro='Esse espaço já está ocupado por outro cartão.'), 409
+        novos[chave] = (gx, gy, gw, gh) + tuple(fino)
+        if 'gz' in p:                      # ordem de empilhamento (só com sobreposição)
+            pilha[chave] = max(0, min(100000, _int(p.get('gz'))))
+    if not sobrepor:
+        pos = [c for c in cartoes.values() if c['gw'] > 0]
+        for i, a in enumerate(pos):
+            for b in pos[i + 1:]:
+                if _livre_sobrepoe(a, b):
+                    return jsonify(ok=False, erro='Esse espaço já está ocupado por outro cartão.'), 409
     for chave, v in novos.items():
         if chave in LATERAL_LIVRE:
             _lateral_gravar(con, chave, *v)
         else:
-            con.execute('UPDATE cartoes_painel SET gx=?,gy=?,gw=?,gh=? WHERE chave=?',
-                        v + (chave,))
+            con.execute('UPDATE cartoes_painel SET gx=?,gy=?,gw=?,gh=?,'
+                        'fx=?,fy=?,fw=?,fh=? WHERE chave=?', v + (chave,))
+            if chave in pilha:
+                con.execute('UPDATE cartoes_painel SET gz=? WHERE chave=?',
+                            (pilha[chave], chave))
     con.commit()
     return jsonify(ok=True)
 
@@ -2968,6 +3047,26 @@ def admin_ramais():
         if acao == 'excluir':
             con.execute('DELETE FROM ramais WHERE id=?', (ident,))
             flash('Ramal removido.', 'ok')
+
+        elif acao == 'lote':
+            # Ação sobre os ramais marcados na tabela (um, vários ou todos).
+            ids = [i for i in (_int(x) for x in request.form.getlist('ids')) if i > 0]
+            op = request.form.get('operacao', '')
+            sql = {'exibir':        'UPDATE ramais SET ativo=1 WHERE id=?',
+                   'ocultar':       'UPDATE ramais SET ativo=0 WHERE id=?',
+                   'destacar':      'UPDATE ramais SET destaque=1 WHERE id=?',
+                   'tirar_destaque': 'UPDATE ramais SET destaque=0 WHERE id=?',
+                   'excluir':       'DELETE FROM ramais WHERE id=?'}.get(op)
+            if not ids:
+                flash('Marque pelo menos um ramal.', 'erro')
+            elif not sql:
+                flash('Escolha o que fazer com os ramais marcados.', 'erro')
+            else:
+                con.executemany(sql, [(i,) for i in ids])
+                rotulo = {'exibir': 'agora visíveis', 'ocultar': 'ocultos',
+                          'destacar': 'em destaque', 'tirar_destaque': 'sem destaque',
+                          'excluir': 'removidos'}[op]
+                flash(f'{len(ids)} ramal(is) {rotulo}.', 'ok')
 
         elif acao == 'importar':
             itens = interpretar_ramais(request.form.get('lista', ''))

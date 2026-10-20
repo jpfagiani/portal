@@ -59,12 +59,13 @@
     <nav class="barra-secoes" aria-label="Seções do portal">
       <div class="barra-secoes-lista">
         {% set vistos = [] %}
-        {% for item in menu if item.chave != 'admin' %}
+        {#  Ramais já tem a faixa escura do topo e um cartão próprio na tela inicial. #}
+        {% for item in menu if item.chave not in ('admin', 'ramais') %}
           {% if vistos.append(item.chave) %}{% endif %}
           <a href="{{ item.href }}"{% if item.externo %} target="_blank" rel="noopener"{% endif %}
              class="{{ 'ativo' if pagina == item.chave }}">{{ item.nome }}</a>
         {% endfor %}
-        {% for item in paginas_lateral if item.chave not in vistos %}
+        {% for item in paginas_lateral if item.chave not in vistos and item.chave != 'ramais' %}
           <a href="{{ item.href }}"{% if item.externo %} target="_blank" rel="noopener"{% endif %}
              class="{{ 'ativo' if pagina == item.chave }}">{{ item.nome }}</a>
         {% endfor %}

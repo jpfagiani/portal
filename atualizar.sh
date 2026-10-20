@@ -55,6 +55,17 @@ else
     chown -R "$USUARIO:$USUARIO" "$DEST"
 fi
 
+# Chave de sessão fora da pasta do projeto (ver app.py). Na primeira atualização
+# o portal move o secret.key antigo para cá, sem deslogar ninguém.
+install -d -m 700 -o "$USUARIO" -g "$USUARIO" /var/lib/portal-sistemas
+# A unidade do systemd instalada antes desta versão não libera a nova pasta de
+# escrita; acrescenta, uma única vez.
+UNIDADE=/etc/systemd/system/$SERVICO
+if [ -f "$UNIDADE" ] && ! grep -q "/var/lib/portal-sistemas" "$UNIDADE"; then
+    sed -i 's|^ReadWritePaths=\(.*\)$|ReadWritePaths=\1 /var/lib/portal-sistemas|' "$UNIDADE"
+    systemctl daemon-reload
+fi
+
 systemctl restart "$SERVICO"
 sleep 2
 

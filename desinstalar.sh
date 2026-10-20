@@ -25,7 +25,7 @@ sed -i "/# ${PORTAL_NOME}\$/d;/# portal-intranet\$/d" /etc/hosts 2>/dev/null || 
 systemctl daemon-reload
 
 echo "Serviço removido. Dados preservados em $DEST"
-echo "Para apagar tudo:  rm -rf $DEST && userdel $PORTAL_NOME"
+echo "Para apagar tudo:  rm -rf $DEST /var/lib/portal-sistemas && userdel $PORTAL_NOME"
 
 for antigo in /opt/cdpni-portal /opt/portal /opt/intranet; do
     if [ -d "$antigo" ]; then

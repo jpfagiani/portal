@@ -54,11 +54,35 @@
 
   <section class="painel-caixa">
     <h2>Ramais cadastrados ({{ itens|length }})</h2>
+    {#  Marque um, vários ou todos e escolha a ação. O formulário da barra e a
+        tabela são o mesmo <form>; "Editar" e "Excluir" de cada linha continuam
+        funcionando como antes, cada um no seu próprio formulário. #}
+    <form method="post" id="lote" data-lote>
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="acao" value="lote">
+      <div class="lote-barra">
+        <span class="lote-conta" data-lote-conta>Nenhum selecionado</span>
+        <select name="operacao" aria-label="Ação para os selecionados">
+          <option value="">Ação para os selecionados…</option>
+          <option value="exibir">Tornar visíveis</option>
+          <option value="ocultar">Ocultar da lista</option>
+          <option value="destacar">Destacar na página inicial</option>
+          <option value="tirar_destaque">Tirar o destaque</option>
+          <option value="excluir">Excluir</option>
+        </select>
+        <button class="btn btn-sm btn-principal" type="submit" data-lote-aplicar disabled>Aplicar</button>
+      </div>
+    </form>
     <table class="tabela">
-      <thead><tr><th>Setor</th><th>Ramal</th><th>Situação</th><th></th></tr></thead>
+      <thead><tr>
+        <th class="col-marca"><input type="checkbox" class="marca" data-lote-todos
+            aria-label="Selecionar todos os ramais"></th>
+        <th>Setor</th><th>Ramal</th><th>Situação</th><th></th></tr></thead>
       <tbody>
         {% for i in itens %}
         <tr>
+          <td class="col-marca"><input type="checkbox" class="marca" form="lote" name="ids"
+              value="{{ i.id }}" data-lote-item aria-label="Selecionar {{ i.setor }}"></td>
           <td><strong>{{ i.setor }}</strong></td>
           <td>{{ i.numeros }}</td>
           <td>{% if i.ativo %}<span class="tag tag-ok">visível</span>
@@ -75,10 +99,52 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="4" class="vazio">Nenhum ramal cadastrado.</td></tr>
+        <tr><td colspan="5" class="vazio">Nenhum ramal cadastrado.</td></tr>
         {% endfor %}
       </tbody>
     </table>
+    <script>
+    (function () {
+      var f = document.querySelector('[data-lote]');
+      var todos = document.querySelector('[data-lote-todos]');
+      var itens = [].slice.call(document.querySelectorAll('[data-lote-item]'));
+      var conta = document.querySelector('[data-lote-conta]');
+      var aplicar = document.querySelector('[data-lote-aplicar]');
+      var acao = f.querySelector('select[name=operacao]');
+      var ultimo = null;
+      function atualiza() {
+        var n = itens.filter(function (c) { return c.checked; }).length;
+        itens.forEach(function (c) { c.closest('tr').classList.toggle('marcada', c.checked); });
+        conta.textContent = n === 0 ? 'Nenhum selecionado'
+          : n === 1 ? '1 selecionado' : n + ' selecionados';
+        todos.checked = n > 0 && n === itens.length;
+        todos.indeterminate = n > 0 && n < itens.length;
+        aplicar.disabled = !(n > 0 && acao.value);
+      }
+      todos.addEventListener('change', function () {
+        itens.forEach(function (c) { c.checked = todos.checked; }); atualiza();
+      });
+      // Shift+clique marca o intervalo entre dois itens, como numa lista de e-mails.
+      itens.forEach(function (c) {
+        c.addEventListener('click', function (e) {
+          if (e.shiftKey && ultimo) {
+            var a = itens.indexOf(ultimo), b = itens.indexOf(c);
+            itens.slice(Math.min(a, b), Math.max(a, b) + 1)
+                 .forEach(function (x) { x.checked = c.checked; });
+          }
+          ultimo = c; atualiza();
+        });
+      });
+      acao.addEventListener('change', atualiza);
+      f.addEventListener('submit', function (e) {
+        var n = itens.filter(function (c) { return c.checked; }).length;
+        if (acao.value === 'excluir' &&
+            !confirm('Excluir ' + n + ' ramal(is) selecionado(s)? Isto não pode ser desfeito.'))
+          e.preventDefault();
+      });
+      atualiza();
+    })();
+    </script>
   </section>
 </div>
 {% endblock %}

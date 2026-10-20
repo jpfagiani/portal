@@ -744,6 +744,11 @@ fi
 id -u "$USUARIO" >/dev/null 2>&1 || useradd --system --home "$DEST" --shell /usr/sbin/nologin "$USUARIO"
 chown -R "$USUARIO:$USUARIO" "$DEST"
 
+# Chave de sessão fora da pasta do projeto: só o usuário do serviço entra aqui.
+# Se havia um secret.key antigo dentro de $DEST, o portal o leva para cá na
+# primeira partida (os usuários continuam logados) e apaga a cópia velha.
+install -d -m 700 -o "$USUARIO" -g "$USUARIO" /var/lib/portal-sistemas
+
 # O serviço roda dentro do próprio clone, então a pasta passa a pertencer ao
 # usuário do serviço. Sem isto o `sudo git pull` seguinte pára com "detected
 # dubious ownership": o git recusa repositório de outro dono.
@@ -794,7 +799,7 @@ RestartSec=3
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 NoNewPrivileges=true
 ProtectSystem=full
-ReadWritePaths=$DEST
+ReadWritePaths=$DEST /var/lib/portal-sistemas
 
 [Install]
 WantedBy=multi-user.target
