@@ -169,6 +169,12 @@ c.post('/admin/layout-livre', data={'csrf': tok, 'acao': 'ativar'})
 ok(c.get('/editor').status_code == 200 and 'data-novo-conteudo' in c.get('/editor').get_data(as_text=True), 'editor tem o botão + Texto ou imagem')
 r = c.post('/admin/cartao-pos', data={'csrf': tok, 'posicoes': '[{"chave":"ramais","gx":0,"gy":0,"gw":3,"gh":14}]'})
 ok(r.status_code == 200, 'cartão pode ser fixado na lateral esquerda vazia (%s)' % r.status_code)
+r = c.post('/admin/cartao-pos', data={'csrf': tok, 'posicoes': '[{"chave":"atalhos","gx":3,"gy":0,"gw":6,"gh":8},{"chave":"sistemas","gx":4,"gy":2,"gw":6,"gh":8}]'})
+ok(r.status_code == 200 and r.get_json().get('ok'), 'cartões podem se sobrepor (%s)' % r.status_code)
+with portal.app.app_context():
+    z = dict(portal.db().execute("SELECT chave,z FROM cartoes_painel WHERE chave IN ('atalhos','sistemas')").fetchall())
+ok(z['sistemas'] > 0 and z['sistemas'] != z['atalhos'], 'o cartão mexido vai para a frente (z %s)' % z)
+ok(c.post('/admin/cartao-pos', data={'csrf': tok, 'posicoes': '[{"chave":"atalhos","gx":10,"gy":0,"gw":6,"gh":8}]'}).status_code == 400, 'ainda recusa posição fora do quadro')
 c.post('/admin/layout-livre', data={'csrf': tok, 'acao': 'desativar'})
 
 # ── histórico ────────────────────────────────────────────────────────────────

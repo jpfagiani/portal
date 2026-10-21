@@ -441,54 +441,16 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 #conteudo-fundo label.check{font-weight:500}
 #conteudo-fundo input[name=nome]{width:100%}
 
-/* ── alinhamento dos itens dentro dos cartões ───────────────────────────────
-   Atalhos e ladrilhos de alturas e ícones diferentes (com e sem descrição, com
-   e sem símbolo) ficavam desencontrados. Agora todos têm a mesma altura mínima,
-   o texto começa sempre na mesma linha e o símbolo tem tamanho fixo. */
-.atalho,.ladrilho{min-height:46px;box-sizing:border-box}
-.atalho-ic,.ladrilho-ic{width:30px;height:30px;flex:0 0 30px}
-.atalho-ic-vazio{background:none}
-.atalho-txt,.ladrilho-txt{flex:1 1 0;min-width:0;text-align:left}
-.atalho-ic :is(svg,img),.ladrilho-ic :is(svg,img){display:block;object-fit:contain}
-.atalhos{align-items:stretch}
-.ramais .ramal-linha{align-items:center}
-.ramais .ramal-linha .setor{min-width:0;display:flex;align-items:center;gap:.5rem}
-.ramais .ramal-linha .setor>span{overflow:hidden;text-overflow:ellipsis}
+/* layout livre: cartões podem se sobrepor; o de cima cobre o de baixo */
+.tela-livre>.cartao:not(.cartao-lateral){background:var(--cartao);border-radius:10px}
+/* título numa linha só: o corpo de todos os cartões começa na mesma altura */
+.tela-livre>.cartao .cartao-cab{min-width:0}
+.tela-livre>.cartao .cartao-cab h2{min-width:0;flex:1 1 auto;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.tela-livre>.cartao .cartao-cab h2 .cab-link{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+/* itens de atalho com a mesma altura e o texto centralizado */
+.atalho{min-height:2.9rem;align-items:center}
+.atalho-txt{display:flex;flex-direction:column;justify-content:center}
 
-/* ── layout livre: sobreposição ─────────────────────────────────────────────
-   Quem manda na frente é --z (guardado por cartão); sem ele vale a ordem normal.
-   Cartões sobrepostos precisam de fundo, senão os textos se misturam. */
-.tela-livre>.cartao{z-index:var(--z,auto)}
-.tela-livre.editando>.cartao{z-index:var(--z,1)}
-.tela-livre>.cartao:not(.cartao-lateral):not(.cartao-livre){background:var(--cartao)}
-.livre-fantasma.sobreposto{border-color:#d97706;background:rgba(217,119,6,.14)}
-.livre-sobrepor{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;font-weight:600;
-  cursor:pointer;padding:.25rem .6rem;border:1px solid var(--borda);border-radius:8px;
-  background:var(--cartao)}
-.livre-sobrepor input{margin:0;width:auto}
-.livre-sobrepor[hidden]{display:none!important}
-
-/* ── ramais: seleção em lote ────────────────────────────────────────────── */
-.tabela .col-marca{width:2.2rem;padding-right:0}
-.tabela input[type=checkbox].marca{width:1.05rem;height:1.05rem;margin:0;cursor:pointer;
-  accent-color:var(--azul);vertical-align:middle}
-.tabela tr.marcada td{background:var(--tom-azul-fundo)}
-.lote-barra{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin:.2rem 0 .8rem;
-  padding:.55rem .7rem;border:1px solid var(--borda);border-radius:10px;background:var(--cartao-suave)}
-.lote-barra .lote-conta{font-size:.82rem;font-weight:700;margin-right:auto}
-.lote-barra select{width:auto;min-width:11rem;padding:.4rem .5rem;font-size:.82rem}
-.lote-barra [disabled]{opacity:.5;cursor:not-allowed}
-
-/* ── layout livre: ajuste fino em pixels ────────────────────────────────────
-   O cartão continua numa célula da grade; fx/fy/fw/fh (px) deslocam e
-   redimensionam a partir dela. Só na tela larga: no celular os cartões vão em
-   coluna e o deslocamento é ignorado. */
-@media (min-width:901px){
-  .tela-livre>.cartao[data-fino]{left:calc(var(--fx,0)*1px);top:calc(var(--fy,0)*1px);
-    justify-self:start;align-self:start;
-    width:calc(100% + var(--fw,0)*1px);height:calc(100% - .9rem + var(--fh,0)*1px)}
-}
-/* O fantasma e as linhas passam a ser posicionados em pixels */
-.livre-fantasma{position:absolute;margin:0;z-index:150}
-.livre-sobrepor select{border:1px solid var(--borda);border-radius:6px;background:var(--cartao);
-  padding:.15rem .3rem;font-size:.8rem;width:auto}
+/* 1.9.4: o cartão Ramais mostra todos os marcados como destaque; se não couberem
+   na altura do cartão, rola por dentro em vez de cortar. */
+.cartao-corpo.ramais{overflow-y:auto;min-height:0}
