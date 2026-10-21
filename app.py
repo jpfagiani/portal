@@ -1228,7 +1228,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.4'
+VERSAO = '1.9.7'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -2963,6 +2963,14 @@ def admin_ramais():
         if acao == 'aparencia_cartao':
             salvar_aparencia_cartao('ramais')
             return redirect(url_for('admin_ramais'))
+
+        if acao == 'destaque':
+            # Caixa de seleção da lista: grava na hora, sem abrir o ramal.
+            con.execute('UPDATE ramais SET destaque=? WHERE id=?',
+                        (1 if request.form.get('valor') == '1' else 0, ident))
+            con.commit()
+            return jsonify(ok=True, total=con.execute(
+                'SELECT COUNT(*) FROM ramais WHERE destaque=1 AND ativo=1').fetchone()[0])
 
         if acao == 'excluir':
             con.execute('DELETE FROM ramais WHERE id=?', (ident,))
