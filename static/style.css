@@ -1381,3 +1381,6 @@ html[data-tema="escuro"] .com-img-link-fundo:hover .com-img-fundo{opacity:.2}
 .editor-barra{padding:.6rem .8rem;border:1px dashed var(--azul);border-radius:10px;background:var(--tom-azul-fundo)}
 .editor-rotulo{color:var(--azul);font-size:.8rem;letter-spacing:.5px;text-transform:uppercase}
 .editor-barra .livre-sair{margin-left:auto}
+/* cartão selecionado no editor: setas movem, Shift+setas redimensionam */
+.tela-livre.editando>.cartao.selecionado{outline:3px solid var(--azul,#2563eb);outline-offset:-3px;
+  box-shadow:0 0 0 4px rgba(37,99,235,.18)}

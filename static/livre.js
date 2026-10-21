@@ -270,11 +270,61 @@
     c._livre = true;
     c.addEventListener('pointerdown', function (ev) {
       if (!editando || ev.button !== 0 || ev.target.closest('.livre-alca')) return;
+      seleciona(c);
       arrasta(ev, c, 'mover');
     });
   }
+  /* ── seleção e setas do teclado ──
+     Clique num cartão para selecioná-lo; setas movem 1 passo, Shift+setas
+     mudam o tamanho, Esc solta. Funciona junto com o mouse. */
+  var sel = null, timerSalva = null, pendentes = {};
+  function seleciona(c) {
+    if (sel === c) return;
+    if (sel) sel.classList.remove('selecionado');
+    sel = c;
+    if (sel) sel.classList.add('selecionado');
+  }
+  function salvaDepois(c) {
+    pendentes[c.dataset.chave] = c;
+    clearTimeout(timerSalva);
+    timerSalva = setTimeout(function () {
+      var cs = Object.keys(pendentes).map(function (k) { return pendentes[k]; });
+      pendentes = {};
+      cs.forEach(function (x) { x.style.zIndex = 9999; });
+      salva(cs.map(item)).then(function (r) {
+        if (!r.ok) aviso(r.erro || 'Não consegui salvar.');
+      });
+    }, 350);
+  }
+  document.addEventListener('keydown', function (ev) {
+    if (!editando || !sel) return;
+    var t = ev.target;
+    if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || '') || (t && t.isContentEditable)) return;
+    if (ev.key === 'Escape') { seleciona(null); return; }
+    var d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[ev.key];
+    if (!d) return;
+    ev.preventDefault();
+    var p = pos(sel);
+    if (ev.shiftKey) {
+      p.gw = Math.max(1, Math.min(NCOL - p.gx, p.gw + d[0]));
+      p.gh = Math.max(ALT_MIN, p.gh + d[1]);
+    } else {
+      p.gx = Math.max(0, Math.min(NCOL - p.gw, p.gx + d[0]));
+      p.gy = Math.max(0, p.gy + d[1]);
+    }
+    aplica(sel, p);
+    sel.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    salvaDepois(sel);
+  });
+  document.addEventListener('pointerdown', function (ev) {
+    if (!sel) return;
+    if (ev.target.closest('.cartao, button, a, input, textarea, select, dialog, [role=dialog], .modal')) return;
+    seleciona(null);
+  });
+
   function liga(sim) {
     editando = sim;
+    if (!sim) seleciona(null);
     tela.classList.toggle('editando', sim);
     btn.textContent = sim ? 'Concluir edição' : 'Editar layout';
     if (ajuda) ajuda.hidden = !sim;
