@@ -10,6 +10,7 @@
   var NCOL = 12, ALT_MIN = 4;
   var btn = document.querySelector('[data-livre-editar]');
   var ajuda = document.querySelector('[data-livre-ajuda]');
+  var btnCompactar = document.querySelector('[data-livre-compactar]');
   var btnAjustar = document.querySelector('[data-livre-ajustar]');
   var editando = false, malha = null, ocupado = false;
 
@@ -213,6 +214,35 @@
     });
   }
 
+  // Fecha os vazios: cada cartão sobe até encostar em outro (ou no topo),
+  // mantendo a coluna; o que estava sobreposto é empurrado para baixo.
+  function compacta() {
+    var lista = cartoes().sort(function (a, b) {
+      return (+a.dataset.gy - +b.dataset.gy) || (+a.dataset.gx - +b.dataset.gx);
+    });
+    var antes = lista.map(function (c) { return [c, pos(c)]; });
+    var colocados = [];
+    lista.forEach(function (c) {
+      var p = pos(c);
+      function colide() {
+        return colocados.some(function (q) {
+          return p.gx < q.gx + q.gw && q.gx < p.gx + p.gw &&
+                 p.gy < q.gy + q.gh && q.gy < p.gy + p.gh;
+        });
+      }
+      p.gy = 0;
+      while (colide()) p.gy++;
+      colocados.push(p);
+      aplica(c, p);
+    });
+    salva(lista.map(item)).then(function (r) {
+      if (!r.ok) {
+        antes.forEach(function (par) { aplica(par[0], par[1]); });
+        aviso(r.erro || 'Não consegui salvar.');
+      } else aviso('Espaços fechados.');
+    });
+  }
+
   /* ── ligar/desligar o modo de edição ── */
   function prepara(c) {
     ligaMover(c);
@@ -249,6 +279,7 @@
     btn.textContent = sim ? 'Concluir edição' : 'Editar layout';
     if (ajuda) ajuda.hidden = !sim;
     if (btnAjustar) btnAjustar.hidden = !sim;
+    if (btnCompactar) btnCompactar.hidden = !sim;
     if (sim) {
       if (!malha) {
         malha = document.createElement('div'); malha.className = 'livre-malha';
@@ -282,6 +313,7 @@
     if (editando) { location.href = btn.dataset.sair || '/'; } else liga(true);
   });
   if (btnAjustar) btnAjustar.addEventListener('click', ajustaTodos);
+  if (btnCompactar) btnCompactar.addEventListener('click', compacta);
   // Evita que um clique no fim do arrasto abra o link do cartão.
   tela.addEventListener('click', function (e) {
     if (editando) { e.preventDefault(); e.stopPropagation(); }

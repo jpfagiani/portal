@@ -217,6 +217,9 @@
       Editar layout</button>
     <button type="button" class="btn btn-sm" data-livre-ajustar hidden>
       Ajustar todos ao conteúdo</button>
+    <button type="button" class="btn btn-sm" data-livre-compactar hidden
+            title="Sobe os cartões para fechar os espaços vazios, sem sobrepor">
+      Compactar espaços</button>
     <form method="post" action="{{ url_for('admin_layout_livre') }}" class="livre-sair"
           onsubmit="return confirm('Voltar ao layout em colunas? As posições livres ficam guardadas.')">
       <input type="hidden" name="csrf" value="{{ csrf_token }}">
