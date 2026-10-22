@@ -1,4 +1,5 @@
 {% extends 'admin_base.html' %}
+{% import 'visivel.html' as v %}
 {% import 'campos.html' as campos %}
 {% set aba = 'ramais' %}
 {% block titulo %}Ramais{% endblock %}
@@ -64,8 +65,7 @@
               {{ 'checked' if i.destaque }} aria-label="Destacar {{ i.setor }} na página inicial"></td>
           <td><strong>{{ i.setor }}</strong></td>
           <td>{{ i.numeros }}</td>
-          <td>{% if i.ativo %}<span class="tag tag-ok">visível</span>
-              {% else %}<span class="tag">oculto</span>{% endif %}
+          <td>{{ v.caixa('ramais', i.id, i.ativo, i.setor) }}
               {% if i.destaque %}<span class="tag tag-admin">destaque</span>{% endif %}</td>
           <td class="acoes-linha">
             <a class="btn btn-sm" href="{{ url_for('admin_ramais', editar=i.id) }}">Editar</a>
@@ -84,6 +84,7 @@
     </table>
   </section>
 </div>
+<script src="{{ url_for('static', filename='visivel.js') }}"></script>
 <script>
 (function () {
   var tok = {{ csrf_token|tojson }};

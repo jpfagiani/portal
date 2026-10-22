@@ -170,6 +170,16 @@ com `admin` (ou outro usuário administrador criado depois) para abrir o painel:
 | Usuários | Criar logins, trocar senhas, desativar e definir quem é administrador |
 | Aparência | Foto de fundo, nome da unidade, cores e tempo de cada slide |
 
+### Caixa "visível" nas listas
+
+Em todas as listas com a coluna *Situação* (menu lateral, sistemas, atalhos, reservas,
+comunicados e demais cartões, banner, ramais, escalas, aniversariantes e chamados), a
+caixa marca e desmarca **visível** na hora, sem abrir o item em *Editar*. Se o servidor
+recusar ou a rede cair, a caixa volta ao que era e um aviso aparece. Cada mudança entra
+no **Histórico**, com o nome do item. Usuários ficam de fora de propósito, porque ali
+existe a proteção contra desativar o último administrador; notícias têm situação própria
+(rascunho, publicada, arquivada).
+
 ### Logo e foto de fundo
 
 As duas imagens da identidade são **arquivos soltos** em

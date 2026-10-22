@@ -3043,6 +3043,46 @@ def admin_mapa():
                            alturas=CARTAO_ALTURAS)
 
 
+# Listas do painel que têm a caixa "visível": chave enviada pela tela -> (tabela,
+# coluna que dá nome ao item no histórico). Lista fechada: o nome da tabela nunca
+# vem do navegador, só a chave.
+LISTAS_VISIVEL = {
+    'menu':            ('paginas_lateral', 'nome'),
+    'links':           ('links', 'titulo'),
+    'lateral':         ('lateral', 'titulo'),
+    'banners':         ('banners', 'titulo'),
+    'ramais':          ('ramais', 'setor'),
+    'escalas':         ('escalas', 'turno'),
+    'aniversariantes': ('aniversariantes', 'nome'),
+    'chamados':        ('chamados', 'titulo'),
+}
+
+
+@app.route('/admin/visivel', methods=['POST'])
+@admin_obrigatorio
+def admin_visivel():
+    """Liga ou desliga "visível" de um item da lista, sem abrir o formulário de
+    edição. Responde em JSON; o CSRF e o login já foram conferidos."""
+    lista = LISTAS_VISIVEL.get(request.form.get('lista', ''))
+    ident = _int(request.form.get('id'))
+    if not lista or not ident:
+        return jsonify(ok=False, erro='Item inválido.'), 400
+    tabela, coluna_nome = lista
+    con = db()
+    linha = con.execute(f'SELECT {coluna_nome} AS nome FROM {tabela} WHERE id=?',
+                        (ident,)).fetchone()
+    if not linha:
+        return jsonify(ok=False, erro='Este item não existe mais. Atualize a página.'), 404
+    valor = 1 if request.form.get('valor') == '1' else 0
+    con.execute(f'UPDATE {tabela} SET ativo=? WHERE id=?', (valor, ident))
+    con.commit()
+    modulos.auditoria.registrar(
+        'visibilidade', request.form.get('lista', ''),
+        f"id={ident} · {(str(linha['nome'] or '')).strip()[:120]} · "
+        + ('visível' if valor else 'oculto'))
+    return jsonify(ok=True, ativo=bool(valor))
+
+
 @app.route('/admin/ramais', methods=['GET', 'POST'])
 @admin_obrigatorio
 def admin_ramais():

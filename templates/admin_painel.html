@@ -1,4 +1,5 @@
 {% extends 'admin_base.html' %}
+{% import 'visivel.html' as v %}
 {% import 'campos.html' as campos %}
 {#  Um bloco de outra seção (o menu lateral) é editado por esta mesma tela, mas
     tem de continuar parecendo que está na seção dele: aba do topo e barra de
@@ -162,8 +163,7 @@
               {% elif loop.first %}<strong>{{ i[campo] }}</strong>
               {% else %}{{ i[campo] }}{% endif %}</td>
           {% endfor %}
-          <td>{% if i.ativo %}<span class="tag tag-ok">visível</span>
-              {% else %}<span class="tag">oculto</span>{% endif %}</td>
+          <td>{{ v.caixa('menu' if bloco == 'menu' else ('links' if info.get('tabela') == 'links' else bloco), i.id, i.ativo, i.nome or i.titulo or i.turno or i.numero) }}</td>
           <td class="acoes-linha">
             {% if bloco == 'menu' and not i.url %}
             <a class="btn btn-sm btn-principal" href="{{ url_for('admin_pagina', chave=i.chave) }}">Conteúdo</a>
@@ -186,5 +186,6 @@
   </section>
 </div>
 <script src="{{ url_for('static', filename='ordenar.js') }}"></script>
+<script src="{{ url_for('static', filename='visivel.js') }}"></script>
 <script src="{{ url_for('static', filename='mascaras.js') }}"></script>
 {% endblock %}

@@ -22,7 +22,8 @@ CREATE INDEX IF NOT EXISTS ix_auditoria_quando ON auditoria (quando);
 """
 
 # Rotas cujos POST são ruído (arrastar cartões, reordenar listas): não entram.
-_IGNORAR = {'admin_cartao_pos', 'admin_imagem_tamanho', 'admin_layout_livre'}
+_IGNORAR = {'admin_cartao_pos', 'admin_imagem_tamanho', 'admin_layout_livre',
+            'admin_visivel'}     # esta última se registra sozinha, com o nome do item
 _SEGREDOS = ('senha', 'csrf', 'token', 'chave_secreta')
 # Campos que dizem "sobre o que foi a alteração", em ordem de preferência.
 _NOMES = ('nome', 'titulo', 'setor', 'usuario', 'texto')
@@ -86,5 +87,7 @@ def admin_historico():
     total = con.execute('SELECT COUNT(*) FROM auditoria' + onde, args).fetchone()[0]
     linhas = con.execute('SELECT * FROM auditoria' + onde +
                          ' ORDER BY id DESC LIMIT ? OFFSET ?', args + [por, (pagina - 1) * por]).fetchall()
-    return render_template('admin_historico.html', linhas=linhas, busca=busca, pagina=pagina,
+    # `pg` e não `pagina`: o admin_base usa `pagina` para marcar a aba ativa, e a
+    # colisão derrubava o histórico assim que passava de uma página (50 registros).
+    return render_template('admin_historico.html', linhas=linhas, busca=busca, pg=pagina,
                            paginas=max(1, -(-total // por)), total=total)

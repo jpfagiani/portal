@@ -28,9 +28,9 @@
   </table>
   {% if paginas > 1 %}
   <p class="hist-pag">
-    {% if pagina > 1 %}<a class="btn btn-sm" href="{{ url_for('admin_historico', q=busca, p=pagina-1) }}">← Mais recentes</a>{% endif %}
-    <span>Página {{ pagina }} de {{ paginas }}</span>
-    {% if pagina < paginas %}<a class="btn btn-sm" href="{{ url_for('admin_historico', q=busca, p=pagina+1) }}">Mais antigos →</a>{% endif %}
+    {% if pg > 1 %}<a class="btn btn-sm" href="{{ url_for('admin_historico', q=busca, p=pg-1) }}">← Mais recentes</a>{% endif %}
+    <span>Página {{ pg }} de {{ paginas }}</span>
+    {% if pg < paginas %}<a class="btn btn-sm" href="{{ url_for('admin_historico', q=busca, p=pg+1) }}">Mais antigos →</a>{% endif %}
   </p>
   {% endif %}
 </section>

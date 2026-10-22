@@ -255,6 +255,63 @@ ok(h.count('class="not-linha"') == 9 and 'Página 1 de 2' in h, 'dez notícias p
 ok('class="not-manchete"' in anon.get('/noticias?p=2').get_data(as_text=True), 'segunda página também abre com manchete')
 ok('Nenhuma notícia publicada' in anon.get('/noticias?c=Inexistente').get_data(as_text=True), 'categoria sem notícias mostra o aviso')
 
+# ── caixa "visível" nas listas do painel ─────────────────────────────────────
+def visivel(lista, ident, valor, cli=None, token=None):
+    return (cli or c).post('/admin/visivel', data={'csrf': token or tok, 'lista': lista, 'id': ident, 'valor': valor})
+
+def ativo_de(tabela, ident):
+    with portal.app.app_context():
+        return portal.db().execute(f'SELECT ativo FROM {tabela} WHERE id=?', (ident,)).fetchone()[0]
+
+def primeiro_id(sql):
+    with portal.app.app_context():
+        r = portal.db().execute(sql).fetchone()
+    return r[0] if r else None
+
+with portal.app.app_context():
+    portal.db().execute("INSERT INTO escalas (turno,equipe,horario) VALUES ('Diurno','A','06h')")
+    portal.db().execute("INSERT INTO aniversariantes (nome,dia,mes) VALUES ('Fulano',5,10)")
+    portal.db().execute("INSERT INTO chamados (numero,titulo) VALUES ('1','Impressora')")
+    portal.db().execute("INSERT INTO lateral (titulo,cartao) VALUES ('Aviso de teste','cartao1')")
+    portal.db().execute("INSERT INTO banners (titulo,cor) VALUES ('Slide de teste','#123456')")
+    portal.db().commit()
+ALVOS = [('menu', 'paginas_lateral'), ('links', 'links'), ('lateral', 'lateral'), ('banners', 'banners'),
+         ('ramais', 'ramais'), ('escalas', 'escalas'), ('aniversariantes', 'aniversariantes'), ('chamados', 'chamados')]
+with portal.app.app_context():
+    portal.db().execute("INSERT INTO ramais (setor,numeros) VALUES ('SETOR TESTE','999')")
+    portal.db().commit()
+for lista, tabela in ALVOS:
+    ident = primeiro_id(f'SELECT id FROM {tabela} ORDER BY id LIMIT 1')
+    r = visivel(lista, ident, '0')
+    ok(r.status_code == 200 and (r.get_json() or {}).get('ok') and ativo_de(tabela, ident) == 0, f'caixa visível: {lista} oculta o item')
+    r = visivel(lista, ident, '1')
+    ok(r.status_code == 200 and (r.get_json() or {}).get('ativo') is True and ativo_de(tabela, ident) == 1, f'caixa visível: {lista} volta a exibir')
+
+rid = primeiro_id("SELECT id FROM ramais WHERE setor='SETOR TESTE'")
+visivel('ramais', rid, '0')
+ok('SETOR TESTE' not in anon.get('/ramais').get_data(as_text=True), 'item oculto pela caixa some da página pública')
+visivel('ramais', rid, '1')
+ok('SETOR TESTE' in anon.get('/ramais').get_data(as_text=True), 'item exibido pela caixa volta à página pública')
+
+ok(visivel('usuarios', 1, '0').status_code == 400, 'lista fora da lista fechada é recusada')
+ok(visivel("ramais; DROP TABLE ramais", rid, '0').status_code == 400, 'nome de lista com SQL é recusado')
+ok(visivel('ramais', 99999, '0').status_code == 404, 'item inexistente devolve 404')
+ok(visivel('ramais', 'abc', '0').status_code == 400, 'id inválido é recusado')
+r = anon.post('/admin/visivel', data={'lista': 'ramais', 'id': rid, 'valor': '0'})
+ok(r.status_code == 400 and ativo_de('ramais', rid) == 1, 'sem token CSRF a caixa é recusada')
+r = anon.post('/admin/visivel', data={'csrf': csrf(anon.get('/login').get_data(as_text=True)), 'lista': 'ramais', 'id': rid, 'valor': '0'})
+ok(r.status_code in (302, 401, 403) and ativo_de('ramais', rid) == 1, 'visitante sem login não altera a visibilidade')
+h = c.get('/admin/historico').get_data(as_text=True)
+ok('visibilidade' in h and 'SETOR TESTE' in h, 'histórico registra quem ocultou, com o nome do item')
+
+for rota, marca in (('/admin/ramais', 'ramais'), ('/admin/links', 'links'), ('/admin/lateral', 'lateral'),
+                    ('/admin/banners', 'banners'), ('/admin/painel?bloco=menu', 'menu'), ('/admin/painel?bloco=escalas', 'escalas'),
+                    ('/admin/painel?bloco=aniversariantes', 'aniversariantes'), ('/admin/painel?bloco=chamados', 'chamados')):
+    r = c.get(rota)
+    h = r.get_data(as_text=True)
+    ok(r.status_code == 200 and f'class="marca-visivel" data-lista="{marca}"' in h and 'visivel.js' in h,
+       f'{rota} mostra a caixa de visível e carrega o script')
+
 # ── histórico ────────────────────────────────────────────────────────────────
 h = c.get('/admin/historico').get_data(as_text=True)
 ok('noticias' in h.lower() or 'Notícia' in h, 'histórico registra as ações do admin')
