@@ -454,3 +454,67 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 /* 1.9.4: o cartão Ramais mostra todos os marcados como destaque; se não couberem
    na altura do cartão, rola por dentro em vez de cortar. */
 .cartao-corpo.ramais{overflow-y:auto;min-height:0}
+
+/* ── cabeçalho de matéria das páginas de conteúdo ─────────────────────────────
+   Chapéu, título, linha fina, assinatura, foto de capa, resumo recolhível e
+   "Leia também". Tudo opcional: página sem esses campos mostra só o título. */
+.mat-cab{display:flex;flex-direction:column;gap:.55rem;max-width:860px}
+.mat-chapeu{color:var(--azul);font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.mat-cab .pagina-titulo{margin:0;letter-spacing:-.02em;text-wrap:balance}
+.mat-fina{margin:0;font-size:1.15rem;line-height:1.45;color:var(--texto-fraco)}
+.mat-byline{display:flex;flex-wrap:wrap;gap:.2rem 1rem;margin:.3rem 0 0;padding-top:.7rem;
+  border-top:1px solid var(--borda);font-size:.82rem;color:var(--texto-fraco)}
+.mat-byline b{color:var(--azul)}
+.mat-capa{margin:0;max-width:860px;display:flex;flex-direction:column;gap:.5rem}
+.mat-capa img{display:block;width:100%;height:auto;max-height:480px;object-fit:cover;
+  border-radius:14px;background:var(--cartao-suave)}
+.mat-leg{border-left:3px solid var(--azul);padding:.1rem 0 .1rem .7rem;font-size:.84rem;
+  display:flex;flex-direction:column;gap:.1rem}
+.mat-leg small{color:var(--texto-fraco);font-size:.76rem}
+.mat-resumo{max-width:860px;border:1px solid var(--azul);border-radius:10px;background:var(--cartao)}
+.mat-resumo summary{cursor:pointer;list-style:none;padding:.7rem .95rem;font-weight:700;
+  display:flex;align-items:center;gap:.6rem}
+.mat-resumo summary::-webkit-details-marker{display:none}
+.mat-resumo summary::after{content:"▾";margin-left:auto;color:var(--texto-fraco)}
+.mat-resumo[open] summary::after{content:"▴"}
+.mat-resumo ul{margin:0;padding:0 1rem .9rem 2.2rem;display:flex;flex-direction:column;gap:.3rem}
+.mat-leia{max-width:860px;border-top:2px solid var(--texto);padding-top:.8rem;
+  display:flex;flex-direction:column;gap:.7rem}
+.mat-leia h3{margin:0;font-size:.82rem;letter-spacing:.08em;text-transform:uppercase}
+.mat-leia a{display:grid;grid-template-columns:96px minmax(0,1fr);gap:.8rem;align-items:center;
+  color:var(--texto);text-decoration:none}
+.mat-leia img,.mat-leia-sem{display:block;width:96px;aspect-ratio:3/2;object-fit:cover;
+  border-radius:8px;background:var(--tom-azul-fundo)}
+.mat-leia b{display:block;font-size:.95rem;line-height:1.3}
+.mat-leia a:hover b{color:var(--azul)}
+.mat-leia small{display:block;color:var(--texto-fraco);font-size:.74rem}
+/* na prévia do editor a coluna não é flex: o espaçamento vem daqui */
+.pe-folha .mat-cab{margin-bottom:.4rem}
+.pe-folha .mat-capa,.pe-folha .mat-resumo,.pe-folha .mat-leia{margin-top:1rem;margin-bottom:1rem}
+.pe-cab{margin-bottom:1rem}
+.pe-cab summary{cursor:pointer}
+.pe-cab-form{margin-top:.8rem}
+
+/* ── lista da seção Notícias: manchete com foto e linhas com miniatura ───────── */
+.not-manchete{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:1.2rem;
+  align-items:start;color:inherit;text-decoration:none;padding-bottom:1.1rem;
+  border-bottom:1px solid var(--borda)}
+.not-manchete .not-texto{padding:0}
+.not-manchete h2{font-size:1.65rem;line-height:1.15;font-weight:800;letter-spacing:-.015em;margin:.4rem 0}
+.not-manchete:hover h2,.not-linha:hover h3{color:var(--azul)}
+.not-foto{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:14px;
+  background:var(--tom-azul-fundo)}
+.not-linhas{display:flex;flex-direction:column}
+.not-linha{display:grid;grid-template-columns:150px minmax(0,1fr);gap:1rem;align-items:start;
+  padding:.9rem 0;border-top:1px solid var(--borda);color:inherit;text-decoration:none}
+.not-linha:first-child{border-top:0}
+.not-linha .not-foto{aspect-ratio:3/2;border-radius:10px}
+.not-linha h3{margin:.15rem 0;font-size:1.05rem;line-height:1.3;font-weight:700}
+.not-linha p{margin:0;font-size:.86rem;color:var(--texto-fraco)}
+.not-linha small,.not-manchete small{color:var(--texto-fraco)}
+.not-cat{font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:.72rem;color:var(--azul)}
+.not-fixada{margin-left:.5rem;font-size:.68rem;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:#d97706}
+.not-data{display:block;margin-top:.35rem;font-size:.74rem;color:var(--texto-fraco)}
+@media (max-width:760px){.not-manchete{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:560px){.not-linha{grid-template-columns:96px minmax(0,1fr)}}

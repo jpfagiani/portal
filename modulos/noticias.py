@@ -45,7 +45,7 @@ CREATE INDEX IF NOT EXISTS ix_noticias_pub ON noticias (estado, publicar_em);
 ESTADOS = {'rascunho': 'Rascunho', 'publicado': 'Publicado', 'arquivado': 'Arquivado'}
 # Só aparece para o público o que está publicado E já chegou a hora.
 VISIVEL = "estado='publicado' AND publicar_em<>'' AND publicar_em <= datetime('now','localtime')"
-POR_PAGINA = 12
+POR_PAGINA = 10
 
 
 def slugify(texto):
@@ -109,8 +109,10 @@ def noticias():
         args + [POR_PAGINA, (pagina - 1) * POR_PAGINA]).fetchall()
     cats = [r[0] for r in con.execute(
         f"SELECT DISTINCT categoria FROM noticias WHERE {VISIVEL} AND categoria<>'' ORDER BY categoria COLLATE NOCASE")]
+    # `pg` e não `pagina`: o template já usa `pagina` para dizer ao menu qual item
+    # está ativo, e a colisão derrubava a lista assim que passava de uma página.
     return render_template('noticias.html', itens=linhas, categorias=cats, categoria=cat,
-                           pagina=pagina, paginas=max(1, -(-total // POR_PAGINA)))
+                           pg=pagina, paginas=max(1, -(-total // POR_PAGINA)))
 
 
 @app.route('/noticias/<slug>')

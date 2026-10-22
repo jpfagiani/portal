@@ -17,11 +17,12 @@
   <div class="pe-dica">
     <span><strong>Edição direta.</strong> Clique com o <b>botão direito</b> em um texto, imagem ou título para
     editar, mover ou excluir. Para trocar ou incluir imagem, <b>arraste o arquivo</b> para a página.</span>
+    <a class="btn btn-sm" href="{{ url_for('admin_pagina', chave=chave, cab=1) }}#cabecalho">Editar cabeçalho</a>
     <button type="button" class="btn btn-sm btn-principal" data-pe-novo>+ Adicionar bloco</button>
   </div>
   {% endif %}
 
-  <h1 class="pagina-titulo">{{ nome }}</h1>
+  {{ pb.topo(cab, nome) }}
 
   {{ pb.desenha(blocos) }}
   {% if not blocos %}
@@ -34,6 +35,8 @@
       </div>
     </div>
   {% endif %}
+
+  {{ pb.leia_tambem(leia) }}
 
   <div class="acoes pagina-acoes">
     <a class="btn" href="{{ url_for('index') }}">Voltar ao início</a>

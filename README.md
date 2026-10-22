@@ -98,6 +98,18 @@ botão **Conteúdo***:
   editar e excluir em cada bloco. Blocos desmarcados em *Exibir* ficam esmaecidos na
   prévia e não aparecem no portal.
 
+**Cabeçalho de matéria.** Acima dos blocos, cada página pode ter um cabeçalho, editado em
+*Conteúdo → Cabeçalho da página* (ou pelo atalho **Editar cabeçalho** na edição direta). Tudo
+é opcional; sem nenhum campo preenchido a página sai só com o título, como antes:
+
+- **Chapéu** (categoria), **linha fina**, **autor ou setor** e **data de publicação**.
+  O *Atualizada em* é preenchido sozinho a cada alteração na página e só aparece junto do
+  autor ou da data de publicação.
+- **Foto de capa** com legenda e crédito, enviada na hora ou escolhida da biblioteca. A capa
+  conta como uso da imagem, então a biblioteca não deixa excluí-la enquanto estiver na página.
+- **Resumo recolhível**, uma linha por item (até 6).
+- **Leia também**, com as três últimas notícias publicadas. Começa desligado em cada página.
+
 A faixa escura de links do topo e o cartão "Em destaque" da tela inicial são editados em
 *Administração → Navegação*.
 
@@ -269,7 +281,9 @@ sudo ./desinstalar.sh    # remove o serviço; PRESERVA dados e imagens
   formatado, categoria, destaque e link de destino. Situações: rascunho,
   publicada, arquivada; com data futura a notícia fica **agendada** e aparece
   sozinha na hora (sem agendador). Admin vê pré-visualização de rascunhos.
-- Público: `/noticias` (com categorias e paginação), `/noticias/<endereço>` e o
+- Público: `/noticias` (com categorias e paginação de 10 por página: a primeira notícia vira
+  manchete com foto e as demais saem em linhas com miniatura; a notícia marcada como
+  **destaque** fica fixada no topo, com a marca *Fixada*), `/noticias/<endereço>` e o
   cartão "Últimas notícias" na página inicial (pode ser movido/ocultado como os
   demais cartões).
 

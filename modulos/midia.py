@@ -88,6 +88,9 @@ def usos_todos():
                          " WHERE b.arquivo<>''"):
         usos[r['arquivo']].append((f"Página “{r['nome']}”",
                                    url_for('admin_pagina', chave=r['chave'])))
+    for r in con.execute("SELECT chave, nome, capa FROM paginas_lateral WHERE capa<>''"):
+        usos[r['capa']].append((f"Capa da página “{r['nome']}”",
+                                url_for('admin_pagina', chave=r['chave'], cab=1) + '#cabecalho'))
     for r in con.execute("SELECT arquivo FROM banners WHERE arquivo<>''"):
         usos[r['arquivo']].append(('Banner da página inicial', url_for('admin_banners')))
     for r in con.execute("SELECT imagem, titulo FROM lateral WHERE imagem<>''"):

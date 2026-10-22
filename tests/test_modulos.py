@@ -177,6 +177,84 @@ ok(z['sistemas'] > 0 and z['sistemas'] != z['atalhos'], 'o cartão mexido vai pa
 ok(c.post('/admin/cartao-pos', data={'csrf': tok, 'posicoes': '[{"chave":"atalhos","gx":10,"gy":0,"gw":6,"gh":8}]'}).status_code == 400, 'ainda recusa posição fora do quadro')
 c.post('/admin/layout-livre', data={'csrf': tok, 'acao': 'desativar'})
 
+# ── páginas de conteúdo: cabeçalho de matéria ────────────────────────────────
+def cabecalho(**kw):
+    d = {'csrf': tok, 'acao': 'cabecalho'}
+    d.update(kw)
+    return c.post('/admin/pagina/servidores', data=d, content_type='multipart/form-data', follow_redirects=True)
+
+h = anon.get('/modulo/servidores').get_data(as_text=True)
+ok('<h1 class="pagina-titulo">Link 1</h1>' in h and not any(
+       k in h for k in ('mat-chapeu', 'mat-byline', 'mat-capa', 'mat-resumo', 'mat-leia')),
+   'página sem cabeçalho continua saindo só com o título')
+ok('Editar cabeçalho' in c.get('/modulo/servidores').get_data(as_text=True), 'edição direta tem o atalho do cabeçalho')
+ok('id="cabecalho"' in c.get('/admin/pagina/servidores').get_data(as_text=True), 'editor da página tem o formulário do cabeçalho')
+
+r = cabecalho(chapeu='Recursos Humanos', autor='Seção de Pessoal', linha_fina='Aniversariantes do mês devem comparecer.',
+              publicada_em='2026-10-21T05:30', capa_arquivo_biblioteca=arq, capa_legenda='Fila <b>de atendimento</b>',
+              capa_credito='Imagem: Arquivo CDPNI', resumo='Primeiro item\n\nSegundo item\nTerceiro item',
+              mostrar_resumo='on', mostrar_leia='on')
+ok('Cabeçalho da página salvo' in r.get_data(as_text=True), 'admin salva o cabeçalho da página')
+h = anon.get('/modulo/servidores').get_data(as_text=True)
+ok('Recursos Humanos' in h and 'Aniversariantes do mês devem comparecer.' in h, 'chapéu e linha fina aparecem')
+ok('Por <b>Seção de Pessoal</b>' in h and 'Publicada em 21/10/2026 05h30' in h, 'assinatura mostra autor e data de publicação')
+ok('/static/uploads/%s' % arq in h and 'Imagem: Arquivo CDPNI' in h and 'Fila &lt;b&gt;de atendimento&lt;/b&gt;' in h,
+   'foto de capa com crédito e legenda (HTML da legenda escapado)')
+ok(h.count('<li>Primeiro item</li>') == 1 and '<li>Segundo item</li>' in h and '<li>Terceiro item</li>' in h and '<li></li>' not in h,
+   'resumo recolhível: um item por linha, sem itens vazios')
+ok('mat-leia' in h and 'Publicada passada' in h, 'Leia também lista notícias publicadas')
+ok('Rascunho secreto' not in h and 'Agendada futura' not in h, 'Leia também não mostra rascunho nem agendada')
+
+cabecalho(chapeu='<script>alert(1)</script>', autor='"><img src=x onerror=alert(2)>', mostrar_resumo='on', mostrar_leia='on')
+h = anon.get('/modulo/servidores').get_data(as_text=True)
+ok('<script>alert(1)</script>' not in h and '<img src=x' not in h and '&lt;script&gt;alert(1)&lt;/script&gt;' in h,
+   'campos do cabeçalho são escapados (sem script no chapéu nem tag solta no autor)')
+cabecalho(chapeu='Recursos Humanos', autor='Seção de Pessoal', publicada_em='2026-10-21T05:30', capa_arquivo_biblioteca=arq,
+          capa_legenda='Legenda', mostrar_resumo='on', mostrar_leia='on', resumo='Item')
+
+c.post('/admin/pagina/servidores', data={'csrf': tok, 'tipo': 'subtitulo', 'ativo': 'on', 'texto': 'Quem precisa comparecer'})
+h = anon.get('/modulo/servidores').get_data(as_text=True)
+ok('Atualizada em' in h and 'Quem precisa comparecer' in h, '"Atualizada em" aparece sozinho depois de mexer num bloco')
+ok('Capa da página' in c.get('/admin/midia').get_data(as_text=True), 'biblioteca mostra a capa da página como uso da imagem')
+
+r = anon.post('/admin/pagina/servidores', data={'acao': 'cabecalho', 'chapeu': 'Invasor'}, content_type='multipart/form-data')
+ok(r.status_code in (302, 400, 401, 403) and 'Invasor' not in anon.get('/modulo/servidores').get_data(as_text=True),
+   'visitante não grava o cabeçalho')
+
+nova_capa = png((200, 30, 30))
+cabecalho(capa_arquivo=(io.BytesIO(nova_capa), 'capa-nova.png'), chapeu='Recursos Humanos', autor='Seção de Pessoal',
+          mostrar_resumo='on', resumo='Item')
+with portal.app.app_context():
+    capa_nova = portal.db().execute("SELECT capa FROM paginas_lateral WHERE chave='servidores'").fetchone()[0]
+    na_biblioteca = portal.db().execute('SELECT 1 FROM midia WHERE arquivo=?', (capa_nova,)).fetchone()
+ok(capa_nova and capa_nova != arq and os.path.exists(os.path.join(portal.UPLOAD_DIR, capa_nova)) and na_biblioteca,
+   'envio de nova capa grava o arquivo e cataloga na biblioteca')
+ok(os.path.exists(os.path.join(portal.UPLOAD_DIR, arq)), 'a capa anterior continua na biblioteca (outros lugares a usam)')
+
+cabecalho(remover_capa='on', chapeu='Recursos Humanos', autor='Seção de Pessoal', mostrar_resumo='on', resumo='Item')
+h = anon.get('/modulo/servidores').get_data(as_text=True)
+ok('mat-capa' not in h and os.path.exists(os.path.join(portal.UPLOAD_DIR, capa_nova)), 'remover a capa tira da página e preserva o arquivo na biblioteca')
+r = cabecalho(capa_arquivo=(io.BytesIO(b'<?php echo 1; ?>' * 10), 'capa.png'))
+with portal.app.app_context():
+    capa_falsa = portal.db().execute("SELECT capa FROM paginas_lateral WHERE chave='servidores'").fetchone()[0]
+ok(not capa_falsa, 'arquivo disfarçado de PNG não vira capa')
+
+cabecalho(mostrar_leia='', mostrar_resumo='')
+ok('mat-leia' not in anon.get('/modulo/servidores').get_data(as_text=True), 'Leia também pode ser desligado na página')
+
+# lista da seção Notícias: manchete, linhas com miniatura e destaque fixado no topo
+nova(titulo='Aviso fixado', estado='publicado', publicar_em='2020-01-04T08:00', destaque='on')
+h = anon.get('/noticias').get_data(as_text=True)
+m = re.search(r'class="not-manchete".*?<h2>(.*?)</h2>', h, re.S)
+ok(m and m.group(1).strip() == 'Aviso fixado' and 'Fixada' in h, 'notícia em destaque vira manchete e leva a marca Fixada')
+ok('class="not-linha"' in h and 'class="not-linhas"' in h, 'as demais notícias saem em linhas')
+for i in range(8):
+    nova(titulo=f'Rotina {i}', estado='publicado', publicar_em=f'2020-02-0{i + 1}T08:00')
+h = anon.get('/noticias').get_data(as_text=True)
+ok(h.count('class="not-linha"') == 9 and 'Página 1 de 2' in h, 'dez notícias por página (uma manchete e nove linhas)')
+ok('class="not-manchete"' in anon.get('/noticias?p=2').get_data(as_text=True), 'segunda página também abre com manchete')
+ok('Nenhuma notícia publicada' in anon.get('/noticias?c=Inexistente').get_data(as_text=True), 'categoria sem notícias mostra o aviso')
+
 # ── histórico ────────────────────────────────────────────────────────────────
 h = c.get('/admin/historico').get_data(as_text=True)
 ok('noticias' in h.lower() or 'Notícia' in h, 'histórico registra as ações do admin')

@@ -3,6 +3,54 @@
     bloco ganha os botões de subir, descer, editar e excluir. Importar com
     `with context` para ter o csrf_token. #}
 
+{#  Cabeçalho de matéria da página: chapéu, título, linha fina, assinatura
+    (autor e datas), foto de capa com legenda e crédito, e resumo recolhível.
+    Tudo menos o título é opcional; sem nenhum deles sai só o título, como antes. #}
+{% macro topo(cab, nome) %}
+<header class="mat-cab">
+  {% if cab.chapeu %}<div class="mat-chapeu">{{ cab.chapeu }}</div>{% endif %}
+  <h1 class="pagina-titulo">{{ nome }}</h1>
+  {% if cab.linha_fina %}<p class="mat-fina">{{ cab.linha_fina }}</p>{% endif %}
+  {% if cab.autor or cab.publicada %}
+  <p class="mat-byline">
+    {% if cab.autor %}<span>Por <b>{{ cab.autor }}</b></span>{% endif %}
+    {% if cab.publicada %}<span>Publicada em {{ cab.publicada }}</span>{% endif %}
+    {% if cab.atualizada %}<span>Atualizada em {{ cab.atualizada }}</span>{% endif %}
+  </p>
+  {% endif %}
+</header>
+{% if cab.capa %}
+<figure class="mat-capa">
+  <img src="{{ cab.capa_url }}" alt="{{ cab.capa_alt }}">
+  {% if cab.legenda or cab.credito %}
+  <figcaption class="mat-leg">{{ cab.legenda }}{% if cab.credito %}<small>{{ cab.credito }}</small>{% endif %}</figcaption>
+  {% endif %}
+</figure>
+{% endif %}
+{% if cab.resumo %}
+<details class="mat-resumo" open>
+  <summary>Resumo</summary>
+  <ul>{% for linha in cab.resumo %}<li>{{ linha }}</li>{% endfor %}</ul>
+</details>
+{% endif %}
+{% endmacro %}
+
+{#  "Leia também": as últimas notícias publicadas, no fim da página. #}
+{% macro leia_tambem(itens) %}
+{% if itens %}
+<aside class="mat-leia" aria-label="Leia também">
+  <h3>Leia também</h3>
+  {% for n in itens %}
+  <a href="{{ n.url }}"{% if n.externo %} target="_blank" rel="noopener"{% endif %}>
+    {% if n.capa %}<img src="{{ url_for('static', filename='uploads/' ~ n.capa) }}" alt="{{ n.alt }}" loading="lazy">
+    {% else %}<span class="mat-leia-sem" aria-hidden="true"></span>{% endif %}
+    <span><b>{{ n.titulo }}</b>{% if n.data %}<small>{{ n.data }}</small>{% endif %}</span>
+  </a>
+  {% endfor %}
+</aside>
+{% endif %}
+{% endmacro %}
+
 {% macro controles(b, chave, editando) %}
 <div class="bl-ctl">
   <form method="post" action="{{ url_for('admin_pagina', chave=chave) }}">

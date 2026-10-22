@@ -62,7 +62,7 @@
       <input id="n-meta" name="meta" maxlength="300" value="{{ editar.meta if editar else '' }}">
       <label for="n-slug">Endereço <small>(gerado do título se vazio)</small></label>
       <input id="n-slug" name="slug" maxlength="80" value="{{ editar.slug if editar else '' }}">
-      <label class="check"><input type="checkbox" name="destaque" {{ 'checked' if editar and editar.destaque }}> Destaque (aparece primeiro)</label>
+      <label class="check"><input type="checkbox" name="destaque" {{ 'checked' if editar and editar.destaque }}> Destaque (fica fixada no topo da lista, como manchete)</label>
 
       <div class="acoes">
         <button class="btn btn-principal" type="submit" name="acao" value="salvar">Salvar</button>

@@ -1,6 +1,17 @@
 {% extends 'shell.html' %}
 {% set pagina = 'noticias' %}
 {% block titulo %}Notícias{% endblock %}
+{#  Lista da seção: a primeira notícia da página vira manchete, com foto grande, e
+    as demais seguem em linhas com miniatura. Notícia em destaque fica fixada no
+    topo (a consulta já as põe primeiro) e leva a marca "Fixada". #}
+{% macro marca(n) %}
+  {% if n.categoria %}<span class="not-cat">{{ n.categoria }}</span>{% endif %}{% if n.destaque %}<span class="not-fixada">Fixada</span>{% endif %}
+{% endmacro %}
+{% macro foto(n) %}
+  {% if n.capa %}<img class="not-foto" src="{{ url_for('static', filename='uploads/' ~ n.capa) }}"
+                      alt="{{ n.capa_alt or midia_alt(n.capa, '') }}" loading="lazy">
+  {% else %}<span class="not-foto" aria-hidden="true"></span>{% endif %}
+{% endmacro %}
 {% block miolo %}
 <main class="pagina pagina-noticias">
   <div class="migalha"><a href="{{ url_for('index') }}">← Início</a><span>/</span><span>Notícias</span></div>
@@ -13,30 +24,48 @@
   </nav>
   {% endif %}
 
-  <div class="not-grade">
-    {% for n in itens %}
+  {% if itens %}
+  {% set m = itens[0] %}
+  {% set destino_m = m.destino_url or url_for('noticia', slug=m.slug) %}
+  <article>
+    <a class="not-manchete" href="{{ destino_m }}"{% if destino_m.startswith('http') %} target="_blank" rel="noopener"{% endif %}>
+      {{ foto(m) }}
+      <div class="not-texto">
+        <small>{{ marca(m) }}</small>
+        <h2>{{ m.titulo }}</h2>
+        {% if m.resumo or m.subtitulo %}<p>{{ m.resumo or m.subtitulo }}</p>{% endif %}
+        <time class="not-data">{{ m.publicar_em|data_br }}</time>
+      </div>
+    </a>
+  </article>
+
+  {% if itens|length > 1 %}
+  <div class="not-linhas">
+    {% for n in itens[1:] %}
     {% set destino = n.destino_url or url_for('noticia', slug=n.slug) %}
-    <article class="not-cartao{{ ' destaque' if n.destaque }}">
-      <a class="not-link" href="{{ destino }}"{% if destino.startswith('http') %} target="_blank" rel="noopener"{% endif %}>
-        {% if n.capa %}<img class="not-capa" src="{{ url_for('static', filename='uploads/' ~ n.capa) }}"
-                            alt="{{ n.capa_alt or midia_alt(n.capa, '') }}" loading="lazy">{% endif %}
+    <article>
+      <a class="not-linha" href="{{ destino }}"{% if destino.startswith('http') %} target="_blank" rel="noopener"{% endif %}>
+        {{ foto(n) }}
         <div class="not-texto">
-          <small>{% if n.categoria %}{{ n.categoria }} · {% endif %}{{ n.publicar_em|data_br }}</small>
-          <h2>{{ n.titulo }}</h2>
+          <small>{{ marca(n) }}</small>
+          <h3>{{ n.titulo }}</h3>
           {% if n.resumo or n.subtitulo %}<p>{{ n.resumo or n.subtitulo }}</p>{% endif %}
+          <time class="not-data">{{ n.publicar_em|data_br }}</time>
         </div>
       </a>
     </article>
-    {% else %}
-    <p class="vazio">Nenhuma notícia publicada{{ ' nesta categoria' if categoria }}.</p>
     {% endfor %}
   </div>
+  {% endif %}
+  {% else %}
+  <p class="vazio">Nenhuma notícia publicada{{ ' nesta categoria' if categoria }}.</p>
+  {% endif %}
 
   {% if paginas > 1 %}
   <p class="hist-pag">
-    {% if pagina > 1 %}<a class="btn btn-sm" href="{{ url_for('noticias', c=categoria, p=pagina-1) }}">← Mais recentes</a>{% endif %}
-    <span>Página {{ pagina }} de {{ paginas }}</span>
-    {% if pagina < paginas %}<a class="btn btn-sm" href="{{ url_for('noticias', c=categoria, p=pagina+1) }}">Mais antigas →</a>{% endif %}
+    {% if pg > 1 %}<a class="btn btn-sm" href="{{ url_for('noticias', c=categoria, p=pg-1) }}">← Mais recentes</a>{% endif %}
+    <span>Página {{ pg }} de {{ paginas }}</span>
+    {% if pg < paginas %}<a class="btn btn-sm" href="{{ url_for('noticias', c=categoria, p=pg+1) }}">Mais antigas →</a>{% endif %}
   </p>
   {% endif %}
 </main>

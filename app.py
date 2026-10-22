@@ -1104,6 +1104,23 @@ def init_db():
             ('pagina_blocos', 'estilo',  "TEXT DEFAULT 'normal'"),
             ('pagina_blocos', 'formato', "TEXT DEFAULT 'texto'"),
             ('pagina_blocos', 'url',     "TEXT DEFAULT ''"),
+            # Cabeçalho de matéria das páginas de conteúdo: chapéu, linha fina,
+            # autor, datas, foto de capa com legenda e crédito, resumo
+            # recolhível e "Leia também". Tudo opcional: página sem nenhum
+            # destes campos continua saindo só com o título, como antes.
+            ('paginas_lateral', 'chapeu',         "TEXT DEFAULT ''"),
+            ('paginas_lateral', 'linha_fina',     "TEXT DEFAULT ''"),
+            ('paginas_lateral', 'autor',          "TEXT DEFAULT ''"),
+            ('paginas_lateral', 'publicada_em',   "TEXT DEFAULT ''"),
+            ('paginas_lateral', 'atualizada_em',  "TEXT DEFAULT ''"),
+            ('paginas_lateral', 'capa',           "TEXT DEFAULT ''"),
+            ('paginas_lateral', 'capa_legenda',   "TEXT DEFAULT ''"),
+            ('paginas_lateral', 'capa_credito',   "TEXT DEFAULT ''"),
+            ('paginas_lateral', 'resumo',         "TEXT DEFAULT ''"),
+            ('paginas_lateral', 'mostrar_resumo', 'INTEGER NOT NULL DEFAULT 1'),
+            # "Leia também" começa desligado: ligá-lo é escolha de cada página,
+            # e as já existentes não ganham um bloco novo por conta da atualização.
+            ('paginas_lateral', 'mostrar_leia',   'INTEGER NOT NULL DEFAULT 0'),
             ('ramais',   'destaque', 'INTEGER NOT NULL DEFAULT 0'),
             ('usuarios', 'ultimo_acesso', "TEXT DEFAULT ''")):
         existentes = {c[1] for c in con.execute(f'PRAGMA table_info({tabela})')}
@@ -1769,11 +1786,88 @@ def agrupar_blocos(linhas):
     return saida
 
 
+def _dt_banco(valor):
+    """'2026-10-21T05:30' (campo datetime-local) -> '2026-10-21 05:30:00'.
+    Devolve '' se não for uma data válida."""
+    valor = (valor or '').strip().replace('T', ' ')
+    for formato in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
+        try:
+            return datetime.strptime(valor, formato).strftime('%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            continue
+    return ''
+
+
+def _dt_exibe(valor):
+    """'2026-10-21 05:30:00' -> '21/10/2026 05h30'."""
+    try:
+        return datetime.strptime((valor or '')[:16], '%Y-%m-%d %H:%M').strftime('%d/%m/%Y %Hh%M')
+    except ValueError:
+        return ''
+
+
+def _dt_campo(valor):
+    """'2026-10-21 05:30:00' -> '2026-10-21T05:30' (valor de datetime-local)."""
+    return (valor or '')[:16].replace(' ', 'T')
+
+
+def pagina_tocada(con, chave):
+    """Marca a página como atualizada agora. Chamada a cada alteração do
+    conteúdo, para o "Atualizada em" do cabeçalho nunca ficar desatualizado."""
+    con.execute("UPDATE paginas_lateral SET atualizada_em=datetime('now','localtime')"
+                " WHERE chave=?", (chave,))
+
+
+def cabecalho_pagina(item):
+    """Cabeçalho de matéria de uma página de conteúdo, pronto para o template:
+    chapéu, linha fina, autor e datas, foto de capa e resumo. Campo vazio fica
+    de fora; página sem nenhum deles mostra só o título, como sempre mostrou."""
+    def txt(campo):
+        return (item[campo] or '').strip()
+    autor = txt('autor')
+    publicada = _dt_exibe(item['publicada_em'])
+    atualizada = _dt_exibe(item['atualizada_em'])
+    # "Atualizada em" só acompanha uma assinatura: numa página sem autor nem data
+    # de publicação ele apareceria sozinho, só porque alguém mexeu num bloco.
+    if not (autor or publicada) or atualizada == publicada:
+        atualizada = ''
+    capa = os.path.basename(item['capa'] or '')
+    if capa and not os.path.isfile(os.path.join(UPLOAD_DIR, capa)):
+        capa = ''
+    legenda = txt('capa_legenda')
+    resumo = [l.strip()[:200] for l in (item['resumo'] or '').splitlines() if l.strip()][:6]
+    return {
+        'chapeu': txt('chapeu'), 'linha_fina': txt('linha_fina'), 'autor': autor,
+        'publicada': publicada, 'atualizada': atualizada,
+        'capa': capa,
+        'capa_url': url_for('static', filename='uploads/' + capa) if capa else '',
+        'capa_alt': modulos.midia.alt_de(capa, legenda) if capa else '',
+        'legenda': legenda, 'credito': txt('capa_credito'),
+        'resumo': resumo if item['mostrar_resumo'] else [],
+        'leia': bool(item['mostrar_leia']),
+    }
+
+
+def leia_tambem(limite=3):
+    """As últimas notícias publicadas, para o "Leia também" no fim da página."""
+    saida = []
+    for n in modulos.noticias.recentes(limite):
+        destino = n['destino_url'] or url_for('noticia', slug=n['slug'])
+        saida.append({'titulo': n['titulo'], 'url': destino,
+                      'externo': destino.startswith('http'),
+                      'data': modulos.noticias._data_br(n['publicar_em']),
+                      'capa': n['capa'] or '',
+                      'alt': n['capa_alt'] or ''})
+    return saida
+
+
 @app.route('/modulo/<chave>')
 def modulo(chave):
-    row = db().execute('SELECT nome FROM paginas_lateral WHERE chave=?', (chave,)).fetchone()
+    row = db().execute('SELECT * FROM paginas_lateral WHERE chave=?', (chave,)).fetchone()
     if not row:
         abort(404)
+    cab = cabecalho_pagina(row)
+    leia = leia_tambem() if cab['leia'] else []
     admin = bool(session.get('admin'))
     # O administrador vê também os blocos ocultos (esmaecidos): é por eles que
     # edita a página diretamente, com o botão direito.
@@ -1794,6 +1888,7 @@ def modulo(chave):
                         'imagem': url_for('static', filename='uploads/' + b['arquivo'])
                                   if b['arquivo'] else ''})
     return render_template('modulo.html', chave=chave, nome=row['nome'],
+                           cab=cab, leia=leia,
                            blocos=agrupar_blocos(linhas), edicao=admin, blocos_cru=cru,
                            destinos=destinos_de_links() if admin else [],
                            larguras=LARGURAS_IMG, alinhamentos=ROTULO_ALINHA,
@@ -3297,9 +3392,10 @@ def admin_painel():
             if tabela == 'paginas_lateral':
                 # O conteúdo da página (textos e imagens) sai junto com o item;
                 # senão ficaria órfão, ocupando espaço em uploads/.
-                morto = con.execute('SELECT chave FROM paginas_lateral WHERE id=?',
+                morto = con.execute('SELECT chave, capa FROM paginas_lateral WHERE id=?',
                                     (ident,)).fetchone()
                 if morto:
+                    remove_upload(morto['capa'])    # a foto de capa também
                     for b in con.execute('SELECT arquivo FROM pagina_blocos'
                                          ' WHERE chave=?', (morto['chave'],)):
                         remove_upload(b['arquivo'])
@@ -3744,7 +3840,38 @@ def admin_pagina(chave):
         acao = request.form.get('acao')
         ident = _int(request.form.get('id'))
         if acao == 'ordenar':
+            pagina_tocada(con, chave)
             return reordenar('pagina_blocos')
+
+        if acao == 'cabecalho':
+            # Cabeçalho de matéria: chapéu, linha fina, autor, data, capa e resumo.
+            def campo(nome, limite):
+                return request.form.get(nome, '').strip()[:limite]
+            volta_cab = url_for('admin_pagina', chave=chave, cab=1) + '#cabecalho'
+            capa_atual = item['capa'] or ''
+            try:
+                capa = salva_upload('capa_arquivo', capa_atual)
+            except ValueError as e:
+                flash(str(e), 'erro')
+                return redirect(volta_cab)
+            if request.form.get('remover_capa') and capa == capa_atual:
+                capa = ''
+            if capa_atual and capa != capa_atual:
+                remove_upload(capa_atual)      # a da biblioteca fica; só sai a avulsa
+            resumo = '\n'.join([l.strip()[:200] for l in
+                                request.form.get('resumo', '').splitlines() if l.strip()][:6])
+            con.execute('UPDATE paginas_lateral SET chapeu=?,linha_fina=?,autor=?,publicada_em=?,'
+                        'capa=?,capa_legenda=?,capa_credito=?,resumo=?,mostrar_resumo=?,'
+                        'mostrar_leia=? WHERE chave=?',
+                        (campo('chapeu', 40), campo('linha_fina', 220), campo('autor', 60),
+                         _dt_banco(request.form.get('publicada_em')), capa,
+                         campo('capa_legenda', 200), campo('capa_credito', 80), resumo,
+                         1 if request.form.get('mostrar_resumo') else 0,
+                         1 if request.form.get('mostrar_leia') else 0, chave))
+            pagina_tocada(con, chave)
+            con.commit()
+            flash('Cabeçalho da página salvo.', 'ok')
+            return redirect(volta_cab)
 
         atual = con.execute('SELECT * FROM pagina_blocos WHERE id=? AND chave=?',
                             (ident, chave)).fetchone() if ident else None
@@ -3753,6 +3880,7 @@ def admin_pagina(chave):
             if atual:
                 remove_upload(atual['arquivo'])
                 con.execute('DELETE FROM pagina_blocos WHERE id=?', (ident,))
+                pagina_tocada(con, chave)
                 con.commit()
                 flash('Bloco removido.', 'ok')
             return fim(volta)
@@ -3767,6 +3895,7 @@ def admin_pagina(chave):
                     ids[i], ids[j] = ids[j], ids[i]
                 for pos, bid in enumerate(ids):
                     con.execute('UPDATE pagina_blocos SET ordem=? WHERE id=?', (pos, bid))
+                pagina_tocada(con, chave)
                 con.commit()
             return fim(f'{volta}#b{ident}')
 
@@ -3811,6 +3940,7 @@ def admin_pagina(chave):
             con.execute('UPDATE pagina_blocos SET texto=?,arquivo=?,ativo=?,larg=?,'
                         'alinh=?,estilo=?,formato=?,url=? WHERE id=?',
                         (texto, arquivo, ativo, larg, alinh, estilo, formato, url, ident))
+            pagina_tocada(con, chave)
             con.commit()
             flash('Bloco atualizado.', 'ok')
             ultimo['id'] = ident
@@ -3822,6 +3952,7 @@ def admin_pagina(chave):
                 'INSERT INTO pagina_blocos (chave,tipo,texto,arquivo,ordem,ativo,larg,'
                 'alinh,estilo,formato,url) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
                 (chave, tipo, texto, arquivo, proxima, ativo, larg, alinh, estilo, formato, url))
+            pagina_tocada(con, chave)
             con.commit()
             ultimo['id'] = novo.lastrowid
             # "Adicionar aqui" (edição direta): entra logo depois do bloco indicado.
@@ -3849,11 +3980,17 @@ def admin_pagina(chave):
                              else texto_para_html(editar['texto']))
     linhas = con.execute('SELECT * FROM pagina_blocos WHERE chave=?'
                          ' ORDER BY ordem, id', (chave,)).fetchall()
+    cab = cabecalho_pagina(item)
     return render_template(
         'admin_pagina.html', item=item, editar=editar, tipos=TIPOS_BLOCO,
         html_editar=html_editar, larguras=LARGURAS_IMG, alinhamentos=ROTULO_ALINHA,
         estilos=ESTILOS_TEXTO, blocos=agrupar_blocos(linhas), total=len(linhas),
-        destinos=destinos_de_links())
+        destinos=destinos_de_links(), cab=cab,
+        leia=leia_tambem() if cab['leia'] else [],
+        cab_aberto=bool(request.args.get('cab')),
+        publicada_campo=_dt_campo(item['publicada_em']),
+        categorias=modulos.noticias.categorias(),
+        biblioteca=modulos.midia.itens(limite=100))
 
 
 # Recursos em módulos (ver modulos/__init__.py). Rodando como `python app.py`, o
