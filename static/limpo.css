@@ -47,9 +47,9 @@ body{background-image:none;background-color:var(--cartao)}
   background:var(--azul);margin-right:.5rem;vertical-align:-.12em}
 .cab-ic{display:none}
 .cartao-corpo{padding:0}
-.tela-livre{--livre-gap:.5rem;column-gap:var(--livre-gap)}
+.tela-livre{--livre-gap:1.5rem;column-gap:var(--livre-gap)}
 .tela-livre>.cartao{margin-bottom:var(--livre-gap)}
-.regiao-topo,.regiao-baixo,.regiao-meio-grade{gap:1.6rem 2rem}
+.regiao-topo,.regiao-baixo,.regiao-meio-grade{gap:1.5rem}
 
 /* Peças dentro dos cartões: planas, tom suave no lugar de contorno */
 .ladrilho,.atalho{border:0;background:var(--cartao-suave);box-shadow:none}
@@ -540,7 +540,8 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 #noticia-fundo .pe-janela{width:min(860px,100%)}
 #noticia-fundo label{display:block;font-weight:600;font-size:.82rem;margin:.6rem 0 .2rem}
 #noticia-fundo label.check,#noticia-fundo .ne-capa-acoes label{font-weight:400;display:flex;gap:.5rem;align-items:center}
-#noticia-fundo input:not([type=checkbox]):not([type=file]),#noticia-fundo textarea,#noticia-fundo select{width:100%;box-sizing:border-box}
+#noticia-fundo form>input:not([type=checkbox]):not([type=hidden]),#noticia-fundo form>textarea,#noticia-fundo .pe-duas input,#noticia-fundo .pe-duas select{width:100%;box-sizing:border-box}
+#noticia-fundo .re-area{min-height:300px;max-height:50vh}
 .ne-capa{display:flex;gap:.8rem;align-items:flex-start;flex-wrap:wrap}
 .ne-capa img{width:180px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;border:1px solid var(--borda)}
 .ne-capa-acoes{display:flex;flex-direction:column;gap:.4rem;align-items:flex-start}
@@ -555,3 +556,8 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .pagina-noticia>.pagina-acoes{margin-top:1.6rem}
 .re-area.re-sobre{outline:3px dashed var(--azul);outline-offset:-3px;background:rgba(37,99,235,.05)}
 .re-aviso{margin:.3rem 0 0;font-size:.8rem;color:var(--texto-fraco)}
+
+.re-rot{font-size:.74rem;font-weight:600;color:var(--texto-fraco);padding:0 .2rem}
+.re-barra{position:sticky;top:0;z-index:2}
+.re-area img{margin:.3rem 0}
+.re-area img.im-m{width:50%}

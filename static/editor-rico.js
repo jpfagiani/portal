@@ -50,8 +50,9 @@
             area.focus();
             if (salva) { var s = window.getSelection(); s.removeAllRanges(); s.addRange(salva); }
             var alt = window.prompt('Texto alternativo da imagem (descreve a imagem para quem não a enxerga):', i.alt || '') || '';
-            var h = '<img src="' + i.url + '" alt="' + alt.replace(/"/g, '&quot;') + '">';
+            var h = '<img class="im-m" src="' + i.url + '" alt="' + alt.replace(/"/g, '&quot;') + '">';
             document.execCommand('insertHTML', false, h);
+            depoisDeInserir(i.url);
           }
         });
       });
@@ -75,8 +76,9 @@
             if (r && area.contains(r.startContainer)) { s.removeAllRanges(); s.addRange(r); }
           } else if (salva) { s.removeAllRanges(); s.addRange(salva); }
           var alt = (d.item.nome || '').replace(/\.[^.]+$/, '').replace(/[<>"&]/g, '');
-          document.execCommand('insertHTML', false, '<img src="' + d.item.url + '" alt="' + alt + '">');
+          document.execCommand('insertHTML', false, '<img class="im-m" src="' + d.item.url + '" alt="' + alt + '">');
           aviso.hidden = true;
+          depoisDeInserir(d.item.url);
         })
         .catch(function () { aviso.textContent = 'Sem conexão com o servidor.'; });
     }
@@ -101,7 +103,7 @@
 
     /* ── imagem no texto: clique para mudar tamanho, posição, descrição ── */
     var TAM = [['im-p', 'Pequena'], ['im-m', 'Média'], ['im-g', 'Grande'], ['im-c', 'Largura total']];
-    var POS = [['im-esq', 'Esquerda'], ['im-centro', 'Centro'], ['im-dir', 'Direita']];
+    var POS = [['im-esq', 'Esquerda, texto ao lado'], ['im-centro', 'Centro'], ['im-dir', 'Direita, texto ao lado']];
     var barra = document.createElement('div'); barra.className = 're-img-barra'; barra.hidden = true;
     var atual = null;
     function botao(txt, fn, cls) {
@@ -120,8 +122,11 @@
         b.classList.toggle('on', !!atual && atual.classList.contains(b.dataset.c));
       });
     }
+    function rotulo(t) { var r = document.createElement('span'); r.className = 're-rot'; r.textContent = t; barra.appendChild(r); }
+    rotulo('Imagem — tamanho:');
     TAM.forEach(function (t) { botao(t[1], function () { troca(TAM, atual && atual.classList.contains(t[0]) ? '' : t[0]); }).dataset.c = t[0]; });
     barra.appendChild(document.createElement('span')).className = 're-sep';
+    rotulo('posição:');
     POS.forEach(function (t) { botao(t[1], function () { troca(POS, atual && atual.classList.contains(t[0]) ? '' : t[0]); }).dataset.c = t[0]; });
     barra.appendChild(document.createElement('span')).className = 're-sep';
     botao('Descrição…', function () {
@@ -135,11 +140,18 @@
       if (atual) atual.removeAttribute('data-sel');
       atual = null; barra.hidden = true;
     }
+    function seleciona(img) {
+      if (atual && atual !== img) atual.removeAttribute('data-sel');
+      atual = img; atual.setAttribute('data-sel', '1'); barra.hidden = false; marca();
+    }
+    // Imagem nova entra em tamanho médio e já selecionada, com a barra à vista.
+    window.__reSelecionaNova = null;
+    function depoisDeInserir(url) {
+      var todas = area.querySelectorAll('img[src="' + url + '"]');
+      if (todas.length) seleciona(todas[todas.length - 1]);
+    }
     area.addEventListener('click', function (e) {
-      if (e.target.tagName === 'IMG') {
-        if (atual && atual !== e.target) atual.removeAttribute('data-sel');
-        atual = e.target; atual.setAttribute('data-sel', '1'); barra.hidden = false; marca();
-      } else desmarca();
+      if (e.target.tagName === 'IMG') seleciona(e.target); else desmarca();
     });
     document.addEventListener('mousedown', function (e) { if (atual && !raiz.contains(e.target)) desmarca(); });
 

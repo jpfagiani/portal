@@ -16,10 +16,11 @@
     <button type="button" data-cmd="insertUnorderedList" title="Lista com marcadores">• Lista</button>
     <button type="button" data-cmd="insertOrderedList" title="Lista numerada">1. Lista</button>
     <span class="re-sep"></span>
-    <button type="button" data-cmd="justifyLeft" title="Alinhar à esquerda">Esq.</button>
-    <button type="button" data-cmd="justifyCenter" title="Centralizar">Centro</button>
-    <button type="button" data-cmd="justifyRight" title="Alinhar à direita">Dir.</button>
-    <button type="button" data-cmd="justifyFull" title="Justificar">Just.</button>
+    <span class="re-rot">Alinhar texto:</span>
+    <button type="button" data-cmd="justifyLeft" title="Alinhar o texto à esquerda">Esq.</button>
+    <button type="button" data-cmd="justifyCenter" title="Centralizar o texto">Centro</button>
+    <button type="button" data-cmd="justifyRight" title="Alinhar o texto à direita">Dir.</button>
+    <button type="button" data-cmd="justifyFull" title="Justificar o texto">Just.</button>
     <span class="re-sep"></span>
     <button type="button" data-cmd="createLink" title="Transformar a seleção em link">Link</button>
     <select class="re-pag" title="Link para uma página do portal" aria-label="Link para página">
@@ -28,7 +29,7 @@
     </select>
     <button type="button" data-cmd="unlink" title="Remover o link">Sem link</button>
     <span class="re-sep"></span>
-    {% if imagem %}<button type="button" data-img title="Inserir imagem da biblioteca">Imagem</button><span class="re-sep"></span>{% endif %}
+    {% if imagem %}<button type="button" data-img title="Inserir imagem da biblioteca ou do computador">+ Imagem</button><span class="re-sep"></span>{% endif %}
     <label class="re-cor" title="Cor do texto">Cor <input type="color" class="re-cor-campo" value="#1e293b"></label>
     <select class="re-tam" title="Tamanho do texto" aria-label="Tamanho do texto">
       <option value="">Tamanho</option><option value="2">Pequeno</option><option value="3">Normal</option>

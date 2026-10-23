@@ -1330,7 +1330,7 @@ html[data-tema="escuro"] .com-img-link-fundo:hover .com-img-fundo{opacity:.2}
    Um quadro de 12 colunas com linhas de 1,5rem. Cada cartão diz onde começa e
    quanto ocupa (style inline em blocos.html); a grade faz o resto. */
 .tela-livre{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));
-  grid-auto-rows:1.5rem;--livre-gap:.5rem;column-gap:var(--livre-gap);row-gap:0;position:relative}
+  grid-auto-rows:1.5rem;--livre-gap:1.5rem;column-gap:var(--livre-gap);row-gap:0;position:relative}
 .tela-livre>.cartao{margin-bottom:var(--livre-gap);min-height:0;position:relative}
 .tela-livre>.cartao>.cartao-corpo{min-height:0;overflow-x:hidden;overflow-y:auto;scrollbar-width:none}
 .tela-livre>.cartao>.cartao-corpo::-webkit-scrollbar{display:none}
