@@ -1245,7 +1245,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.7'
+VERSAO = '1.9.12'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -1594,6 +1594,7 @@ def texto_para_html(texto):
 _TAGS_OK = {'p', 'br', 'strong', 'em', 'u', 's', 'ul', 'ol', 'li', 'h2', 'h3',
             'h4', 'blockquote', 'a', 'span', 'div'}
 _TAGS_COM_ESTILO = {'p', 'div', 'span', 'li', 'h2', 'h3', 'h4', 'blockquote'}
+_CLASSES_IMG = {'im-p', 'im-m', 'im-g', 'im-c', 'im-esq', 'im-dir', 'im-centro'}
 _SINONIMOS = {'b': 'strong', 'i': 'em', 'strike': 's', 'del': 's', 'h1': 'h2',
               'h5': 'h4', 'h6': 'h4', 'font': 'span'}
 _DESCARTA = {'script', 'style', 'iframe', 'object', 'embed', 'noscript',
@@ -1668,7 +1669,10 @@ class _LimpaHTML(HTMLParser):
                              attrs.get('src', '').strip())
             if m:
                 alt = escape(attrs.get('alt', '')[:300])
-                self.saida.append(f'<img src="/static/uploads/{m.group(1)}" alt="{alt}" loading="lazy">')
+                # Tamanho e posição escolhidos no editor; só valores conhecidos.
+                cls = ' '.join(c for c in attrs.get('class', '').split() if c in _CLASSES_IMG)
+                cls = f' class="{cls}"' if cls else ''
+                self.saida.append(f'<img src="/static/uploads/{m.group(1)}" alt="{alt}" loading="lazy"{cls}>')
             return
         if tag in _TAGS_OK:
             estilo = _estilo_limpo(attrs.get('style'))
@@ -2271,6 +2275,7 @@ def index():
         lateral_livre=lateral_livre,
         destinos_links=destinos_de_links() if session.get('admin') else [],
         dados_conteudo=modulos.cartoes.dados_edicao() if session.get('admin') else {},
+        cartoes_ocultos=modulos.cartoes.ocultos() if (session.get('admin') and livre) else [],
         sistemas=agrupar_por_categoria(sistemas_todos),
         sistemas_total=len(sistemas_todos),
         atalhos=con.execute("SELECT * FROM links WHERE ativo=1 AND grupo='atalho'"

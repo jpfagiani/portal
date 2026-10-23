@@ -128,8 +128,10 @@ def noticia(slug):
         if not session.get('admin'):
             abort(404)
         previa = True
+    admin = bool(session.get('admin'))
     return render_template('noticia.html', n=n, corpo=Markup(nucleo.limpa_html(n['corpo'])), previa=previa,
-                           situacao=situacao(n))
+                           situacao=situacao(n), estados_noticia=ESTADOS,
+                           destinos_links=nucleo.destinos_de_links() if admin else [])
 
 
 # ── administração ──────────────────────────────────────────────────────────────
@@ -223,3 +225,43 @@ def admin_noticias():
     return render_template('admin_noticias.html', itens=lista, editar=editar, nova=nova, filtro=filtro,
                            estados=ESTADOS, categorias=categorias(), biblioteca=midia.itens(limite=100), destinos_links=nucleo.destinos_de_links(),
                            campo_data=_para_campo, corpo_editar=Markup(nucleo.limpa_html(editar['corpo'])) if editar else '')
+
+
+@app.route('/admin/noticia-rapida', methods=['POST'])
+@nucleo.admin_obrigatorio
+def admin_noticia_rapida():
+    """Edição completa pela própria página da notícia, em uma janela só: título,
+    texto com imagens, capa e situação. Responde JSON."""
+    con = nucleo.db()
+    n = con.execute('SELECT * FROM noticias WHERE id=?', (nucleo._int(request.form.get('id')),)).fetchone()
+    if not n:
+        return jsonify(ok=False, erro='Notícia não encontrada.'), 404
+    titulo = request.form.get('titulo', '').strip()[:200]
+    if not titulo:
+        return jsonify(ok=False, erro='Informe o título.'), 400
+    capa = n['capa']
+    try:
+        arq = request.files.get('capa_arquivo')
+        if arq and arq.filename:
+            capa = midia._salva_imagem(arq)
+            midia.registrar_arquivo(capa, arq.filename, os.path.getsize(midia._caminho(capa)))
+        elif request.form.get('capa_biblioteca') and midia.registrada(request.form['capa_biblioteca']):
+            capa = request.form['capa_biblioteca']
+        elif request.form.get('remover_capa'):
+            capa = ''
+    except ValueError as e:
+        return jsonify(ok=False, erro=str(e)), 400
+    estado = request.form.get('estado') if request.form.get('estado') in ESTADOS else n['estado']
+    publicar_em = n['publicar_em']
+    if estado == 'publicado' and not publicar_em:
+        publicar_em = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    con.execute("UPDATE noticias SET titulo=?,subtitulo=?,resumo=?,corpo=?,capa=?,capa_alt=?,legenda=?,"
+                "categoria=?,estado=?,publicar_em=?,destaque=?,atualizado_em=datetime('now','localtime') WHERE id=?",
+                (titulo, request.form.get('subtitulo', '').strip()[:300],
+                 request.form.get('resumo', '').strip()[:600],
+                 nucleo.limpa_html(request.form.get('corpo', '')), capa,
+                 request.form.get('capa_alt', '').strip()[:300], request.form.get('legenda', '').strip()[:300],
+                 request.form.get('categoria', '').strip()[:60], estado, publicar_em,
+                 1 if request.form.get('destaque') else 0, n['id']))
+    con.commit()
+    return jsonify(ok=True)

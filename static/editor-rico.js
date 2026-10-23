@@ -57,7 +57,52 @@
       });
     }
 
+    /* ── imagem no texto: clique para mudar tamanho, posição, descrição ── */
+    var TAM = [['im-p', 'Pequena'], ['im-m', 'Média'], ['im-g', 'Grande'], ['im-c', 'Largura total']];
+    var POS = [['im-esq', 'Esquerda'], ['im-centro', 'Centro'], ['im-dir', 'Direita']];
+    var barra = document.createElement('div'); barra.className = 're-img-barra'; barra.hidden = true;
+    var atual = null;
+    function botao(txt, fn, cls) {
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = txt; if (cls) b.className = cls;
+      b.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      b.addEventListener('click', fn); barra.appendChild(b); return b;
+    }
+    function troca(grupo, cls) {
+      if (!atual) return;
+      grupo.forEach(function (g) { atual.classList.remove(g[0]); });
+      if (cls) atual.classList.add(cls);
+      marca();
+    }
+    function marca() {
+      barra.querySelectorAll('button[data-c]').forEach(function (b) {
+        b.classList.toggle('on', !!atual && atual.classList.contains(b.dataset.c));
+      });
+    }
+    TAM.forEach(function (t) { botao(t[1], function () { troca(TAM, atual && atual.classList.contains(t[0]) ? '' : t[0]); }).dataset.c = t[0]; });
+    barra.appendChild(document.createElement('span')).className = 're-sep';
+    POS.forEach(function (t) { botao(t[1], function () { troca(POS, atual && atual.classList.contains(t[0]) ? '' : t[0]); }).dataset.c = t[0]; });
+    barra.appendChild(document.createElement('span')).className = 're-sep';
+    botao('Descrição…', function () {
+      if (!atual) return;
+      var v = window.prompt('Texto alternativo (descreve a imagem para quem não a enxerga):', atual.getAttribute('alt') || '');
+      if (v !== null) atual.setAttribute('alt', v);
+    });
+    botao('Remover', function () { if (atual) { atual.remove(); desmarca(); } }, 'perigo');
+    area.parentNode.insertBefore(barra, area);
+    function desmarca() {
+      if (atual) atual.removeAttribute('data-sel');
+      atual = null; barra.hidden = true;
+    }
+    area.addEventListener('click', function (e) {
+      if (e.target.tagName === 'IMG') {
+        if (atual && atual !== e.target) atual.removeAttribute('data-sel');
+        atual = e.target; atual.setAttribute('data-sel', '1'); barra.hidden = false; marca();
+      } else desmarca();
+    });
+    document.addEventListener('mousedown', function (e) { if (atual && !raiz.contains(e.target)) desmarca(); });
+
     if (form) form.addEventListener('submit', function (e) {
+      if (atual) atual.removeAttribute('data-sel');
       oculto.value = area.innerHTML;
     });
   });
