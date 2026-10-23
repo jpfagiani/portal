@@ -66,7 +66,7 @@
         <div><label for="ne-alt">Texto alternativo da capa</label><input id="ne-alt" name="capa_alt" maxlength="300" value="{{ n.capa_alt }}"></div>
       </div>
 
-      <label>Texto e imagens <small>(clique numa imagem do texto para mudar tamanho e posição)</small></label>
+      <label>Texto e imagens <small>(arraste ou cole imagens no texto; clique numa imagem para mudar tamanho e posição)</small></label>
       {{ r.editor('corpo', corpo, destinos_links, csrf_token) }}
       <label class="check"><input type="checkbox" name="destaque" {{ 'checked' if n.destaque }}> Fixar no topo da lista de notícias</label>
       <p class="pe-erro" id="noticia-erro" role="alert"></p>

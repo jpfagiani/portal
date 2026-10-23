@@ -21,7 +21,7 @@
       <label for="n-resumo">Resumo <small>(aparece nas listas e nos cartões)</small></label>
       <textarea id="n-resumo" name="resumo" rows="2" maxlength="600">{{ editar.resumo if editar else '' }}</textarea>
 
-      <label>Texto</label>
+      <label>Texto e imagens <small>(use o botão Imagem, ou arraste e cole imagens no texto)</small></label>
       {{ r.editor('corpo', corpo_editar, destinos_links, csrf_token) }}
 
       <div class="pe-duas">

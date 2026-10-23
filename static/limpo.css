@@ -553,3 +553,5 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .pagina-noticia .noticia-corpo{font-size:1.08rem;line-height:1.7}
 .pagina-noticia .noticia-corpo p{margin:0 0 1rem}
 .pagina-noticia>.pagina-acoes{margin-top:1.6rem}
+.re-area.re-sobre{outline:3px dashed var(--azul);outline-offset:-3px;background:rgba(37,99,235,.05)}
+.re-aviso{margin:.3rem 0 0;font-size:.8rem;color:var(--texto-fraco)}
