@@ -103,7 +103,8 @@
 
     /* ── imagem no texto: clique para mudar tamanho, posição, descrição ── */
     var TAM = [['im-p', 'Pequena'], ['im-m', 'Média'], ['im-g', 'Grande'], ['im-c', 'Largura total']];
-    var POS = [['im-esq', 'Esquerda, texto ao lado'], ['im-centro', 'Centro'], ['im-dir', 'Direita, texto ao lado']];
+    var POS = [['im-esq', 'À esquerda, texto ao lado'], ['im-dir', 'À direita, texto ao lado'],
+               ['im-bloco', 'Sozinha à esquerda'], ['im-centro', 'Sozinha no centro'], ['im-bloco-dir', 'Sozinha à direita']];
     var barra = document.createElement('div'); barra.className = 're-img-barra'; barra.hidden = true;
     var atual = null;
     function botao(txt, fn, cls) {
@@ -115,7 +116,8 @@
       if (!atual) return;
       grupo.forEach(function (g) { atual.classList.remove(g[0]); });
       if (cls) atual.classList.add(cls);
-      marca();
+      if (grupo === TAM) { atual.style.removeProperty('width'); atual.removeAttribute('data-w'); if (!atual.getAttribute('style')) atual.removeAttribute('style'); }
+      marca(); posicionaAlca();
     }
     function marca() {
       barra.querySelectorAll('button[data-c]').forEach(function (b) {
@@ -126,9 +128,12 @@
     rotulo('Imagem — tamanho:');
     TAM.forEach(function (t) { botao(t[1], function () { troca(TAM, atual && atual.classList.contains(t[0]) ? '' : t[0]); }).dataset.c = t[0]; });
     barra.appendChild(document.createElement('span')).className = 're-sep';
-    rotulo('posição:');
+    rotulo('posição (texto ao lado, ou em cima e embaixo):');
     POS.forEach(function (t) { botao(t[1], function () { troca(POS, atual && atual.classList.contains(t[0]) ? '' : t[0]); }).dataset.c = t[0]; });
     barra.appendChild(document.createElement('span')).className = 're-sep';
+    barra.appendChild(document.createElement('span')).className = 're-sep';
+    botao('↑ Subir', function () { mover(-1); });
+    botao('↓ Descer', function () { mover(1); });
     botao('Descrição…', function () {
       if (!atual) return;
       var v = window.prompt('Texto alternativo (descreve a imagem para quem não a enxerga):', atual.getAttribute('alt') || '');
@@ -138,11 +143,53 @@
     area.parentNode.insertBefore(barra, area);
     function desmarca() {
       if (atual) atual.removeAttribute('data-sel');
-      atual = null; barra.hidden = true;
+      atual = null; barra.hidden = true; alca.hidden = true;
     }
+    /* Sobe ou desce a imagem um bloco do texto. */
+    function mover(d) {
+      if (!atual) return;
+      var bloco = atual; while (bloco.parentNode !== area) bloco = bloco.parentNode;
+      var so = bloco === atual || (bloco.children.length === 1 && !bloco.textContent.trim());
+      var vizinho = d < 0 ? bloco.previousElementSibling : bloco.nextElementSibling;
+      if (so) {
+        if (!vizinho) return;
+        if (d < 0) area.insertBefore(bloco, vizinho); else area.insertBefore(bloco, vizinho.nextSibling);
+      } else {
+        var p = document.createElement('p'); p.appendChild(atual);
+        if (d < 0) area.insertBefore(p, bloco); else area.insertBefore(p, bloco.nextSibling);
+      }
+      posicionaAlca(); atual.scrollIntoView({block: 'nearest'});
+    }
+    /* Alça no canto da imagem: arraste para esticar ou encolher (proporção mantida). */
+    var alca = document.createElement('div'); alca.className = 're-alca'; alca.hidden = true; alca.title = 'Arraste para mudar o tamanho';
+    var dica = document.createElement('span'); dica.className = 're-alca-dica'; alca.appendChild(dica);
+    raiz.style.position = 'relative'; raiz.appendChild(alca);
+    function posicionaAlca() {
+      if (!atual || !atual.isConnected) { alca.hidden = true; return; }
+      var a = atual.getBoundingClientRect(), r = raiz.getBoundingClientRect(), c = area.getBoundingClientRect();
+      var visivel = a.bottom > c.top + 4 && a.bottom < c.bottom + 4;
+      alca.hidden = !visivel;
+      alca.style.left = (a.right - r.left - 9) + 'px'; alca.style.top = (a.bottom - r.top - 9) + 'px';
+    }
+    area.addEventListener('scroll', posicionaAlca);
+    window.addEventListener('resize', posicionaAlca);
+    alca.addEventListener('pointerdown', function (e) {
+      if (!atual) return;
+      e.preventDefault(); alca.setPointerCapture(e.pointerId);
+      var x0 = e.clientX, w0 = atual.getBoundingClientRect().width;
+      var cs = getComputedStyle(area), larg = area.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      function move(ev) {
+        var pct = Math.max(10, Math.min(100, Math.round((w0 + ev.clientX - x0) / larg * 100)));
+        ['im-p', 'im-m', 'im-g', 'im-c'].forEach(function (c) { atual.classList.remove(c); });
+        atual.style.width = pct + '%'; atual.setAttribute('data-w', pct);
+        dica.textContent = pct + '%'; posicionaAlca(); marca();
+      }
+      function fim() { alca.removeEventListener('pointermove', move); alca.removeEventListener('pointerup', fim); alca.removeEventListener('pointercancel', fim); dica.textContent = ''; }
+      alca.addEventListener('pointermove', move); alca.addEventListener('pointerup', fim); alca.addEventListener('pointercancel', fim);
+    });
     function seleciona(img) {
       if (atual && atual !== img) atual.removeAttribute('data-sel');
-      atual = img; atual.setAttribute('data-sel', '1'); barra.hidden = false; marca();
+      atual = img; atual.setAttribute('data-sel', '1'); barra.hidden = false; marca(); posicionaAlca();
     }
     // Imagem nova entra em tamanho médio e já selecionada, com a barra à vista.
     window.__reSelecionaNova = null;

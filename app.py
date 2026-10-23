@@ -1108,6 +1108,7 @@ def init_db():
             # autor, datas, foto de capa com legenda e crédito, resumo
             # recolhível e "Leia também". Tudo opcional: página sem nenhum
             # destes campos continua saindo só com o título, como antes.
+            ('paginas_lateral', 'corpo',          "TEXT DEFAULT ''"),     # texto único da página (editor livre)
             ('paginas_lateral', 'chapeu',         "TEXT DEFAULT ''"),
             ('paginas_lateral', 'linha_fina',     "TEXT DEFAULT ''"),
             ('paginas_lateral', 'autor',          "TEXT DEFAULT ''"),
@@ -1245,7 +1246,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.14'
+VERSAO = '1.9.16'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -1594,7 +1595,7 @@ def texto_para_html(texto):
 _TAGS_OK = {'p', 'br', 'strong', 'em', 'u', 's', 'ul', 'ol', 'li', 'h2', 'h3',
             'h4', 'blockquote', 'a', 'span', 'div'}
 _TAGS_COM_ESTILO = {'p', 'div', 'span', 'li', 'h2', 'h3', 'h4', 'blockquote'}
-_CLASSES_IMG = {'im-p', 'im-m', 'im-g', 'im-c', 'im-esq', 'im-dir', 'im-centro'}
+_CLASSES_IMG = {'im-p', 'im-m', 'im-g', 'im-c', 'im-esq', 'im-dir', 'im-centro', 'im-bloco', 'im-bloco-dir'}
 _SINONIMOS = {'b': 'strong', 'i': 'em', 'strike': 's', 'del': 's', 'h1': 'h2',
               'h5': 'h4', 'h6': 'h4', 'font': 'span'}
 _DESCARTA = {'script', 'style', 'iframe', 'object', 'embed', 'noscript',
@@ -1672,7 +1673,11 @@ class _LimpaHTML(HTMLParser):
                 # Tamanho e posição escolhidos no editor; só valores conhecidos.
                 cls = ' '.join(c for c in attrs.get('class', '').split() if c in _CLASSES_IMG)
                 cls = f' class="{cls}"' if cls else ''
-                self.saida.append(f'<img src="/static/uploads/{m.group(1)}" alt="{alt}" loading="lazy"{cls}>')
+                # Largura arrastada no editor, em % (5 a 100); nada de outro CSS.
+                w = re.search(r'(\d{1,3})(?:\.\d+)?\s*%?', attrs.get('data-w', '')) or \
+                    re.search(r'width\s*:\s*(\d{1,3})(?:\.\d+)?%', attrs.get('style', ''))
+                estilo_w = f' style="width:{max(5, min(100, int(w.group(1))))}%"' if w else ''
+                self.saida.append(f'<img src="/static/uploads/{m.group(1)}" alt="{alt}" loading="lazy"{cls}{estilo_w}>')
             return
         if tag in _TAGS_OK:
             estilo = _estilo_limpo(attrs.get('style'))
@@ -1865,6 +1870,32 @@ def leia_tambem(limite=3):
     return saida
 
 
+def blocos_para_html(linhas):
+    """Blocos antigos da página (subtítulo, texto, imagem, botão) como um único
+    HTML, para abrir no editor livre sem perder o que já foi escrito."""
+    partes = []
+    for b in linhas:
+        if not b['ativo']:
+            continue
+        t = b['tipo']
+        if t == 'subtitulo' and (b['texto'] or '').strip():
+            partes.append(f"<h2>{escape(b['texto'].strip())}</h2>")
+        elif t == 'texto':
+            partes.append(limpa_html(b['texto']) if b['formato'] == 'html'
+                          else str(texto_para_html(b['texto'])))
+        elif t == 'imagem' and b['arquivo']:
+            cls = {'esq': 'im-bloco', 'dir': 'im-bloco-dir'}.get(b['alinh'], 'im-centro')
+            w = f' data-w="{int(b["larg"])}"' if (b['larg'] or 100) < 100 else ''
+            img = (f'<img src="/static/uploads/{escape(os.path.basename(b["arquivo"]))}" '
+                   f'alt="{escape(b["texto"] or "")}" class="{cls}"{w}>')
+            if b['url']:
+                img = f'<a href="{escape(b["url"])}">{img}</a>'
+            partes.append(f'<p>{img}</p>')
+        elif t == 'botao' and b['url']:
+            partes.append(f'<p><a href="{escape(b["url"])}">{escape(b["texto"] or b["url"])}</a></p>')
+    return limpa_html(''.join(partes))
+
+
 @app.route('/modulo/<chave>')
 def modulo(chave):
     row = db().execute('SELECT * FROM paginas_lateral WHERE chave=?', (chave,)).fetchone()
@@ -1891,8 +1922,11 @@ def modulo(chave):
                         'estilo': b['estilo'],
                         'imagem': url_for('static', filename='uploads/' + b['arquivo'])
                                   if b['arquivo'] else ''})
+    corpo = limpa_html(row['corpo'] or '') if (row['corpo'] or '').strip() else ''
     return render_template('modulo.html', chave=chave, nome=row['nome'],
-                           cab=cab, leia=leia,
+                           cab=cab, leia=leia, corpo=Markup(corpo),
+                           corpo_editar=Markup(corpo or (blocos_para_html(linhas) if admin else '')),
+                           cab_campos=row if admin else None,
                            blocos=agrupar_blocos(linhas), edicao=admin, blocos_cru=cru,
                            destinos=destinos_de_links() if admin else [],
                            larguras=LARGURAS_IMG, alinhamentos=ROTULO_ALINHA,
@@ -3847,6 +3881,45 @@ def admin_navegacao():
         flash('Navegação salva.', 'ok')
         return redirect(url_for('admin_navegacao'))
     return render_template('admin_navegacao.html')
+
+
+@app.route('/admin/pagina-rapida', methods=['POST'])
+@admin_obrigatorio
+def admin_pagina_rapida():
+    """Edição da página inteira em uma janela só (cabeçalho, capa e texto livre
+    com imagens), pela própria página. Responde JSON."""
+    con = db()
+    chave = request.form.get('chave', '')
+    item = con.execute('SELECT * FROM paginas_lateral WHERE chave=?', (chave,)).fetchone()
+    if not item:
+        return jsonify(ok=False, erro='Página não encontrada.'), 404
+
+    def campo(nome, limite):
+        return request.form.get(nome, '').strip()[:limite]
+    capa_atual = item['capa'] or ''
+    try:
+        capa = salva_upload('capa_arquivo', capa_atual)
+        biblio = os.path.basename(request.form.get('capa_biblioteca', '') or '')
+        if capa == capa_atual and biblio and modulos.midia.registrada(biblio):
+            capa = biblio
+    except ValueError as e:
+        return jsonify(ok=False, erro=str(e)), 400
+    if request.form.get('remover_capa'):
+        capa = ''
+    resumo = '\n'.join([l.strip()[:200] for l in request.form.get('resumo', '').splitlines()
+                        if l.strip()][:6])
+    con.execute('UPDATE paginas_lateral SET chapeu=?,linha_fina=?,autor=?,publicada_em=?,capa=?,'
+                'capa_legenda=?,capa_credito=?,resumo=?,mostrar_resumo=?,mostrar_leia=?,corpo=?'
+                ' WHERE chave=?',
+                (campo('chapeu', 40), campo('linha_fina', 220), campo('autor', 60),
+                 _dt_banco(request.form.get('publicada_em')), capa,
+                 campo('capa_legenda', 200), campo('capa_credito', 80), resumo,
+                 1 if request.form.get('mostrar_resumo') else 0,
+                 1 if request.form.get('mostrar_leia') else 0,
+                 limpa_html(request.form.get('corpo', '')), chave))
+    pagina_tocada(con, chave)
+    con.commit()
+    return jsonify(ok=True)
 
 
 TIPOS_BLOCO = {'subtitulo': 'Subtítulo', 'texto': 'Texto', 'imagem': 'Imagem',

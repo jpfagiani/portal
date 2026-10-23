@@ -11,7 +11,7 @@
   var arq = document.getElementById('ne-capa-arquivo');
   var rem = document.getElementById('ne-capa-remover');
 
-  function abre() { erro.textContent = ''; fundo.style.display = 'flex'; document.getElementById('ne-titulo').focus(); }
+  function abre() { erro.textContent = ''; fundo.style.display = 'flex'; (document.getElementById('ne-titulo') || form.querySelector('input:not([type=hidden]):not([type=file]):not([type=checkbox])')).focus(); }
   function fecha() { fundo.style.display = 'none'; }
   document.addEventListener('click', function (e) { if (e.target.closest('[data-editar-noticia]')) { e.preventDefault(); abre(); } });
   document.getElementById('noticia-cancelar').addEventListener('click', fecha);
@@ -29,7 +29,7 @@
       aoEscolher: function (i) {
         form.elements.capa_biblioteca.value = i.arquivo; arq.value = ''; rem.checked = false;
         prev.src = i.url; prev.hidden = false;
-        if (!form.elements.capa_alt.value && i.alt) form.elements.capa_alt.value = i.alt;
+        if (form.elements.capa_alt && !form.elements.capa_alt.value && i.alt) form.elements.capa_alt.value = i.alt;
       }
     });
   });
