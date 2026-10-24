@@ -579,3 +579,26 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 /* lista de itens de um cartão (Ver todos): coluna centralizada */
 .pagina>.cartao-lista{max-width:760px;margin-left:auto;margin-right:auto}
 .pagina>.ramais-voltar{max-width:760px;margin-left:auto;margin-right:auto}
+
+/* ── colunas no texto: cada coluna começa no topo, lado a lado ── */
+.pagina-texto .cols,.re-area .cols{display:grid;gap:1.2rem;align-items:start;margin:0 0 .9rem}
+.pagina-texto .cols.c2,.re-area .cols.c2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.pagina-texto .cols.c3,.re-area .cols.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pagina-texto .cols.c13,.re-area .cols.c13{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}
+.pagina-texto .cols.c31,.re-area .cols.c31{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+.pagina-texto .col,.re-area .col{min-width:0}
+.pagina-texto .col>:last-child,.re-area .col>:last-child{margin-bottom:0}
+.pagina-texto .col::after,.re-area .col::after{content:"";display:block;clear:both}
+@media (max-width:560px){.pagina-texto .cols,.re-area .cols{grid-template-columns:minmax(0,1fr)!important}}
+/* imagem solta no meio de uma linha: o texto ao lado começa no topo dela */
+.pagina-texto img:not(.im-esq):not(.im-dir):not(.im-centro):not(.im-bloco):not(.im-bloco-dir),
+.re-area img:not(.im-esq):not(.im-dir):not(.im-centro):not(.im-bloco):not(.im-bloco-dir){vertical-align:top}
+/* no editor, as colunas aparecem tracejadas para se ver onde escrever */
+.re-area .cols{outline:1px dashed var(--azul);outline-offset:4px;padding:.1rem}
+.re-area .col{min-height:3.4rem;outline:1px dashed var(--borda);outline-offset:2px;padding:.15rem .3rem}
+.re-area .col.re-col-alvo{outline:2px solid var(--azul);background:rgba(37,99,235,.07)}
+.re-area.re-arrastando,.re-area.re-arrastando *{cursor:grabbing!important;user-select:none}
+.re-area img{cursor:grab}
+.re-soltar{position:fixed;width:3px;background:var(--azul);border-radius:2px;pointer-events:none;z-index:50;box-shadow:0 0 0 1px #fff}
+.re-fantasma{position:fixed;pointer-events:none;opacity:.65;z-index:60;max-width:180px;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.re-img-barra select{font:inherit;font-size:.78rem}

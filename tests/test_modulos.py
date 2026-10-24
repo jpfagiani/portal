@@ -322,6 +322,11 @@ for rota in ('/', '/ramais', '/sistemas', '/noticias', '/admin', '/admin/noticia
              '/admin/historico', '/admin/noticias?nova=1'):
     ok(c.get(rota).status_code == 200, f'GET {rota} abre')
 
+# ── colunas no texto formatado ───────────────────────────────────────────────
+_h = portal.limpa_html('<div class="cols c2 evil" onclick="x()"><div class="col"><p>A</p></div><div class="col"><p><img class="im-m" src="/static/uploads/a.png"></p></div></div><div class="outra">z</div>')
+ok('<div class="cols c2"><div class="col"><p>A</p></div><div class="col">' in _h, 'colunas: estrutura e classes permitidas ficam')
+ok('evil' not in _h and 'onclick' not in _h and 'class="outra"' not in _h, 'colunas: classe e evento desconhecidos são descartados')
+
 shutil.rmtree(TMP, ignore_errors=True)
 print('\nFALHAS: %d' % len(falhas) if falhas else '\nTodos os testes passaram.')
 sys.exit(1 if falhas else 0)

@@ -202,6 +202,145 @@
     });
     document.addEventListener('mousedown', function (e) { if (atual && !raiz.contains(e.target)) desmarca(); });
 
+
+    /* ── colunas: cada uma começa no topo, texto e imagem em qualquer uma ── */
+    var LAYOUTS = {c2: 2, c3: 3, c13: 2, c31: 2};
+    function novaCol() { var c = document.createElement('div'); c.className = 'col'; c.innerHTML = '<p><br></p>'; return c; }
+    function colunasDoCursor() {
+      var s = window.getSelection(), n = (s.rangeCount && area.contains(s.anchorNode)) ? s.anchorNode : (salva && salva.startContainer);
+      if (!n) return null;
+      if (n.nodeType === 3) n = n.parentNode;
+      var c = n.closest ? n.closest('.cols') : null;
+      return c && area.contains(c) ? c : null;
+    }
+    function blocoTopo(n) {
+      if (!n) return null;
+      while (n && n.parentNode !== area) n = n.parentNode;
+      return n || null;
+    }
+    function ajustaColunas(box, layout) {
+      var n = LAYOUTS[layout], cols = [].filter.call(box.children, function (x) { return x.classList.contains('col'); });
+      while (cols.length < n) { var c = novaCol(); box.appendChild(c); cols.push(c); }
+      while (cols.length > n) {                       // sobrou coluna: o conteúdo vai para a última que fica
+        var extra = cols.pop(), alvo = cols[cols.length - 1];
+        while (extra.firstChild) alvo.appendChild(extra.firstChild);
+        extra.remove();
+      }
+      Object.keys(LAYOUTS).forEach(function (k) { box.classList.remove(k); });
+      box.classList.add(layout);
+    }
+    function colocaCursor(no) {
+      var r = document.createRange(); r.selectNodeContents(no); r.collapse(true);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); salva = r.cloneRange();
+    }
+    var selCol = raiz.querySelector('.re-col');
+    if (selCol) selCol.addEventListener('change', function () {
+      var layout = selCol.value; selCol.value = '';
+      if (!LAYOUTS[layout]) return;
+      area.focus();
+      var existente = colunasDoCursor();
+      if (existente) { ajustaColunas(existente, layout); return; }
+      var box = document.createElement('div'); box.className = 'cols';
+      ajustaColunas(box, layout);
+      var ref = blocoTopo(salva && area.contains(salva.startContainer) ? salva.startContainer : null);
+      if (ref) area.insertBefore(box, ref.nextSibling); else area.appendChild(box);
+      if (!box.nextSibling) { var p = document.createElement('p'); p.innerHTML = '<br>'; area.appendChild(p); }
+      colocaCursor(box.firstChild);
+      box.scrollIntoView({block: 'nearest'});
+    });
+    var fimCol = raiz.querySelector('.re-col-fim');
+    if (fimCol) {
+      fimCol.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      fimCol.addEventListener('click', function () {
+        area.focus();
+        var box = colunasDoCursor();
+        if (!box) { aviso.textContent = 'Clique dentro das colunas que quer desfazer.'; aviso.hidden = false; setTimeout(function () { aviso.hidden = true; }, 3000); return; }
+        [].slice.call(box.children).forEach(function (c) { while (c.firstChild) box.parentNode.insertBefore(c.firstChild, box); });
+        box.remove(); desmarca();
+      });
+    }
+
+    /* ── arrastar a imagem com o mouse para qualquer lugar do texto ── */
+    var arrasto = null, engoleClique = false;
+    function pontoNoTexto(x, y, img) {
+      var r = null;
+      if (document.caretRangeFromPoint) r = document.caretRangeFromPoint(x, y);
+      else if (document.caretPositionFromPoint) {
+        var cp = document.caretPositionFromPoint(x, y);
+        if (cp) { r = document.createRange(); r.setStart(cp.offsetNode, cp.offset); r.collapse(true); }
+      }
+      var el = document.elementFromPoint(x, y), col = el && el.closest ? el.closest('.col') : null;
+      if (col && !area.contains(col)) col = null;
+      // Dentro de uma coluna, a imagem sempre cai nessa coluna (mesmo no espaço vazio dela).
+      if (col && (!r || !col.contains(r.startContainer))) { r = document.createRange(); r.selectNodeContents(col); r.collapse(false); }
+      if (!r || !area.contains(r.startContainer) || img.contains(r.startContainer)) return null;
+      return {range: r, col: col};
+    }
+    function retanguloDe(r) {
+      var rs = r.getClientRects(), q = rs.length ? rs[0] : r.getBoundingClientRect();
+      if (q && (q.height || q.width)) return q;
+      var n = r.startContainer.nodeType === 3 ? r.startContainer.parentNode : r.startContainer;
+      return n.getBoundingClientRect();
+    }
+    area.addEventListener('dragstart', function (e) { if (e.target && e.target.tagName === 'IMG') e.preventDefault(); });
+    area.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0 || !e.target || e.target.tagName !== 'IMG') return;
+      arrasto = {img: e.target, x0: e.clientX, y0: e.clientY, ativo: false, ghost: null, linha: null, alvo: null};
+    });
+    document.addEventListener('pointermove', function (e) {
+      if (!arrasto) return;
+      var a = arrasto;
+      if (!a.ativo) {
+        if (Math.abs(e.clientX - a.x0) + Math.abs(e.clientY - a.y0) < 6) return;
+        a.ativo = true; seleciona(a.img); alca.hidden = true;
+        a.ghost = a.img.cloneNode(false); a.ghost.className = 're-fantasma'; a.ghost.removeAttribute('style');
+        a.ghost.style.width = Math.min(160, a.img.getBoundingClientRect().width) + 'px';
+        a.linha = document.createElement('div'); a.linha.className = 're-soltar'; a.linha.hidden = true;
+        document.body.appendChild(a.ghost); document.body.appendChild(a.linha);
+        area.classList.add('re-arrastando'); a.img.style.opacity = '.35';
+      }
+      a.ghost.style.left = (e.clientX + 12) + 'px'; a.ghost.style.top = (e.clientY + 12) + 'px';
+      // rolar a área quando o mouse chega perto da borda de cima ou de baixo
+      var c = area.getBoundingClientRect();
+      if (e.clientY < c.top + 28) area.scrollTop -= 14; else if (e.clientY > c.bottom - 28) area.scrollTop += 14;
+      area.querySelectorAll('.re-col-alvo').forEach(function (k) { k.classList.remove('re-col-alvo'); });
+      var dentro = e.clientX >= c.left && e.clientX <= c.right && e.clientY >= c.top && e.clientY <= c.bottom;
+      var p = dentro ? pontoNoTexto(e.clientX, e.clientY, a.img) : null;
+      a.alvo = p;
+      if (!p) { a.linha.hidden = true; return; }
+      if (p.col) p.col.classList.add('re-col-alvo');
+      var q = retanguloDe(p.range);
+      a.linha.hidden = false;
+      a.linha.style.left = q.left + 'px'; a.linha.style.top = q.top + 'px'; a.linha.style.height = Math.max(18, q.height) + 'px';
+    });
+    function terminaArrasto(e, cancela) {
+      var a = arrasto; arrasto = null;
+      if (!a || !a.ativo) return;
+      engoleClique = true; setTimeout(function () { engoleClique = false; }, 0);
+      a.ghost.remove(); a.linha.remove(); a.img.style.opacity = '';
+      if (!a.img.getAttribute('style')) a.img.removeAttribute('style');
+      area.classList.remove('re-arrastando');
+      area.querySelectorAll('.re-col-alvo').forEach(function (k) { k.classList.remove('re-col-alvo'); });
+      if (cancela || !a.alvo) { posicionaAlca(); return; }
+      var img = a.img, velho = img.parentNode, r = a.alvo.range;
+      r.insertNode(img);                                // move (o nó sai do lugar antigo sozinho)
+      // imagem solta direto na área ou na coluna ganha um parágrafo, para dar para escrever ao lado
+      if (img.parentNode === area || img.parentNode.classList.contains('col') || img.parentNode.classList.contains('cols')) {
+        var p = document.createElement('p'); img.parentNode.insertBefore(p, img); p.appendChild(img);
+      }
+      // limpa o parágrafo que ficou vazio e garante que a coluna esvaziada continue editável
+      if (velho && velho !== img.parentNode && velho.isConnected && velho !== area) {
+        var vazio = !velho.textContent.trim() && !velho.querySelector('img');
+        if (vazio && /^(P|H2|H3|H4|LI)$/.test(velho.tagName)) { var pai = velho.parentNode; velho.remove(); if (pai && pai.classList && pai.classList.contains('col') && !pai.children.length) pai.appendChild(novaCol().firstChild); }
+        else if (vazio && velho.classList && velho.classList.contains('col') && !velho.children.length) velho.appendChild(novaCol().firstChild);
+      }
+      seleciona(img); posicionaAlca();
+    }
+    document.addEventListener('pointerup', function (e) { terminaArrasto(e, false); arrasto = null; });
+    document.addEventListener('pointercancel', function (e) { terminaArrasto(e, true); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && arrasto && arrasto.ativo) terminaArrasto(e, true); });
+    area.addEventListener('click', function (e) { if (engoleClique) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+
     if (form) form.addEventListener('submit', function (e) {
       if (atual) atual.removeAttribute('data-sel');
       oculto.value = area.innerHTML;

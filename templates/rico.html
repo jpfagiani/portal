@@ -29,6 +29,15 @@
     </select>
     <button type="button" data-cmd="unlink" title="Remover o link">Sem link</button>
     <span class="re-sep"></span>
+    <select class="re-col" title="Dividir o texto em colunas (ou mudar as colunas onde o cursor está)" aria-label="Colunas">
+      <option value="">▥ Colunas…</option>
+      <option value="c2">2 colunas iguais</option>
+      <option value="c3">3 colunas iguais</option>
+      <option value="c13">2 colunas: estreita + larga</option>
+      <option value="c31">2 colunas: larga + estreita</option>
+    </select>
+    <button type="button" class="re-col-fim" title="Desfaz as colunas onde o cursor está, mantendo o conteúdo">Sem colunas</button>
+    <span class="re-sep"></span>
     {% if imagem %}<button type="button" data-img title="Inserir imagem da biblioteca ou do computador">+ Imagem</button><span class="re-sep"></span>{% endif %}
     <label class="re-cor" title="Cor do texto">Cor <input type="color" class="re-cor-campo" value="#1e293b"></label>
     <select class="re-tam" title="Tamanho do texto" aria-label="Tamanho do texto">
