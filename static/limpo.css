@@ -564,8 +564,12 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 
 .pagina-texto img.im-bloco,.re-area img.im-bloco{display:block;float:none;margin:.6rem auto .6rem 0}
 .pagina-texto img.im-bloco-dir,.re-area img.im-bloco-dir{display:block;float:none;margin:.6rem 0 .6rem auto}
-.re-alca{position:absolute;width:18px;height:18px;border-radius:50%;background:var(--azul);border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.4);cursor:nwse-resize;z-index:5;touch-action:none}
-.re-alca-dica{position:absolute;left:22px;top:-4px;background:var(--azul);color:#fff;font-size:.7rem;font-weight:700;border-radius:6px;padding:.05rem .4rem;white-space:nowrap}
+.re-alcas{position:absolute;pointer-events:none;z-index:5;outline:2px solid var(--azul);outline-offset:0}
+.re-alca{position:absolute;width:13px;height:13px;background:#fff;border:2px solid var(--azul);border-radius:3px;box-shadow:0 1px 4px rgba(0,0,0,.35);pointer-events:auto;touch-action:none;box-sizing:border-box}
+.re-alca-nw{left:-7px;top:-7px;cursor:nwse-resize}.re-alca-se{right:-7px;bottom:-7px;cursor:nwse-resize}
+.re-alca-ne{right:-7px;top:-7px;cursor:nesw-resize}.re-alca-sw{left:-7px;bottom:-7px;cursor:nesw-resize}
+.re-alca:hover{background:var(--azul)}
+.re-alca-dica{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--azul);color:#fff;font-size:.8rem;font-weight:700;border-radius:6px;padding:.1rem .5rem;white-space:nowrap}
 .re-alca-dica:empty{display:none}
 @media (max-width:560px){.pagina-texto img.im-esq,.pagina-texto img.im-dir{width:100%!important}}
 

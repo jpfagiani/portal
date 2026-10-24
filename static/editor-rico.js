@@ -176,33 +176,60 @@
       }
       posicionaAlca(); atual.scrollIntoView({block: 'nearest'});
     }
-    /* Alça no canto da imagem: arraste para esticar ou encolher (proporção mantida). */
-    var alca = document.createElement('div'); alca.className = 're-alca'; alca.hidden = true; alca.title = 'Arraste para mudar o tamanho';
+    /* Alças nos quatro cantos da imagem: arraste para esticar ou encolher (proporção mantida).
+       O texto abaixo acompanha a largura enquanto se arrasta. */
+    var alca = document.createElement('div'); alca.className = 're-alcas'; alca.hidden = true;
     var dica = document.createElement('span'); dica.className = 're-alca-dica'; alca.appendChild(dica);
+    ['nw', 'ne', 'sw', 'se'].forEach(function (d) {
+      var h = document.createElement('div'); h.className = 're-alca re-alca-' + d; h.dataset.d = d; h.title = 'Arraste para mudar o tamanho da imagem';
+      h.addEventListener('pointerdown', arrastaAlca); alca.appendChild(h);
+    });
     raiz.style.position = 'relative'; raiz.appendChild(alca);
     function posicionaAlca() {
       if (!atual || !atual.isConnected) { alca.hidden = true; return; }
       var a = atual.getBoundingClientRect(), r = raiz.getBoundingClientRect(), c = area.getBoundingClientRect();
-      var visivel = a.bottom > c.top + 4 && a.bottom < c.bottom + 4;
-      alca.hidden = !visivel;
-      alca.style.left = (a.right - r.left - 9) + 'px'; alca.style.top = (a.bottom - r.top - 9) + 'px';
+      alca.hidden = !(a.bottom > c.top + 4 && a.top < c.bottom - 4);
+      alca.style.left = (a.left - r.left) + 'px'; alca.style.top = (a.top - r.top) + 'px';
+      alca.style.width = a.width + 'px'; alca.style.height = a.height + 'px';
     }
     area.addEventListener('scroll', posicionaAlca);
     window.addEventListener('resize', posicionaAlca);
-    alca.addEventListener('pointerdown', function (e) {
+    function arrastaAlca(e) {
       if (!atual) return;
-      e.preventDefault(); alca.setPointerCapture(e.pointerId);
-      var x0 = e.clientX, w0 = atual.getBoundingClientRect().width;
+      var h = e.currentTarget; e.preventDefault(); h.setPointerCapture(e.pointerId);
+      var sx = h.dataset.d.charAt(1) === 'e' ? 1 : -1, sy = h.dataset.d.charAt(0) === 's' ? 1 : -1;
+      var x0 = e.clientX, y0 = e.clientY, a0 = atual.getBoundingClientRect(), w0 = a0.width, prop = a0.width / Math.max(1, a0.height);
+      var c0 = area.getBoundingClientRect();
+      var centrada = Math.abs((a0.left + a0.right) / 2 - (c0.left + c0.right) / 2) < 8;   // imagem centralizada cresce para os dois lados
       var cs = getComputedStyle(area), limite = area.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
       function move(ev) {
-        var px = Math.max(24, Math.min(Math.round(limite), Math.round(w0 + ev.clientX - x0)));
+        var dx = sx * (ev.clientX - x0), dy = sy * (ev.clientY - y0) * prop;
+        var d = Math.abs(dy) > Math.abs(dx) ? dy : dx;
+        var px = Math.max(24, Math.min(Math.round(limite), Math.round(w0 + d * (centrada ? 2 : 1))));
         ['im-p', 'im-m', 'im-g', 'im-c'].forEach(function (c) { atual.classList.remove(c); });
         atual.style.width = px + 'px'; atual.removeAttribute('data-w');
         dica.textContent = Math.round(atual.getBoundingClientRect().width) + ' px'; posicionaAlca(); marca();
       }
-      function fim() { alca.removeEventListener('pointermove', move); alca.removeEventListener('pointerup', fim); alca.removeEventListener('pointercancel', fim); dica.textContent = ''; }
-      alca.addEventListener('pointermove', move); alca.addEventListener('pointerup', fim); alca.addEventListener('pointercancel', fim);
-    });
+      function fim() { h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', fim); h.removeEventListener('pointercancel', fim); dica.textContent = ''; }
+      h.addEventListener('pointermove', move); h.addEventListener('pointerup', fim); h.addEventListener('pointercancel', fim);
+    }
+
+    /* O texto acompanha a largura da imagem também aqui no editor (a mesma regra da página publicada). */
+    var realinhando = false;
+    function realinha() {
+      if (realinhando || !window.AlinhaTexto) return;
+      realinhando = true;
+      requestAnimationFrame(function () { realinhando = false; window.AlinhaTexto.corpo(area); posicionaAlca(); });
+    }
+    new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) {
+        var m = muts[i];
+        if (m.type === 'childList' || (m.target && m.target.tagName === 'IMG')) { realinha(); return; }
+      }
+    }).observe(area, {childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style']});
+    area.addEventListener('load', realinha, true);
+    window.addEventListener('load', realinha);
+    window.addEventListener('resize', realinha);
     function seleciona(img) {
       if (atual && atual !== img) atual.removeAttribute('data-sel');
       atual = img; atual.setAttribute('data-sel', '1'); barra.hidden = false; marca(); posicionaAlca();
@@ -390,7 +417,9 @@
 
     if (form) form.addEventListener('submit', function (e) {
       if (atual) atual.removeAttribute('data-sel');
+      if (window.AlinhaTexto) window.AlinhaTexto.limpa(area);
       oculto.value = area.innerHTML;
+      setTimeout(realinha, 0);
     });
   });
 })();
