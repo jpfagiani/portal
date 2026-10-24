@@ -327,6 +327,12 @@ _h = portal.limpa_html('<div class="cols c2 evil" onclick="x()"><div class="col"
 ok('<div class="cols c2"><div class="col"><p>A</p></div><div class="col">' in _h, 'colunas: estrutura e classes permitidas ficam')
 ok('evil' not in _h and 'onclick' not in _h and 'class="outra"' not in _h, 'colunas: classe e evento desconhecidos são descartados')
 
+# ── letra e imagem em pixels ─────────────────────────────────────────────────
+_h = portal.limpa_html('<p><span style="font-size:20px;background-color:#fde047">a</span><span style="font-size:3px">b</span></p><p><img src="/static/uploads/a.png" style="width:320px;position:fixed"><img src="/static/uploads/b.png" style="width:99999px"></p>')
+ok('font-size:1.25rem' in _h and 'background-color:#fde047' in _h, 'letra em px e cor de destaque são mantidas')
+ok('font-size:0.1' not in _h and _h.count('font-size') == 1, 'tamanho de letra fora do limite é descartado')
+ok('style="width:320px"' in _h and 'position' not in _h and 'width:1600px' in _h, 'imagem em px mantida, limitada e sem outro CSS')
+
 shutil.rmtree(TMP, ignore_errors=True)
 print('\nFALHAS: %d' % len(falhas) if falhas else '\nTodos os testes passaram.')
 sys.exit(1 if falhas else 0)

@@ -1636,7 +1636,7 @@ def _estilo_limpo(css):
             if m:
                 n, un = float(m.group(1)), m.group(2)
                 rem = {'rem': n, 'em': n, 'px': n / 16, '%': n / 100}[un]
-            if rem is not None and .6 <= rem <= 4:
+            if rem is not None and .5 <= rem <= 6:
                 saida.append(f'font-size:{round(rem, 3)}rem')
         elif prop == 'text-align' and valor in ('left', 'center', 'right', 'justify'):
             saida.append(f'text-align:{valor}')
@@ -1679,6 +1679,10 @@ class _LimpaHTML(HTMLParser):
                 w = re.search(r'(\d{1,3})(?:\.\d+)?\s*%?', attrs.get('data-w', '')) or \
                     re.search(r'width\s*:\s*(\d{1,3})(?:\.\d+)?%', attrs.get('style', ''))
                 estilo_w = f' style="width:{max(5, min(100, int(w.group(1))))}%"' if w else ''
+                # Largura em pixels, digitada ou arrastada no editor (24 a 1600).
+                px = re.search(r'width\s*:\s*(\d{2,6})(?:\.\d+)?px', attrs.get('style', ''))
+                if px and not attrs.get('data-w'):
+                    estilo_w = f' style="width:{max(24, min(1600, int(px.group(1))))}px"'
                 self.saida.append(f'<img src="/static/uploads/{m.group(1)}" alt="{alt}" loading="lazy"{cls}{estilo_w}>')
             return
         if tag in _TAGS_OK:

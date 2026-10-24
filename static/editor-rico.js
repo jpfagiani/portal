@@ -122,6 +122,7 @@
       marca(); posicionaAlca();
     }
     function marca() {
+      if (typeof larg !== 'undefined' && larg !== document.activeElement) larg.value = atual ? Math.round(atual.getBoundingClientRect().width) : '';
       barra.querySelectorAll('button[data-c]').forEach(function (b) {
         b.classList.toggle('on', !!atual && atual.classList.contains(b.dataset.c));
       });
@@ -133,6 +134,19 @@
     rotulo('posição (texto ao lado, ou em cima e embaixo):');
     POS.forEach(function (t) { botao(t[1], function () { troca(POS, atual && atual.classList.contains(t[0]) ? '' : t[0]); }).dataset.c = t[0]; });
     barra.appendChild(document.createElement('span')).className = 're-sep';
+    rotulo('largura:');
+    var larg = document.createElement('input'); larg.type = 'number'; larg.min = 24; larg.max = 2000; larg.step = 10; larg.className = 're-larg';
+    larg.title = 'Largura da imagem em pixels'; larg.setAttribute('aria-label', 'Largura da imagem em pixels');
+    barra.appendChild(larg); rotulo('px');
+    larg.addEventListener('change', function () {
+      var v = parseInt(larg.value, 10);
+      if (!atual || isNaN(v)) return;
+      v = Math.max(24, Math.min(2000, v));
+      TAM.forEach(function (g) { atual.classList.remove(g[0]); });
+      atual.style.width = v + 'px'; atual.removeAttribute('data-w');
+      marca(); posicionaAlca();
+    });
+    larg.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); larg.dispatchEvent(new Event('change')); } });
     barra.appendChild(document.createElement('span')).className = 're-sep';
     botao('↑ Subir', function () { mover(-1); });
     botao('↓ Descer', function () { mover(1); });
@@ -179,12 +193,12 @@
       if (!atual) return;
       e.preventDefault(); alca.setPointerCapture(e.pointerId);
       var x0 = e.clientX, w0 = atual.getBoundingClientRect().width;
-      var cs = getComputedStyle(area), larg = area.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      var cs = getComputedStyle(area), limite = area.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
       function move(ev) {
-        var pct = Math.max(10, Math.min(100, Math.round((w0 + ev.clientX - x0) / larg * 100)));
+        var px = Math.max(24, Math.min(Math.round(limite), Math.round(w0 + ev.clientX - x0)));
         ['im-p', 'im-m', 'im-g', 'im-c'].forEach(function (c) { atual.classList.remove(c); });
-        atual.style.width = pct + '%'; atual.setAttribute('data-w', pct);
-        dica.textContent = pct + '%'; posicionaAlca(); marca();
+        atual.style.width = px + 'px'; atual.removeAttribute('data-w');
+        dica.textContent = Math.round(atual.getBoundingClientRect().width) + ' px'; posicionaAlca(); marca();
       }
       function fim() { alca.removeEventListener('pointermove', move); alca.removeEventListener('pointerup', fim); alca.removeEventListener('pointercancel', fim); dica.textContent = ''; }
       alca.addEventListener('pointermove', move); alca.addEventListener('pointerup', fim); alca.addEventListener('pointercancel', fim);
