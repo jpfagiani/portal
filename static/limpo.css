@@ -602,3 +602,25 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .re-soltar{position:fixed;width:3px;background:var(--azul);border-radius:2px;pointer-events:none;z-index:50;box-shadow:0 0 0 1px #fff}
 .re-fantasma{position:fixed;pointer-events:none;opacity:.65;z-index:60;max-width:180px;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 .re-img-barra select{font:inherit;font-size:.78rem}
+
+.pagina-texto .cols.c23,.re-area .cols.c23{grid-template-columns:minmax(0,2fr) minmax(0,3fr)}
+/* manchete no estilo de portal de notícias: foto à esquerda, título grande ao lado */
+.pagina-texto .cols.c23 .col h2,.re-area .cols.c23 .col h2{font-size:1.9rem;line-height:1.12;font-weight:800;letter-spacing:-.015em;margin:0 0 .5rem}
+.pagina-texto .cols.c23 .col img,.re-area .cols.c23 .col img{border-radius:10px;display:block;margin:0}
+.pagina-texto .cols.c23+ul,.re-area .cols.c23+ul{list-style:square;margin-top:.4rem}
+.pagina-texto .cols.c23+ul li::marker,.re-area .cols.c23+ul li::marker{color:#c1121f}
+.pagina-texto .cols.c23+ul li,.re-area .cols.c23+ul li{margin-bottom:.55rem}
+
+/* ── página da notícia no estilo de portal: título grande, assinatura, capa, resumo ── */
+.pagina-noticia>.migalha,.pagina-noticia>.pe-dica,.pagina-noticia>.noticia,.pagina-noticia>.pagina-acoes,.pagina-noticia>.mt-leia{max-width:800px}
+.pagina-noticia .noticia .mat-cab,.pagina-noticia .noticia .mat-capa,.pagina-noticia .noticia .mat-resumo{max-width:none}
+.pagina-noticia .mat-cab{gap:.7rem}
+.pagina-noticia .mat-chapeu{font-size:.9rem;letter-spacing:.02em}
+.pagina-noticia .mat-cab .pagina-titulo{font-size:clamp(1.9rem,4.6vw,2.9rem);line-height:1.1;font-weight:800;letter-spacing:-.025em}
+.pagina-noticia .mat-fina{font-size:1.2rem}
+.pagina-noticia .mat-capa img{max-height:none;aspect-ratio:16/9;border-radius:10px}
+.pagina-noticia .mat-resumo{background:var(--cartao-suave);border-color:var(--borda)}
+/* frase ou link em destaque dentro do texto (botão "Destaque" do editor) */
+.pagina-texto blockquote{margin:1.2rem 0;padding:.1rem 0 .1rem 1rem;border-left:3px solid var(--azul);
+  color:var(--texto);font-weight:600;line-height:1.5}
+.pagina-texto blockquote a{text-decoration-thickness:2px}

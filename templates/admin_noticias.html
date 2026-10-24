@@ -18,7 +18,9 @@
       <input id="n-titulo" name="titulo" required maxlength="200" value="{{ editar.titulo if editar else '' }}">
       <label for="n-sub">Subtítulo</label>
       <input id="n-sub" name="subtitulo" maxlength="300" value="{{ editar.subtitulo if editar else '' }}">
-      <label for="n-resumo">Resumo <small>(aparece nas listas e nos cartões)</small></label>
+      <label for="n-autor">Autor ou setor <small>(aparece na assinatura; vazio = quem criou)</small></label>
+      <input id="n-autor" name="autor" maxlength="60" value="{{ editar.autor if editar else '' }}" placeholder="ex.: Seção de Pessoal">
+      <label for="n-resumo">Resumo <small>(aparece nas listas e nos cartões; cada linha vira um item do quadro "Resumo" da notícia)</small></label>
       <textarea id="n-resumo" name="resumo" rows="2" maxlength="600">{{ editar.resumo if editar else '' }}</textarea>
 
       <label>Texto e imagens <small>(use o botão Imagem, ou arraste e cole imagens no texto)</small></label>

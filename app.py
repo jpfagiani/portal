@@ -1597,7 +1597,7 @@ _TAGS_OK = {'p', 'br', 'strong', 'em', 'u', 's', 'ul', 'ol', 'li', 'h2', 'h3',
 _TAGS_COM_ESTILO = {'p', 'div', 'span', 'li', 'h2', 'h3', 'h4', 'blockquote'}
 _CLASSES_IMG = {'im-p', 'im-m', 'im-g', 'im-c', 'im-esq', 'im-dir', 'im-centro', 'im-bloco', 'im-bloco-dir'}
 # Colunas do texto: um <div class="cols c2"> com <div class="col"> dentro.
-_CLASSES_DIV = {'cols', 'c2', 'c3', 'c13', 'c31', 'col'}
+_CLASSES_DIV = {'cols', 'c2', 'c3', 'c13', 'c23', 'c31', 'col'}
 _SINONIMOS = {'b': 'strong', 'i': 'em', 'strike': 's', 'del': 's', 'h1': 'h2',
               'h5': 'h4', 'h6': 'h4', 'font': 'span'}
 _DESCARTA = {'script', 'style', 'iframe', 'object', 'embed', 'noscript',

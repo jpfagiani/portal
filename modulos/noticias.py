@@ -115,6 +115,28 @@ def noticias():
                            pg=pagina, paginas=max(1, -(-total // POR_PAGINA)))
 
 
+def _cabecalho(n):
+    """Cabeçalho de matéria (mesma peça das páginas de conteúdo): trilha da
+    categoria, título, linha fina, autoria, datas, capa e resumo recolhível."""
+    publicada = nucleo._dt_exibe(n['publicar_em'])
+    atualizada = nucleo._dt_exibe(n['atualizado_em'])
+    # "Atualizada em" só aparece quando houve edição depois da publicação.
+    if (n['atualizado_em'] or '')[:16] <= (n['publicar_em'] or '')[:16]:
+        atualizada = ''
+    capa = os.path.basename(n['capa'] or '')
+    if capa and not os.path.isfile(os.path.join(nucleo.UPLOAD_DIR, capa)):
+        capa = ''
+    return {
+        'chapeu': n['categoria'], 'linha_fina': n['subtitulo'], 'autor': (n['autor'] or '').strip(),
+        'publicada': publicada, 'atualizada': atualizada,
+        'capa': capa, 'capa_url': url_for('static', filename='uploads/' + capa) if capa else '',
+        'capa_alt': (n['capa_alt'] or midia.alt_de(capa, n['legenda'])) if capa else '',
+        'legenda': n['legenda'], 'credito': '',
+        'resumo': [l.strip()[:300] for l in (n['resumo'] or '').splitlines() if l.strip()][:6],
+        'resumo_fechado': True,
+    }
+
+
 @app.route('/noticias/<slug>')
 def noticia(slug):
     con = nucleo.db()
@@ -129,7 +151,7 @@ def noticia(slug):
             abort(404)
         previa = True
     admin = bool(session.get('admin'))
-    return render_template('noticia.html', n=n, corpo=Markup(nucleo.limpa_html(n['corpo'])), previa=previa,
+    return render_template('noticia.html', n=n, cab=_cabecalho(n), corpo=Markup(nucleo.limpa_html(n['corpo'])), previa=previa,
                            situacao=situacao(n), estados_noticia=ESTADOS,
                            destinos_links=nucleo.destinos_de_links() if admin else [])
 
@@ -201,17 +223,18 @@ def admin_noticias():
                  request.form.get('capa_alt', '').strip()[:300], request.form.get('legenda', '').strip()[:300],
                  request.form.get('categoria', '').strip()[:60], estado, publicar_em,
                  1 if request.form.get('destaque') else 0, destino,
-                 request.form.get('meta', '').strip()[:300])
+                 request.form.get('meta', '').strip()[:300],
+                 request.form.get('autor', '').strip()[:60])
         if atual:
             con.execute("UPDATE noticias SET slug=?,titulo=?,subtitulo=?,resumo=?,corpo=?,capa=?,capa_alt=?,"
-                        "legenda=?,categoria=?,estado=?,publicar_em=?,destaque=?,destino_url=?,meta=?,"
+                        "legenda=?,categoria=?,estado=?,publicar_em=?,destaque=?,destino_url=?,meta=?,autor=?,"
                         "atualizado_em=datetime('now','localtime') WHERE id=?", dados + (ident,))
             novo_id = ident
         else:
             novo_id = con.execute(
                 "INSERT INTO noticias (slug,titulo,subtitulo,resumo,corpo,capa,capa_alt,legenda,categoria,"
                 "estado,publicar_em,destaque,destino_url,meta,autor) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                dados + (session.get('nome') or session.get('user', ''),)).lastrowid
+                dados[:-1] + (dados[-1] or session.get('nome') or session.get('user', ''),)).lastrowid
         con.commit()
         flash('Publicada.' if acao == 'publicar' else 'Notícia salva.', 'ok')
         return redirect(url_for('admin_noticias', editar=novo_id))
@@ -256,12 +279,13 @@ def admin_noticia_rapida():
     if estado == 'publicado' and not publicar_em:
         publicar_em = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     con.execute("UPDATE noticias SET titulo=?,subtitulo=?,resumo=?,corpo=?,capa=?,capa_alt=?,legenda=?,"
-                "categoria=?,estado=?,publicar_em=?,destaque=?,atualizado_em=datetime('now','localtime') WHERE id=?",
+                "categoria=?,estado=?,publicar_em=?,destaque=?,autor=?,atualizado_em=datetime('now','localtime') WHERE id=?",
                 (titulo, request.form.get('subtitulo', '').strip()[:300],
                  request.form.get('resumo', '').strip()[:600],
                  nucleo.limpa_html(request.form.get('corpo', '')), capa,
                  request.form.get('capa_alt', '').strip()[:300], request.form.get('legenda', '').strip()[:300],
                  request.form.get('categoria', '').strip()[:60], estado, publicar_em,
-                 1 if request.form.get('destaque') else 0, n['id']))
+                 1 if request.form.get('destaque') else 0,
+                 request.form.get('autor', '').strip()[:60], n['id']))
     con.commit()
     return jsonify(ok=True)

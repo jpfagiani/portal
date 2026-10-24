@@ -1,5 +1,6 @@
 {% extends 'shell.html' %}
 {% import 'rico.html' as r with context %}
+{% import 'pagina_blocos.html' as pb with context %}
 {% set pagina = 'noticias' %}
 {% block titulo %}{{ n.titulo }}{% endblock %}
 {% block meta %}{% if n.meta or n.resumo %}<meta name="description" content="{{ n.meta or n.resumo }}">{% endif %}{% endblock %}
@@ -11,18 +12,7 @@
     {% if eh_admin %}<a href="{{ url_for('admin_noticias', editar=n.id) }}">Voltar à edição</a>{% endif %}</span></div>
   {% endif %}
   <article class="noticia">
-    <header>
-      {% if n.categoria %}<span class="noticia-cat">{{ n.categoria }}</span>{% endif %}
-      <h1 class="pagina-titulo">{{ n.titulo }}</h1>
-      {% if n.subtitulo %}<p class="noticia-sub">{{ n.subtitulo }}</p>{% endif %}
-      <p class="noticia-meta">{% if n.publicar_em %}{{ n.publicar_em|data_br }}{% endif %}</p>
-    </header>
-    {% if n.capa %}
-    <figure class="noticia-capa">
-      <img src="{{ url_for('static', filename='uploads/' ~ n.capa) }}" alt="{{ n.capa_alt or midia_alt(n.capa, '') }}">
-      {% if n.legenda %}<figcaption>{{ n.legenda }}</figcaption>{% endif %}
-    </figure>
-    {% endif %}
+    {{ pb.topo(cab, n.titulo) }}
     <div class="pagina-texto noticia-corpo">{{ corpo }}</div>
   </article>
   <div class="acoes pagina-acoes">
@@ -48,7 +38,9 @@
         <div><label for="ne-estado">Situação</label>
           <select id="ne-estado" name="estado">{% for k, v in estados_noticia.items() %}<option value="{{ k }}" {{ 'selected' if n.estado == k }}>{{ v }}</option>{% endfor %}</select></div>
       </div>
-      <label for="ne-resumo">Resumo <small>(aparece nas listas)</small></label>
+      <label for="ne-autor">Autor ou setor <small>(aparece na assinatura da notícia)</small></label>
+      <input id="ne-autor" name="autor" maxlength="60" value="{{ n.autor }}" placeholder="ex.: Seção de Pessoal">
+      <label for="ne-resumo">Resumo <small>(aparece nas listas; cada linha vira um item do quadro "Resumo" da notícia)</small></label>
       <textarea id="ne-resumo" name="resumo" rows="2" maxlength="600">{{ n.resumo }}</textarea>
 
       <label>Imagem de capa</label>

@@ -12,6 +12,8 @@
     try { document.execCommand('defaultParagraphSeparator', false, 'p'); document.execCommand('styleWithCSS', false, false); } catch (e) {}
 
     var salva = null;
+    /* Imagem inserida dentro de uma coluna ocupa a coluna toda; no texto corrido, metade da largura. */
+    function classeNova() { var n = salva && salva.startContainer; if (n && n.nodeType === 3) n = n.parentNode; return n && n.closest && n.closest('.cols') ? 'im-c' : 'im-m'; }
     document.addEventListener('selectionchange', function () {
       var s = window.getSelection();
       if (s.rangeCount && area.contains(s.anchorNode)) salva = s.getRangeAt(0).cloneRange();
@@ -50,7 +52,7 @@
             area.focus();
             if (salva) { var s = window.getSelection(); s.removeAllRanges(); s.addRange(salva); }
             var alt = window.prompt('Texto alternativo da imagem (descreve a imagem para quem não a enxerga):', i.alt || '') || '';
-            var h = '<img class="im-m" src="' + i.url + '" alt="' + alt.replace(/"/g, '&quot;') + '">';
+            var h = '<img class="' + classeNova() + '" src="' + i.url + '" alt="' + alt.replace(/"/g, '&quot;') + '">';
             document.execCommand('insertHTML', false, h);
             depoisDeInserir(i.url);
           }
@@ -76,7 +78,7 @@
             if (r && area.contains(r.startContainer)) { s.removeAllRanges(); s.addRange(r); }
           } else if (salva) { s.removeAllRanges(); s.addRange(salva); }
           var alt = (d.item.nome || '').replace(/\.[^.]+$/, '').replace(/[<>"&]/g, '');
-          document.execCommand('insertHTML', false, '<img class="im-m" src="' + d.item.url + '" alt="' + alt + '">');
+          document.execCommand('insertHTML', false, '<img class="' + classeNova() + '" src="' + d.item.url + '" alt="' + alt + '">');
           aviso.hidden = true;
           depoisDeInserir(d.item.url);
         })
@@ -204,7 +206,7 @@
 
 
     /* ── colunas: cada uma começa no topo, texto e imagem em qualquer uma ── */
-    var LAYOUTS = {c2: 2, c3: 3, c13: 2, c31: 2};
+    var LAYOUTS = {c2: 2, c3: 3, c13: 2, c23: 2, c31: 2};
     function novaCol() { var c = document.createElement('div'); c.className = 'col'; c.innerHTML = '<p><br></p>'; return c; }
     function colunasDoCursor() {
       var s = window.getSelection(), n = (s.rangeCount && area.contains(s.anchorNode)) ? s.anchorNode : (salva && salva.startContainer);
@@ -233,9 +235,40 @@
       var r = document.createRange(); r.selectNodeContents(no); r.collapse(true);
       var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); salva = r.cloneRange();
     }
+    /* Modelo "manchete": foto na coluna da esquerda, título grande e texto ao lado, lista de links embaixo. */
+    function inserirManchete() {
+      area.focus();
+      var box = document.createElement('div'); box.className = 'cols';
+      ajustaColunas(box, 'c23');
+      var esq = box.children[0], dir = box.children[1];
+      dir.innerHTML = '<h2>Título da manchete</h2><p>Texto de apoio, ao lado da imagem.</p>';
+      var tinha = atual && atual.isConnected && area.contains(atual) ? atual : null;
+      if (tinha) {                                   // a imagem já selecionada vai para a coluna da esquerda
+        ['im-p', 'im-m', 'im-g', 'im-esq', 'im-dir', 'im-centro', 'im-bloco', 'im-bloco-dir'].forEach(function (c) { tinha.classList.remove(c); });
+        tinha.classList.add('im-c'); tinha.style.removeProperty('width'); tinha.removeAttribute('data-w');
+        if (!tinha.getAttribute('style')) tinha.removeAttribute('style');
+        var velho = tinha.parentNode, onde = blocoTopo(tinha);
+        if (onde) area.insertBefore(box, onde);       // a manchete nasce no lugar onde estava a imagem
+        esq.innerHTML = '<p></p>'; esq.firstChild.appendChild(tinha);
+        if (velho && velho !== area && !velho.textContent.trim() && !velho.querySelector('img') && /^(P|DIV)$/.test(velho.tagName)) velho.remove();
+      }
+      var lista = document.createElement('ul');
+      lista.innerHTML = '<li>Primeira notícia relacionada</li><li>Segunda notícia relacionada</li><li>Terceira notícia relacionada</li>';
+      var ref = tinha ? null : blocoTopo(salva && area.contains(salva.startContainer) ? salva.startContainer : null);
+      var existente = colunasDoCursor(); if (existente) ref = existente;
+      if (box.parentNode !== area) { if (ref && ref.isConnected) area.insertBefore(box, ref.nextSibling); else area.appendChild(box); }
+      area.insertBefore(lista, box.nextSibling);
+      if (!lista.nextSibling) { var p = document.createElement('p'); p.innerHTML = '<br>'; area.appendChild(p); }
+      var h = dir.firstChild, r = document.createRange(); r.selectNodeContents(h);
+      var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); salva = r.cloneRange();
+      if (tinha) seleciona(tinha);
+      else { aviso.textContent = 'Agora clique em "+ Imagem" com o cursor na coluna da esquerda, ou arraste uma imagem para ela.'; aviso.hidden = false; setTimeout(function () { aviso.hidden = true; }, 6000); }
+      box.scrollIntoView({block: 'nearest'});
+    }
     var selCol = raiz.querySelector('.re-col');
     if (selCol) selCol.addEventListener('change', function () {
       var layout = selCol.value; selCol.value = '';
+      if (layout === 'manchete') { inserirManchete(); return; }
       if (!LAYOUTS[layout]) return;
       area.focus();
       var existente = colunasDoCursor();

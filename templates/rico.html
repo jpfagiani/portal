@@ -12,6 +12,7 @@
     <button type="button" data-cmd="formatBlock" data-val="h2" title="Título">Título</button>
     <button type="button" data-cmd="formatBlock" data-val="h3" title="Subtítulo">Subt.</button>
     <button type="button" data-cmd="formatBlock" data-val="p" title="Parágrafo normal">Normal</button>
+    <button type="button" data-cmd="formatBlock" data-val="blockquote" title="Frase ou link em destaque, com barra na lateral">Destaque</button>
     <span class="re-sep"></span>
     <button type="button" data-cmd="insertUnorderedList" title="Lista com marcadores">• Lista</button>
     <button type="button" data-cmd="insertOrderedList" title="Lista numerada">1. Lista</button>
@@ -31,8 +32,10 @@
     <span class="re-sep"></span>
     <select class="re-col" title="Dividir o texto em colunas (ou mudar as colunas onde o cursor está)" aria-label="Colunas">
       <option value="">▥ Colunas…</option>
+      <option value="manchete">📰 Manchete: imagem à esquerda + título ao lado</option>
       <option value="c2">2 colunas iguais</option>
       <option value="c3">3 colunas iguais</option>
+      <option value="c23">2 colunas: imagem 40% + texto 60%</option>
       <option value="c13">2 colunas: estreita + larga</option>
       <option value="c31">2 colunas: larga + estreita</option>
     </select>
