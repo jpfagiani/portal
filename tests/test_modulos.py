@@ -333,6 +333,10 @@ ok('font-size:1.25rem' in _h and 'background-color:#fde047' in _h, 'letra em px 
 ok('font-size:0.1' not in _h and _h.count('font-size') == 1, 'tamanho de letra fora do limite é descartado')
 ok('style="width:320px"' in _h and 'position' not in _h and 'width:1600px' in _h, 'imagem em px mantida, limitada e sem outro CSS')
 
+# ── arquivos estáticos com versão (o navegador não guarda a antiga) ───────────
+_h = c.get('/').get_data(as_text=True)
+ok(re.search(r'alinha-texto\.js\?v=\d+', _h) is not None, 'scripts e estilos saem com ?v= para furar o cache do navegador')
+
 shutil.rmtree(TMP, ignore_errors=True)
 print('\nFALHAS: %d' % len(falhas) if falhas else '\nTodos os testes passaram.')
 sys.exit(1 if falhas else 0)

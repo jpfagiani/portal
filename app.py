@@ -261,6 +261,17 @@ def nome_icone(valor):
 BACKUP_DIR = os.path.join(BASE_DIR, 'backups')
 
 app = Flask(__name__)
+
+
+@app.url_defaults
+def _versao_estatico(endpoint, values):
+    """Arquivo de static/ ganha ?v=<data de alteração> no endereço: quando o arquivo
+    muda numa atualização, o navegador busca a versão nova em vez de usar a antiga."""
+    if endpoint == 'static' and values.get('filename') and 'v' not in values:
+        try:
+            values['v'] = int(os.path.getmtime(os.path.join(app.static_folder, values['filename'])))
+        except OSError:
+            pass
 # 64 MB: um backup carrega o banco mais a foto de fundo, o logo e as imagens
 # do banner. As imagens avulsas continuam limitadas pela extensão aceita.
 app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024

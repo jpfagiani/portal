@@ -49,14 +49,21 @@
     return {w: Math.round(w), esq: esq};
   }
 
+  /* Lista plana, na ordem da página, com o que importa: imagens, colunas e blocos de texto.
+     Texto colado de outro lugar costuma vir embrulhado num <div>; entra-se nele. */
+  function achata(no, cont, saida) {
+    [].slice.call(no.children).forEach(function (f) {
+      if (f.classList.contains('cols')) { saida.push({f: f, cols: true}); return; }
+      var imgs = soImagens(f);
+      if (imgs) { saida.push({f: f, ctx: contexto(imgs, cont)}); return; }
+      if (/^(DIV|SECTION|ARTICLE|MAIN)$/.test(f.tagName) && f.querySelector('p,h1,h2,h3,h4,h5,h6,ul,ol,blockquote,div,section')) { achata(f, cont, saida); return; }
+      saida.push({f: f, texto: !f.querySelector('img')});
+    });
+  }
   function alinhaCorpo(cont) {
     limpa(cont);
     if (window.innerWidth <= 560) return;
-    var itens = [].slice.call(cont.children).map(function (f) {
-      if (f.classList.contains('cols')) return {f: f, cols: true};
-      var imgs = soImagens(f);
-      return imgs ? {f: f, ctx: contexto(imgs, cont)} : {f: f, texto: !f.querySelector('img')};
-    });
+    var itens = []; achata(cont, cont, itens);
     // texto em cima da primeira imagem também acompanha a largura dela
     var ctx = null;
     for (var i = 0; i < itens.length; i++) { if (itens[i].cols) break; if (itens[i].ctx !== undefined && !itens[i].texto) { ctx = itens[i].ctx; break; } }
