@@ -7,7 +7,7 @@
    o que vem depois. Colunas e imagens com texto ao lado ficam como estão. */
 (function () {
   'use strict';
-  var MARCA = 'data-alinhado', MINIMA = 280;   // imagem mais estreita que isso não estreita o texto
+  var MARCA = 'data-alinhado', MINIMA = 100;   // só imagem minúscula deixa de limitar o texto
 
   /* Parágrafo que só tem imagens (uma ou várias, lado a lado): devolve a lista delas. */
   function soImagens(no) {

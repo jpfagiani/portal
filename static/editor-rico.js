@@ -135,7 +135,7 @@
     POS.forEach(function (t) { botao(t[1], function () { troca(POS, atual && atual.classList.contains(t[0]) ? '' : t[0]); }).dataset.c = t[0]; });
     barra.appendChild(document.createElement('span')).className = 're-sep';
     rotulo('largura:');
-    var larg = document.createElement('input'); larg.type = 'number'; larg.min = 24; larg.max = 2000; larg.step = 10; larg.className = 're-larg';
+    var larg = document.createElement('input'); larg.type = 'number'; larg.min = 24; larg.max = 2000; larg.step = 'any'; larg.className = 're-larg'; larg.setAttribute('form', ''); larg.setAttribute('novalidate', '');
     larg.title = 'Largura da imagem em pixels'; larg.setAttribute('aria-label', 'Largura da imagem em pixels');
     barra.appendChild(larg); rotulo('px');
     larg.addEventListener('change', function () {
@@ -215,18 +215,24 @@
     }
 
     /* O texto acompanha a largura da imagem também aqui no editor (a mesma regra da página publicada). */
-    var realinhando = false;
+    var realinhando = false, obs = null;
     function realinha() {
       if (realinhando || !window.AlinhaTexto) return;
       realinhando = true;
-      requestAnimationFrame(function () { realinhando = false; window.AlinhaTexto.corpo(area); posicionaAlca(); });
+      requestAnimationFrame(function () {
+        window.AlinhaTexto.corpo(area); posicionaAlca();
+        if (obs) obs.takeRecords();            // as mudanças feitas pelo próprio alinhamento não disparam outro
+        realinhando = false;
+      });
     }
-    new MutationObserver(function (muts) {
+    obs = new MutationObserver(function (muts) {
       for (var i = 0; i < muts.length; i++) {
         var m = muts[i];
         if (m.type === 'childList' || (m.target && m.target.tagName === 'IMG')) { realinha(); return; }
       }
-    }).observe(area, {childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style']});
+    });
+    obs.observe(area, {childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style']});
+    if (window.ResizeObserver) new ResizeObserver(realinha).observe(area);   // a janela de edição abre escondida
     area.addEventListener('load', realinha, true);
     window.addEventListener('load', realinha);
     window.addEventListener('resize', realinha);
@@ -356,9 +362,11 @@
       var n = r.startContainer.nodeType === 3 ? r.startContainer.parentNode : r.startContainer;
       return n.getBoundingClientRect();
     }
-    area.addEventListener('dragstart', function (e) { if (e.target && e.target.tagName === 'IMG') e.preventDefault(); });
+    area.addEventListener('dragstart', function (e) { if (e.target && e.target.tagName === 'IMG') e.preventDefault(); }, true);
+    area.addEventListener('mousedown', function (e) { if (e.target && e.target.tagName === 'IMG') e.target.draggable = false; }, true);
     area.addEventListener('pointerdown', function (e) {
       if (e.button !== 0 || !e.target || e.target.tagName !== 'IMG') return;
+      e.target.draggable = false;          // sem isso o navegador inicia o arrasto dele e cancela o nosso
       arrasto = {img: e.target, x0: e.clientX, y0: e.clientY, ativo: false, ghost: null, linha: null, alvo: null};
     });
     document.addEventListener('pointermove', function (e) {

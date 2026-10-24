@@ -267,7 +267,8 @@ app = Flask(__name__)
 def _versao_estatico(endpoint, values):
     """Arquivo de static/ ganha ?v=<data de alteração> no endereço: quando o arquivo
     muda numa atualização, o navegador busca a versão nova em vez de usar a antiga."""
-    if endpoint == 'static' and values.get('filename') and 'v' not in values:
+    if endpoint == 'static' and values.get('filename') and 'v' not in values \
+            and not values['filename'].startswith('uploads/'):     # imagens enviadas mantêm o endereço de sempre
         try:
             values['v'] = int(os.path.getmtime(os.path.join(app.static_folder, values['filename'])))
         except OSError:
@@ -1679,7 +1680,7 @@ class _LimpaHTML(HTMLParser):
         if tag == 'img':
             # Só imagens da própria biblioteca (static/uploads); nada de endereço
             # externo, data: ou javascript:.
-            m = re.fullmatch(r'/static/uploads/([A-Za-z0-9._\-]+\.(?:png|jpe?g|gif|webp))',
+            m = re.fullmatch(r'/static/uploads/([A-Za-z0-9._\-]+\.(?:png|jpe?g|gif|webp))(?:\?v=\d+)?',
                              attrs.get('src', '').strip())
             if m:
                 alt = escape(attrs.get('alt', '')[:300])

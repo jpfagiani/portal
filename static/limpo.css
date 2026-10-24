@@ -602,7 +602,7 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .re-area .col{min-height:3.4rem;outline:1px dashed var(--borda);outline-offset:2px;padding:.15rem .3rem}
 .re-area .col.re-col-alvo{outline:2px solid var(--azul);background:rgba(37,99,235,.07)}
 .re-area.re-arrastando,.re-area.re-arrastando *{cursor:grabbing!important;user-select:none}
-.re-area img{cursor:grab}
+.re-area img{cursor:grab;-webkit-user-drag:none;user-select:none}
 .re-soltar{position:fixed;width:3px;background:var(--azul);border-radius:2px;pointer-events:none;z-index:50;box-shadow:0 0 0 1px #fff}
 .re-fantasma{position:fixed;pointer-events:none;opacity:.65;z-index:60;max-width:180px;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 .re-img-barra select{font:inherit;font-size:.78rem}

@@ -337,6 +337,13 @@ ok('style="width:320px"' in _h and 'position' not in _h and 'width:1600px' in _h
 _h = c.get('/').get_data(as_text=True)
 ok(re.search(r'alinha-texto\.js\?v=\d+', _h) is not None, 'scripts e estilos saem com ?v= para furar o cache do navegador')
 
+# ── imagens enviadas não levam versão no endereço, e a limpeza tolera ?v= ──────
+_h = portal.limpa_html('<p><img src="/static/uploads/a.png?v=123" alt="x"></p>')
+ok('src="/static/uploads/a.png"' in _h and '?v=' not in _h, 'imagem com ?v= no endereço é aceita e volta sem ele')
+with portal.app.test_request_context():
+    ok('?v=' not in portal.url_for('static', filename='uploads/a.png'), 'endereço de imagem enviada não leva ?v=')
+    ok('?v=' in portal.url_for('static', filename='limpo.css'), 'estilos e scripts levam ?v=')
+
 shutil.rmtree(TMP, ignore_errors=True)
 print('\nFALHAS: %d' % len(falhas) if falhas else '\nTodos os testes passaram.')
 sys.exit(1 if falhas else 0)
