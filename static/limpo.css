@@ -548,7 +548,7 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 
 /* página da notícia: coluna de leitura centralizada, como nos portais de notícia */
 .pagina-noticia>.migalha,.pagina-noticia>.pe-dica,.pagina-noticia>.noticia,.pagina-noticia>.pagina-acoes,.pagina-noticia>.mt-leia{
-  width:100%;max-width:var(--leitura,1000px);margin-left:auto;margin-right:auto;box-sizing:border-box}
+  width:100%;max-width:var(--leitura,780px);margin-left:auto;margin-right:auto;box-sizing:border-box}
 .pagina-noticia>.noticia{margin-top:1rem;display:flex;flex-direction:column;gap:1rem}
 .pagina-noticia .noticia header{display:flex;flex-direction:column;gap:.4rem}
 .pagina-noticia .noticia-corpo{font-size:1.08rem;line-height:1.7}
@@ -572,7 +572,7 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 /* páginas de conteúdo com texto único: mesma coluna centralizada das notícias */
 .pagina-conteudo.pagina-materia{max-width:none}
 .pagina-materia>.migalha,.pagina-materia>.pe-dica,.pagina-materia>.mat-cab,.pagina-materia>.mat-capa,.pagina-materia>.mat-resumo,
-.pagina-materia>.mat-corpo,.pagina-materia>.mat-leia,.pagina-materia>.pagina-acoes{width:100%;max-width:var(--leitura,1000px);margin-left:auto;margin-right:auto;box-sizing:border-box}
+.pagina-materia>.mat-corpo,.pagina-materia>.mat-leia,.pagina-materia>.pagina-acoes{width:100%;max-width:var(--leitura,780px);margin-left:auto;margin-right:auto;box-sizing:border-box}
 .pagina-materia>.mat-corpo{font-size:1.08rem;line-height:1.7;margin-top:1rem}
 .pagina-materia>.mat-corpo p{margin:0 0 1rem}
 .pagina-materia>.pagina-acoes{margin-top:1.6rem}
@@ -612,7 +612,7 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .pagina-texto .cols.c23+ul li,.re-area .cols.c23+ul li{margin-bottom:.55rem}
 
 /* ── página da notícia no estilo de portal: título grande, assinatura, capa, resumo ── */
-.pagina-noticia>.migalha,.pagina-noticia>.pe-dica,.pagina-noticia>.noticia,.pagina-noticia>.pagina-acoes,.pagina-noticia>.mt-leia{max-width:var(--leitura,1000px)}
+.pagina-noticia>.migalha,.pagina-noticia>.pe-dica,.pagina-noticia>.noticia,.pagina-noticia>.pagina-acoes,.pagina-noticia>.mt-leia{max-width:var(--leitura,780px)}
 .pagina-noticia .noticia .mat-cab,.pagina-noticia .noticia .mat-capa,.pagina-noticia .noticia .mat-resumo{max-width:none}
 .pagina-noticia .mat-cab{gap:.7rem}
 .pagina-noticia .mat-chapeu{font-size:.9rem;letter-spacing:.02em}
@@ -626,9 +626,15 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .pagina-texto blockquote a{text-decoration-thickness:2px}
 
 /* página larga como a dos portais de notícia: título, capa e texto com as mesmas bordas */
-:root{--leitura:1000px}
-.pagina-noticia .noticia-corpo,.pagina-materia>.mat-corpo{max-width:none;font-size:1.15rem;line-height:1.75}
+:root{--leitura:780px}
+.pagina-noticia .noticia-corpo{max-width:none}
+.pagina-noticia .noticia-corpo,.pagina-materia>.mat-corpo{font-size:1.15rem;line-height:1.75}
 .pagina-noticia .noticia-corpo p,.pagina-materia>.mat-corpo p{margin:0 0 1.2rem}
+/* páginas feitas de blocos (texto, imagens, botões): a mesma coluna, com as mesmas bordas */
+.pagina-conteudo>.migalha,.pagina-conteudo>.pe-dica,.pagina-conteudo>.mat-cab,.pagina-conteudo>.mat-capa,.pagina-conteudo>.mat-resumo,
+.pagina-conteudo>.mat-leia,.pagina-conteudo>.pagina-acoes,.pagina-conteudo>.bl,.pagina-conteudo>.pagina-imagens,.pagina-conteudo>.pe-folha{
+  width:100%;max-width:var(--leitura,780px);margin-left:auto;margin-right:auto;box-sizing:border-box}
+.pagina-conteudo>.bl .pagina-texto{max-width:none}
 
 /* ── barra "Word": tamanho em px e paleta de cores ── */
 .re-px-bloco{display:inline-flex;align-items:center;gap:.25rem;flex-wrap:nowrap}
