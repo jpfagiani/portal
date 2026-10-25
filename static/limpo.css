@@ -686,3 +686,10 @@ a.lp-destaque:hover{background:var(--azul-forte)}
   .pagina-noticia:has(.com-lateral)>.migalha,.pagina-noticia:has(.com-lateral)>.pe-dica,.pagina-noticia:has(.com-lateral)>.pagina-acoes,
   .pagina-materia:has(.com-lateral)>.migalha,.pagina-materia:has(.com-lateral)>.pe-dica,.pagina-materia:has(.com-lateral)>.pagina-acoes,.pagina-materia:has(.com-lateral)>.mat-leia{max-width:var(--leitura,780px)}
 }
+
+/* bloco imagem + texto: o texto abaixo da imagem tem exatamente a largura dela */
+.pagina-texto .figura,.re-area .figura{max-width:100%;box-sizing:border-box;margin-bottom:.9rem}
+.pagina-texto .fig-c,.re-area .fig-c{margin-left:auto;margin-right:auto}
+.pagina-texto .fig-d,.re-area .fig-d{margin-left:auto;margin-right:0}
+.pagina-texto .fig-e,.re-area .fig-e{margin-left:0;margin-right:auto}
+.pagina-texto .figura>img,.re-area .figura>img{max-width:100%}

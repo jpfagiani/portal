@@ -45,7 +45,8 @@
       esq = Math.min(esq, r.left); dir = Math.max(dir, r.right);
     }
     var w = dir - esq;
-    if (w >= c.width - 4 || w < MINIMA) return null;
+    var cs = getComputedStyle(cont), util = c.width - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    if (w >= util - 4 || w < MINIMA) return null;
     return {w: Math.round(w), esq: esq};
   }
 
@@ -110,13 +111,58 @@
      Texto colado de outro lugar costuma vir embrulhado num <div>; entra-se nele. */
   function achata(no, cont, saida) {
     [].slice.call(no.children).forEach(function (f) {
-      if (f.classList.contains('cols')) { saida.push({f: f, cols: true}); return; }
+      if (f.classList.contains('cols') || f.classList.contains('figura')) { saida.push({f: f, cols: true}); return; }
       var imgs = soImagens(f);
       if (imgs) { saida.push({f: f, ctx: contexto(imgs, cont)}); return; }
       if (/^(DIV|SECTION|ARTICLE|MAIN)$/.test(f.tagName) && f.querySelector('p,h1,h2,h3,h4,h5,h6,ul,ol,blockquote,div,section')) { achata(f, cont, saida); return; }
       saida.push({f: f, texto: !f.querySelector('img')});
     });
   }
+  /* ── bloco "imagem + texto": mede a imagem e põe o texto abaixo dela numa caixa da mesma largura ──
+     Feito ao salvar no editor e guardado na própria notícia (<div class="figura" style="width:Npx">),
+     então a página publicada não depende de cálculo nenhum: imagem e texto têm as mesmas bordas. */
+  function desagrupa(cont) {
+    [].slice.call(cont.querySelectorAll('.figura')).forEach(function (g) {
+      while (g.firstChild) g.parentNode.insertBefore(g.firstChild, g);
+      g.remove();
+    });
+  }
+  function agrupa(cont) {
+    desagrupa(cont); limpa(cont); isola(cont);
+    var cs = getComputedStyle(cont), c = cont.getBoundingClientRect();
+    var baseEsq = c.left + cont.clientLeft + (parseFloat(cs.paddingLeft) || 0);
+    var util = cont.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    var itens = [];
+    [].slice.call(cont.children).forEach(function (f) {
+      if (f.classList.contains('cols')) { itens.push({f: f, quebra: true}); return; }
+      var imgs = soImagens(f);
+      if (imgs) { itens.push({f: f, imgs: imgs, ctx: contexto(imgs, cont)}); return; }
+      itens.push({f: f, texto: !f.querySelector('img') && !/^(HR|TABLE)$/.test(f.tagName), quebra: !!f.querySelector('img')});
+    });
+    var grupos = [], primeira = true;
+    for (var i = 0; i < itens.length; i++) {
+      if (!itens[i].imgs) continue;
+      var ini = i, fim = i;
+      if (primeira) while (ini > 0 && itens[ini - 1].texto) ini--;      // texto em cima da 1ª imagem também entra
+      while (fim + 1 < itens.length && itens[fim + 1].texto) fim++;
+      primeira = false;
+      if (itens[i].ctx) grupos.push({ini: ini, img: i, fim: fim, ctx: itens[i].ctx});
+      i = fim;
+    }
+    grupos.forEach(function (g) {
+      var w = g.ctx.w, off = g.ctx.esq - baseEsq, sobra = util - w;
+      var classe = off < 4 ? 'fig-e' : (sobra - off < 4 ? 'fig-d' : 'fig-c');
+      var caixa = document.createElement('div');
+      caixa.className = 'figura ' + classe; caixa.style.width = w + 'px';
+      itens[g.ini].f.parentNode.insertBefore(caixa, itens[g.ini].f);
+      for (var k = g.ini; k <= g.fim; k++) caixa.appendChild(itens[k].f);
+      itens[g.img].imgs.forEach(function (img) {                      // a imagem passa a ter a largura exata da caixa
+        ['im-p', 'im-m', 'im-g', 'im-c'].forEach(function (x) { img.classList.remove(x); });
+        img.removeAttribute('data-w'); img.style.width = Math.round(img.getBoundingClientRect().width || w) + 'px';
+      });
+    });
+  }
+
   function alinhaCorpo(cont, opcoes) {
     limpa(cont);
     if (!opcoes || opcoes.isola !== false) isola(cont);
@@ -147,7 +193,7 @@
       if (ctx) aplica(it.f, ctx);
     });
   }
-  window.AlinhaTexto = {corpo: alinhaCorpo, blocos: alinhaBlocos, limpa: limpa, isola: isola};
+  window.AlinhaTexto = {corpo: alinhaCorpo, blocos: alinhaBlocos, limpa: limpa, isola: isola, agrupa: agrupa, desagrupa: desagrupa};
 
   function prepara(cont, fn) {
     var pendente = false;

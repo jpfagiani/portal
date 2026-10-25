@@ -1620,7 +1620,7 @@ _TAGS_OK = {'p', 'br', 'strong', 'em', 'u', 's', 'ul', 'ol', 'li', 'h2', 'h3',
 _TAGS_COM_ESTILO = {'p', 'div', 'span', 'li', 'h2', 'h3', 'h4', 'blockquote'}
 _CLASSES_IMG = {'im-p', 'im-m', 'im-g', 'im-c', 'im-esq', 'im-dir', 'im-centro', 'im-bloco', 'im-bloco-dir'}
 # Colunas do texto: um <div class="cols c2"> com <div class="col"> dentro.
-_CLASSES_DIV = {'cols', 'c2', 'c3', 'c13', 'c23', 'c31', 'col'}
+_CLASSES_DIV = {'cols', 'c2', 'c3', 'c13', 'c23', 'c31', 'col', 'figura', 'fig-e', 'fig-c', 'fig-d'}
 _SINONIMOS = {'b': 'strong', 'i': 'em', 'strike': 's', 'del': 's', 'h1': 'h2',
               'h5': 'h4', 'h6': 'h4', 'font': 'span'}
 _DESCARTA = {'script', 'style', 'iframe', 'object', 'embed', 'noscript',
@@ -1643,7 +1643,7 @@ def _cor_limpa(valor):
     return ''
 
 
-def _estilo_limpo(css):
+def _estilo_limpo(css, largura=False):
     """Só as propriedades que o editor produz, com valores conferidos."""
     saida = []
     for decl in (css or '').split(';'):
@@ -1661,6 +1661,10 @@ def _estilo_limpo(css):
                 rem = {'rem': n, 'em': n, 'px': n / 16, '%': n / 100}[un]
             if rem is not None and .5 <= rem <= 6:
                 saida.append(f'font-size:{round(rem, 3)}rem')
+        elif prop == 'width' and largura:
+            m = re.fullmatch(r'(\d{2,4})(?:\.\d+)?px', valor)       # largura fixa do bloco imagem + texto
+            if m:
+                saida.append(f'width:{max(40, min(1600, int(m.group(1))))}px')
         elif prop == 'text-align' and valor in ('left', 'center', 'right', 'justify'):
             saida.append(f'text-align:{valor}')
         elif prop == 'font-weight' and valor in ('bold', '700', '600', '800'):
@@ -1709,7 +1713,7 @@ class _LimpaHTML(HTMLParser):
                 self.saida.append(f'<img src="/static/uploads/{m.group(1)}" alt="{alt}" loading="lazy"{cls}{estilo_w}>')
             return
         if tag in _TAGS_OK:
-            estilo = _estilo_limpo(attrs.get('style'))
+            estilo = _estilo_limpo(attrs.get('style'), tag == 'div')
             if original == 'font':                # <font color size> do editor
                 extra = []
                 c = _cor_limpa(attrs.get('color'))

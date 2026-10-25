@@ -220,6 +220,7 @@
       if (realinhando || !window.AlinhaTexto) return;
       realinhando = true;
       requestAnimationFrame(function () {
+        window.AlinhaTexto.desagrupa(area);                    // conteúdo carregado já agrupado volta ao modo livre
         window.AlinhaTexto.corpo(area, {isola: false}); posicionaAlca();
         if (obs) obs.takeRecords();            // as mudanças feitas pelo próprio alinhamento não disparam outro
         realinhando = false;
@@ -234,6 +235,8 @@
     obs.observe(area, {childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style']});
     if (window.ResizeObserver) new ResizeObserver(realinha).observe(area);   // a janela de edição abre escondida
     area.addEventListener('load', realinha, true);
+    function abre() { if (window.AlinhaTexto) { window.AlinhaTexto.desagrupa(area); } realinha(); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', abre); else abre();
     window.addEventListener('load', realinha);
     window.addEventListener('resize', realinha);
     function seleciona(img) {
@@ -252,6 +255,51 @@
     });
     document.addEventListener('mousedown', function (e) { if (atual && !raiz.contains(e.target)) desmarca(); });
 
+
+
+    /* ── colar sem trazer a formatação de fora; "Padronizar texto" para o que já foi colado ── */
+    function limpaColado(html, mantemEstrutura) {
+      var d = document.createElement('div'); d.innerHTML = html;
+      d.querySelectorAll('script,style,meta,link,title,head,iframe,object').forEach(function (x) { x.remove(); });
+      function desembrulha(n) { while (n.firstChild) n.parentNode.insertBefore(n.firstChild, n); n.remove(); }
+      function envolve(n, tag) { var t = document.createElement(tag); while (n.firstChild) t.appendChild(n.firstChild); n.appendChild(t); }
+      d.querySelectorAll('*').forEach(function (n) {
+        if (n.tagName === 'IMG') { if (!mantemEstrutura) { n.removeAttribute('style'); n.removeAttribute('class'); } return; }
+        var st = (n.getAttribute('style') || '').toLowerCase();
+        if (n.tagName === 'B' && /font-weight\s*:\s*normal/.test(st)) { n.setAttribute('data-sai', '1'); return; }   // invólucro do Google Docs
+        var negrito = /font-weight\s*:\s*(bold|[6-9]00)/.test(st), italico = /font-style\s*:\s*italic/.test(st);
+        var guarda = mantemEstrutura && n.tagName === 'DIV' && /\b(cols|col)\b/.test(n.getAttribute('class') || '');
+        var classe = guarda ? n.getAttribute('class') : null, href = n.getAttribute('href');
+        [].slice.call(n.attributes).forEach(function (a) { n.removeAttribute(a.name); });
+        if (classe) n.setAttribute('class', classe);
+        if (href) n.setAttribute('href', href);
+        if (n.tagName === 'SPAN' || n.tagName === 'FONT') {
+          if (negrito) envolve(n, 'strong'); if (italico) envolve(n, 'em'); n.setAttribute('data-sai', '1');
+        }
+      });
+      d.querySelectorAll('[data-sai]').forEach(desembrulha);
+      d.querySelectorAll('p,h2,h3,h4').forEach(function (n) { if (!n.textContent.trim() && !n.querySelector('img')) n.remove(); });
+      return d.innerHTML;
+    }
+    area.addEventListener('paste', function (e) {
+      var cb = e.clipboardData || {};
+      if (imagens(cb.files).length) return;
+      var h = cb.getData && cb.getData('text/html');
+      if (!h) return;
+      e.preventDefault();
+      document.execCommand('insertHTML', false, limpaColado(h, false));
+    });
+    var btnPad = raiz.querySelector('.re-padroniza');
+    if (btnPad) {
+      btnPad.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      btnPad.addEventListener('click', function () {
+        if (!window.confirm('Padronizar o texto?\n\nCentralizado, negrito colado, fundos, cores e tamanhos de letra serão removidos e o texto fica no padrão do portal (alinhado à esquerda, letra normal). Títulos, listas, links, imagens e colunas continuam.  Só vale quando você salvar; fechar sem salvar descarta.')) return;
+        desmarca();
+        area.innerHTML = limpaColado(area.innerHTML, true);
+        if (!area.firstChild) area.innerHTML = '<p><br></p>';
+        area.focus();
+      });
+    }
 
     /* ── colunas: cada uma começa no topo, texto e imagem em qualquer uma ── */
     var LAYOUTS = {c2: 2, c3: 3, c13: 2, c23: 2, c31: 2};
@@ -427,9 +475,9 @@
 
     if (form) form.addEventListener('submit', function (e) {
       if (atual) atual.removeAttribute('data-sel');
-      if (window.AlinhaTexto) { window.AlinhaTexto.limpa(area); window.AlinhaTexto.isola(area); }
+      if (window.AlinhaTexto) { window.AlinhaTexto.limpa(area); window.AlinhaTexto.agrupa(area); }   // mede a imagem e prende o texto à largura dela
       oculto.value = area.innerHTML;
-      setTimeout(realinha, 0);
+      setTimeout(function () { if (window.AlinhaTexto) window.AlinhaTexto.desagrupa(area); realinha(); }, 0);   // o editor volta ao modo livre
     });
   });
 })();

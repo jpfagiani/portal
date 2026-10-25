@@ -367,6 +367,11 @@ with portal.app.app_context():
     _s = portal.db().execute("SELECT slug FROM noticias WHERE titulo='Sem lateral'").fetchone()['slug']
 ok('class="mat-lateral' not in anon.get('/noticias/' + _s).get_data(as_text=True), 'sem texto lateral, a página não mostra coluna nenhuma')
 
+# ── bloco imagem + texto (figura) ─────────────────────────────────────────────
+_h = portal.limpa_html('<div class="figura fig-c evil" style="width:441px;position:fixed"><p><img src="/static/uploads/a.png" style="width:441px"></p><p>texto</p></div><p style="width:50px">x</p>')
+ok('<div class="figura fig-c" style="width:441px">' in _h, 'bloco figura mantém classe e largura em px')
+ok('evil' not in _h and 'position' not in _h and '<p style="width' not in _h, 'figura: classe e CSS desconhecidos são descartados')
+
 shutil.rmtree(TMP, ignore_errors=True)
 print('\nFALHAS: %d' % len(falhas) if falhas else '\nTodos os testes passaram.')
 sys.exit(1 if falhas else 0)
