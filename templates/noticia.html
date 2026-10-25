@@ -11,10 +11,13 @@
   <div class="pe-dica"><span><strong>Pré-visualização.</strong> Esta notícia está <b>{{ situacao|lower }}</b> e só você a vê.
     {% if eh_admin %}<a href="{{ url_for('admin_noticias', editar=n.id) }}">Voltar à edição</a>{% endif %}</span></div>
   {% endif %}
+  <div class="mat-grade{{ ' com-lateral' if lateral }}">
   <article class="noticia">
     {{ pb.topo(cab, n.titulo) }}
     <div class="pagina-texto noticia-corpo">{{ corpo }}</div>
   </article>
+  {% if lateral %}<aside class="mat-lateral pagina-texto" aria-label="Informações complementares">{{ lateral }}</aside>{% endif %}
+  </div>
   <div class="acoes pagina-acoes">
     <a class="btn" href="{{ url_for('noticias') }}">Todas as notícias</a>
     {% if eh_admin %}<button type="button" class="btn btn-principal" data-editar-noticia>Editar nesta página</button>
@@ -60,6 +63,8 @@
 
       <label>Texto e imagens <small>(arraste ou cole imagens no texto; clique numa imagem para mudar tamanho e posição)</small></label>
       {{ r.editor('corpo', corpo, destinos_links, csrf_token) }}
+      <label>Coluna lateral <small>(opcional: textos e imagens que ficam ao lado da notícia, como no UOL; em branco = sem coluna)</small></label>
+      {{ r.editor('lateral', lateral, destinos_links, csrf_token) }}
       <label class="check"><input type="checkbox" name="destaque" {{ 'checked' if n.destaque }}> Fixar no topo da lista de notícias</label>
       <p class="pe-erro" id="noticia-erro" role="alert"></p>
       <div class="pe-rodape">

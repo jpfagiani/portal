@@ -12,8 +12,8 @@
     try { document.execCommand('defaultParagraphSeparator', false, 'p'); document.execCommand('styleWithCSS', false, false); } catch (e) {}
 
     var salva = null;
-    /* Imagem inserida dentro de uma coluna ocupa a coluna toda; no texto corrido, metade da largura. */
-    function classeNova() { var n = salva && salva.startContainer; if (n && n.nodeType === 3) n = n.parentNode; return n && n.closest && n.closest('.cols') ? 'im-c' : 'im-m'; }
+    /* Imagem nova entra na largura da coluna de texto, como nos portais de notícia; depois dá para arrastar as alças. */
+    function classeNova() { return 'im-c'; }
     document.addEventListener('selectionchange', function () {
       var s = window.getSelection();
       if (s.rangeCount && area.contains(s.anchorNode)) salva = s.getRangeAt(0).cloneRange();
@@ -220,7 +220,7 @@
       if (realinhando || !window.AlinhaTexto) return;
       realinhando = true;
       requestAnimationFrame(function () {
-        window.AlinhaTexto.corpo(area); posicionaAlca();
+        window.AlinhaTexto.corpo(area, {isola: false}); posicionaAlca();
         if (obs) obs.takeRecords();            // as mudanças feitas pelo próprio alinhamento não disparam outro
         realinhando = false;
       });
@@ -244,6 +244,7 @@
     window.__reSelecionaNova = null;
     function depoisDeInserir(url) {
       var todas = area.querySelectorAll('img[src="' + url + '"]');
+      if (window.AlinhaTexto) window.AlinhaTexto.isola(area);   // imagem no meio do parágrafo vira bloco próprio
       if (todas.length) seleciona(todas[todas.length - 1]);
     }
     area.addEventListener('click', function (e) {
@@ -416,6 +417,7 @@
         if (vazio && /^(P|H2|H3|H4|LI)$/.test(velho.tagName)) { var pai = velho.parentNode; velho.remove(); if (pai && pai.classList && pai.classList.contains('col') && !pai.children.length) pai.appendChild(novaCol().firstChild); }
         else if (vazio && velho.classList && velho.classList.contains('col') && !velho.children.length) velho.appendChild(novaCol().firstChild);
       }
+      if (window.AlinhaTexto) window.AlinhaTexto.isola(area);
       seleciona(img); posicionaAlca();
     }
     document.addEventListener('pointerup', function (e) { terminaArrasto(e, false); arrasto = null; });
@@ -425,7 +427,7 @@
 
     if (form) form.addEventListener('submit', function (e) {
       if (atual) atual.removeAttribute('data-sel');
-      if (window.AlinhaTexto) window.AlinhaTexto.limpa(area);
+      if (window.AlinhaTexto) { window.AlinhaTexto.limpa(area); window.AlinhaTexto.isola(area); }
       oculto.value = area.innerHTML;
       setTimeout(realinha, 0);
     });

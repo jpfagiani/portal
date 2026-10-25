@@ -999,6 +999,15 @@ def _semear_cartoes(con):
 
     # 1.8.0: "Acesso rápido" e "Atalhos" passam a largura total (uma vez só; quem
     # ajustar depois não é desfeito) e o cartão de notícias vai para a lateral.
+    # 1.9.17: o nome de quem criou a notícia era gravado como autor; agora só aparece
+    # assinatura se for digitada no campo "Autor ou setor". Limpa o que foi gravado antes.
+    if not con.execute("SELECT 1 FROM config WHERE chave='autor_noticias_v1917'").fetchone():
+        try:
+            con.execute("UPDATE noticias SET autor=''")
+        except sqlite3.OperationalError:
+            pass
+        con.execute("INSERT OR REPLACE INTO config (chave,valor) VALUES ('autor_noticias_v1917','1')")
+
     if not con.execute("SELECT 1 FROM config WHERE chave='layout_v18'").fetchone():
         con.execute("UPDATE cartoes_painel SET largura=3, coluna=0"
                     " WHERE chave IN ('sistemas','atalhos')")
@@ -1134,6 +1143,8 @@ def init_db():
             # "Leia também" começa desligado: ligá-lo é escolha de cada página,
             # e as já existentes não ganham um bloco novo por conta da atualização.
             ('paginas_lateral', 'mostrar_leia',   'INTEGER NOT NULL DEFAULT 0'),
+            ('noticias', 'lateral', "TEXT NOT NULL DEFAULT ''"),          # coluna lateral da notícia
+            ('paginas_lateral', 'lateral', "TEXT DEFAULT ''"),             # coluna lateral da página de conteúdo
             ('ramais',   'destaque', 'INTEGER NOT NULL DEFAULT 0'),
             ('usuarios', 'ultimo_acesso', "TEXT DEFAULT ''")):
         existentes = {c[1] for c in con.execute(f'PRAGMA table_info({tabela})')}
@@ -1945,7 +1956,9 @@ def modulo(chave):
                         'imagem': url_for('static', filename='uploads/' + b['arquivo'])
                                   if b['arquivo'] else ''})
     corpo = limpa_html(row['corpo'] or '') if (row['corpo'] or '').strip() else ''
-    return render_template('modulo.html', chave=chave, nome=row['nome'],
+    lateral = limpa_html(row['lateral'] or '') if (corpo and (row['lateral'] or '').strip()) else ''
+    return render_template('modulo.html', chave=chave, nome=row['nome'], lateral=Markup(lateral),
+                           lateral_editar=Markup(limpa_html(row['lateral'] or '')) if admin else '',
                            cab=cab, leia=leia, corpo=Markup(corpo),
                            corpo_editar=Markup(corpo or (blocos_para_html(linhas) if admin else '')),
                            cab_campos=row if admin else None,
@@ -3931,14 +3944,15 @@ def admin_pagina_rapida():
     resumo = '\n'.join([l.strip()[:200] for l in request.form.get('resumo', '').splitlines()
                         if l.strip()][:6])
     con.execute('UPDATE paginas_lateral SET chapeu=?,linha_fina=?,autor=?,publicada_em=?,capa=?,'
-                'capa_legenda=?,capa_credito=?,resumo=?,mostrar_resumo=?,mostrar_leia=?,corpo=?'
+                'capa_legenda=?,capa_credito=?,resumo=?,mostrar_resumo=?,mostrar_leia=?,corpo=?,lateral=?'
                 ' WHERE chave=?',
                 (campo('chapeu', 40), campo('linha_fina', 220), campo('autor', 60),
                  _dt_banco(request.form.get('publicada_em')), capa,
                  campo('capa_legenda', 200), campo('capa_credito', 80), resumo,
                  1 if request.form.get('mostrar_resumo') else 0,
                  1 if request.form.get('mostrar_leia') else 0,
-                 limpa_html(request.form.get('corpo', '')), chave))
+                 limpa_html(request.form.get('corpo', '')),
+                 limpa_html(request.form.get('lateral', '')), chave))
     pagina_tocada(con, chave)
     con.commit()
     return jsonify(ok=True)

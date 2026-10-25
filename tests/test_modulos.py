@@ -344,6 +344,29 @@ with portal.app.test_request_context():
     ok('?v=' not in portal.url_for('static', filename='uploads/a.png'), 'endereço de imagem enviada não leva ?v=')
     ok('?v=' in portal.url_for('static', filename='limpo.css'), 'estilos e scripts levam ?v=')
 
+# ── o nome de quem publica nunca vira assinatura sozinho ──────────────────────
+_h = c.get('/admin/noticias?nova=1').get_data(as_text=True)
+c.post('/admin/noticias', data={'csrf': csrf(_h), 'acao': 'publicar', 'titulo': 'Sem assinatura automática',
+       'corpo': '<p>x</p>', 'estado': 'publicado'}, follow_redirects=True)
+with portal.app.app_context():
+    _r = portal.db().execute("SELECT autor FROM noticias WHERE titulo='Sem assinatura automática'").fetchone()
+ok(_r is not None and _r['autor'] == '', 'notícia nova não leva o nome do usuário como autor')
+
+# ── coluna lateral da notícia ─────────────────────────────────────────────────
+_h = c.get('/admin/noticias?nova=1').get_data(as_text=True)
+c.post('/admin/noticias', data={'csrf': csrf(_h), 'acao': 'publicar', 'titulo': 'Com coluna lateral', 'corpo': '<p>principal</p>',
+       'lateral': '<p>texto <b>lateral</b></p><script>x()</script>', 'estado': 'publicado'}, follow_redirects=True)
+with portal.app.app_context():
+    _r = portal.db().execute("SELECT slug,lateral FROM noticias WHERE titulo='Com coluna lateral'").fetchone()
+ok(_r is not None and 'lateral' in _r['lateral'] and '<script' not in _r['lateral'], 'coluna lateral é salva e limpa')
+_pg = anon.get('/noticias/' + _r['slug']).get_data(as_text=True)
+ok('class="mat-lateral' in _pg and 'com-lateral' in _pg, 'página da notícia mostra a coluna lateral')
+_h2 = c.get('/admin/noticias?nova=1').get_data(as_text=True)
+c.post('/admin/noticias', data={'csrf': csrf(_h2), 'acao': 'publicar', 'titulo': 'Sem lateral', 'corpo': '<p>x</p>', 'estado': 'publicado'}, follow_redirects=True)
+with portal.app.app_context():
+    _s = portal.db().execute("SELECT slug FROM noticias WHERE titulo='Sem lateral'").fetchone()['slug']
+ok('class="mat-lateral' not in anon.get('/noticias/' + _s).get_data(as_text=True), 'sem texto lateral, a página não mostra coluna nenhuma')
+
 shutil.rmtree(TMP, ignore_errors=True)
 print('\nFALHAS: %d' % len(falhas) if falhas else '\nTodos os testes passaram.')
 sys.exit(1 if falhas else 0)

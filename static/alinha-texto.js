@@ -49,6 +49,63 @@
     return {w: Math.round(w), esq: esq};
   }
 
+  /* ── prepara o texto: imagem e texto no mesmo bloco viram blocos separados ──
+     Quem insere a imagem no meio de um parágrafo fica com "texto + imagem + texto"
+     num bloco só, e não há como alinhar o texto à imagem. Aqui cada imagem (ou
+     grupo de imagens lado a lado) vira o seu bloco, e o texto de antes e de depois
+     continua em blocos próprios, com a mesma formatação. */
+  var BLOCO = /^(P|DIV|H[1-6]|BLOCKQUOTE)$/, INLINE = /^(SPAN|A|STRONG|B|EM|I|U|S|FONT|SMALL|MARK|SUB|SUP|CODE|BR)$/;
+  function temTexto(no) {
+    var c = no.cloneNode(true);
+    c.querySelectorAll('img,br').forEach(function (x) { x.remove(); });
+    return !!c.textContent.replace(/ /g, ' ').trim();
+  }
+  function agrupaInline(pai) {                 // texto solto (sem parágrafo) ganha um parágrafo
+    var run = [];
+    function fecha() {
+      if (!run.length) return;
+      var tem = run.some(function (n) { return n.nodeType === 3 ? !!n.textContent.trim() : (n.tagName !== 'BR' && (!!n.textContent.trim() || !!n.querySelector('img'))); });
+      if (tem) { var p = document.createElement('p'); run[0].parentNode.insertBefore(p, run[0]); run.forEach(function (n) { p.appendChild(n); }); }
+      run = [];
+    }
+    [].slice.call(pai.childNodes).forEach(function (n) {
+      if (n.nodeType === 3 || (n.nodeType === 1 && INLINE.test(n.tagName))) run.push(n); else fecha();
+    });
+    fecha();
+  }
+  function vizinho(no, dir) {
+    var n = dir < 0 ? no.previousSibling : no.nextSibling;
+    while (n && n.nodeType === 3 && !n.textContent.trim()) n = dir < 0 ? n.previousSibling : n.nextSibling;
+    return n;
+  }
+  function isola(cont) {
+    agrupaInline(cont);
+    cont.querySelectorAll('div:not(.col):not(.cols)').forEach(function (d) {
+      if (d.querySelector(':scope > p, :scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > ul, :scope > ol, :scope > blockquote, :scope > div')) agrupaInline(d);
+    });
+    [].slice.call(cont.querySelectorAll('img')).forEach(function (img) {
+      if (!img.isConnected || flutua(img)) return;
+      var prev = vizinho(img, -1);
+      if (prev && prev.nodeType === 1 && prev.tagName === 'IMG') return;        // não é a primeira do grupo
+      var fim = img, nx;
+      while ((nx = vizinho(fim, 1)) && nx.nodeType === 1 && nx.tagName === 'IMG' && !flutua(nx)) fim = nx;
+      var bloco = img.parentNode;
+      while (bloco && bloco !== cont && !BLOCO.test(bloco.tagName) && bloco.tagName !== 'LI') bloco = bloco.parentNode;
+      if (!bloco || bloco === cont || bloco.tagName === 'LI' || !temTexto(bloco)) return;
+      var r = document.createRange();
+      r.setStart(bloco, 0); r.setEndBefore(img); var antes = r.extractContents();
+      r = document.createRange();
+      r.setStartAfter(fim); r.setEnd(bloco, bloco.childNodes.length); var depois = r.extractContents();
+      [[antes, bloco], [depois, bloco.nextSibling]].forEach(function (par, k) {
+        var t = document.createElement('div'); t.appendChild(par[0]);
+        if (!temTexto(t) && !t.querySelector('img')) return;
+        var n = bloco.cloneNode(false); n.removeAttribute('id');
+        while (t.firstChild) n.appendChild(t.firstChild);
+        bloco.parentNode.insertBefore(n, par[1]);
+      });
+    });
+  }
+
   /* Lista plana, na ordem da página, com o que importa: imagens, colunas e blocos de texto.
      Texto colado de outro lugar costuma vir embrulhado num <div>; entra-se nele. */
   function achata(no, cont, saida) {
@@ -60,8 +117,9 @@
       saida.push({f: f, texto: !f.querySelector('img')});
     });
   }
-  function alinhaCorpo(cont) {
+  function alinhaCorpo(cont, opcoes) {
     limpa(cont);
+    if (!opcoes || opcoes.isola !== false) isola(cont);
     if (window.innerWidth <= 560) return;
     var itens = []; achata(cont, cont, itens);
     // texto em cima da primeira imagem também acompanha a largura dela
@@ -89,7 +147,7 @@
       if (ctx) aplica(it.f, ctx);
     });
   }
-  window.AlinhaTexto = {corpo: alinhaCorpo, blocos: alinhaBlocos, limpa: limpa};
+  window.AlinhaTexto = {corpo: alinhaCorpo, blocos: alinhaBlocos, limpa: limpa, isola: isola};
 
   function prepara(cont, fn) {
     var pendente = false;
@@ -100,7 +158,7 @@
   }
   function inicia() {
     document.querySelectorAll('.noticia-corpo').forEach(function (c) { prepara(c, alinhaCorpo); });
-    var pg = document.querySelector('main.pagina-conteudo:not(.pagina-materia):not(.editavel)');
+    var pg = document.querySelector('main.pagina-conteudo:not(.pagina-materia)');
     if (pg) prepara(pg, alinhaBlocos);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inicia); else inicia();

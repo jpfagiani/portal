@@ -151,7 +151,8 @@ def noticia(slug):
             abort(404)
         previa = True
     admin = bool(session.get('admin'))
-    return render_template('noticia.html', n=n, cab=_cabecalho(n), corpo=Markup(nucleo.limpa_html(n['corpo'])), previa=previa,
+    lateral = nucleo.limpa_html(n['lateral'] or '') if (n['lateral'] or '').strip() else ''
+    return render_template('noticia.html', n=n, cab=_cabecalho(n), lateral=Markup(lateral), corpo=Markup(nucleo.limpa_html(n['corpo'])), previa=previa,
                            situacao=situacao(n), estados_noticia=ESTADOS,
                            destinos_links=nucleo.destinos_de_links() if admin else [])
 
@@ -224,17 +225,18 @@ def admin_noticias():
                  request.form.get('categoria', '').strip()[:60], estado, publicar_em,
                  1 if request.form.get('destaque') else 0, destino,
                  request.form.get('meta', '').strip()[:300],
-                 request.form.get('autor', '').strip()[:60])
+                 request.form.get('autor', '').strip()[:60],
+                 nucleo.limpa_html(request.form.get('lateral', '')))
         if atual:
             con.execute("UPDATE noticias SET slug=?,titulo=?,subtitulo=?,resumo=?,corpo=?,capa=?,capa_alt=?,"
-                        "legenda=?,categoria=?,estado=?,publicar_em=?,destaque=?,destino_url=?,meta=?,autor=?,"
+                        "legenda=?,categoria=?,estado=?,publicar_em=?,destaque=?,destino_url=?,meta=?,autor=?,lateral=?,"
                         "atualizado_em=datetime('now','localtime') WHERE id=?", dados + (ident,))
             novo_id = ident
         else:
             novo_id = con.execute(
                 "INSERT INTO noticias (slug,titulo,subtitulo,resumo,corpo,capa,capa_alt,legenda,categoria,"
-                "estado,publicar_em,destaque,destino_url,meta,autor) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                dados[:-1] + (dados[-1] or session.get('nome') or session.get('user', ''),)).lastrowid
+                "estado,publicar_em,destaque,destino_url,meta,autor,lateral) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                dados).lastrowid
         con.commit()
         flash('Publicada.' if acao == 'publicar' else 'Notícia salva.', 'ok')
         return redirect(url_for('admin_noticias', editar=novo_id))
@@ -247,7 +249,8 @@ def admin_noticias():
                         ' ORDER BY id DESC', ([filtro] if filtro else [])).fetchall()
     return render_template('admin_noticias.html', itens=lista, editar=editar, nova=nova, filtro=filtro,
                            estados=ESTADOS, categorias=categorias(), biblioteca=midia.itens(limite=100), destinos_links=nucleo.destinos_de_links(),
-                           campo_data=_para_campo, corpo_editar=Markup(nucleo.limpa_html(editar['corpo'])) if editar else '')
+                           campo_data=_para_campo, corpo_editar=Markup(nucleo.limpa_html(editar['corpo'])) if editar else '',
+                           lateral_editar=Markup(nucleo.limpa_html(editar['lateral'] or '')) if editar else '')
 
 
 @app.route('/admin/noticia-rapida', methods=['POST'])
@@ -279,13 +282,14 @@ def admin_noticia_rapida():
     if estado == 'publicado' and not publicar_em:
         publicar_em = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     con.execute("UPDATE noticias SET titulo=?,subtitulo=?,resumo=?,corpo=?,capa=?,capa_alt=?,legenda=?,"
-                "categoria=?,estado=?,publicar_em=?,destaque=?,autor=?,atualizado_em=datetime('now','localtime') WHERE id=?",
+                "categoria=?,estado=?,publicar_em=?,destaque=?,autor=?,lateral=?,atualizado_em=datetime('now','localtime') WHERE id=?",
                 (titulo, request.form.get('subtitulo', '').strip()[:300],
                  request.form.get('resumo', '').strip()[:600],
                  nucleo.limpa_html(request.form.get('corpo', '')), capa,
                  request.form.get('capa_alt', '').strip()[:300], request.form.get('legenda', '').strip()[:300],
                  request.form.get('categoria', '').strip()[:60], estado, publicar_em,
                  1 if request.form.get('destaque') else 0,
-                 request.form.get('autor', '').strip()[:60], n['id']))
+                 request.form.get('autor', '').strip()[:60],
+                 nucleo.limpa_html(request.form.get('lateral', '')), n['id']))
     con.commit()
     return jsonify(ok=True)

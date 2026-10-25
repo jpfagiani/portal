@@ -29,10 +29,12 @@
   </div>
   {% endif %}
 
+  {% if lateral %}<div class="mat-grade com-lateral"><div class="mat-principal">{% endif %}
   {{ pb.topo(cab, nome) }}
 
   {% if corpo %}
   <div class="pagina-texto noticia-corpo mat-corpo">{{ corpo }}</div>
+  {% if lateral %}</div><aside class="mat-lateral pagina-texto" aria-label="Informações complementares">{{ lateral }}</aside></div>{% endif %}
   {% else %}
   {{ pb.desenha(blocos) }}
   {% endif %}
@@ -94,6 +96,8 @@
 
       <label>Texto e imagens <small>(arraste ou cole imagens no texto; clique numa imagem para mudar tamanho e posição)</small></label>
       {{ r.editor('corpo', corpo_editar, destinos, csrf_token) }}
+      <label>Coluna lateral <small>(opcional: textos e imagens ao lado da página, como no UOL; só aparece em páginas de texto único)</small></label>
+      {{ r.editor('lateral', lateral_editar, destinos, csrf_token) }}
       {% if not corpo and blocos %}<p class="dica">O conteúdo atual em blocos foi trazido para cá. Ao salvar, esta página passa a usar este texto único; os blocos antigos ficam guardados e não aparecem mais.</p>{% endif %}
       <p class="pe-erro" id="noticia-erro" role="alert"></p>
       <div class="pe-rodape">
