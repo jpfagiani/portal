@@ -43,7 +43,7 @@
       <a class="mid-foto" href="{{ i.url }}" target="_blank" rel="noopener"><img src="{{ i.url }}" alt="{{ i.alt or i.nome }}" loading="lazy"></a>
       <div class="mid-info">
         <strong title="{{ i.nome }}">{{ i.nome }}</strong>
-        <small>{{ (i.tamanho / 1024)|round|int }} KB · {{ i.criado_em[:10] }}</small>
+        <small>{% if i.dim %}{{ i.dim[0] }}×{{ i.dim[1] }} px · {% endif %}{{ (i.tamanho / 1024)|round|int }} KB · {{ i.criado_em[:10] }}</small>
         {% if i.usos %}<span class="tag tag-ok">em uso ({{ i.usos|length }})</span>
         {% else %}<span class="tag tag-off">sem uso</span>{% endif %}
         <code class="mid-url">{{ i.url }}</code>

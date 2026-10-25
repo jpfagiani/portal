@@ -3,7 +3,12 @@
 Uso:  python3 tests/test_modulos.py
 Trabalha numa CÓPIA temporária do portal: não toca no banco nem nos uploads
 reais. Sai com código 1 se algum teste falhar."""
-import os, re, shutil, struct, sys, tempfile, zlib
+import os, re, shutil, struct, sys, tempfile, unittest, zlib
+
+if __name__ != '__main__':
+    # `python3 -m unittest discover` importa este arquivo; quem roda os testes por esse
+    # caminho usa tests/test_unittest.py, que executa este script e confere o resultado.
+    raise unittest.SkipTest('script de testes: veja tests/test_unittest.py')
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TMP = tempfile.mkdtemp(prefix='portal-teste-')
@@ -371,6 +376,94 @@ ok('class="mat-lateral' not in anon.get('/noticias/' + _s).get_data(as_text=True
 _h = portal.limpa_html('<div class="figura fig-c evil" style="width:441px;position:fixed"><p><img src="/static/uploads/a.png" style="width:441px"></p><p>texto</p></div><p style="width:50px">x</p>')
 ok('<div class="figura fig-c" style="width:441px">' in _h, 'bloco figura mantém classe e largura em px')
 ok('evil' not in _h and 'position' not in _h and '<p style="width' not in _h, 'figura: classe e CSS desconhecidos são descartados')
+
+# ── Fase 3: resumo em tópicos na lista de notícias ─────────────────────────────
+_h = c.get('/admin/noticias?nova=1').get_data(as_text=True)
+c.post('/admin/noticias', data={'csrf': csrf(_h), 'acao': 'publicar', 'titulo': 'Com tópicos', 'corpo': '<p>x</p>',
+       'resumo': 'Primeiro tópico\nSegundo tópico', 'estado': 'publicado'}, follow_redirects=True)
+_pg = anon.get('/noticias').get_data(as_text=True)
+ok('class="not-topicos"' in _pg and '<li>Primeiro tópico</li>' in _pg and '<li>Segundo tópico</li>' in _pg,
+   'lista de notícias mostra o resumo em tópicos')
+
+# ── Fase 4: salvar pelo editor (fetch) e prévia ───────────────────────────────
+_h = c.get('/admin/noticias?nova=1').get_data(as_text=True)
+_t = csrf(_h)
+r = c.post('/admin/noticias', data={'csrf': _t, 'ajax': '1', 'acao': 'salvar', 'titulo': 'Salva por fetch', 'corpo': '<p>ok</p>'})
+_j = r.get_json() or {}
+ok(r.status_code == 200 and _j.get('ok') and _j.get('id') and _j.get('slug') == 'salva-por-fetch' and '/admin/noticias' in _j.get('url', ''),
+   'salvar por fetch devolve JSON com id, endereço e link de volta')
+r = c.post('/admin/noticias', data={'csrf': _t, 'ajax': '1', 'acao': 'salvar', 'titulo': '  ', 'corpo': '<p>não perder</p>'})
+_j = r.get_json() or {}
+ok(r.status_code == 422 and _j.get('ok') is False and _j.get('campo') == 'titulo', 'título vazio por fetch: erro 422 apontando o campo')
+r = c.post('/admin/noticias', data={'csrf': _t, 'ajax': '1', 'acao': 'salvar', 'titulo': 'Capa falsa',
+           'capa_arquivo': (io.BytesIO(b'isto nao e uma imagem'), 'falsa.png')}, content_type='multipart/form-data')
+_j = r.get_json() or {}
+ok(r.status_code == 422 and _j.get('campo') == 'capa_arquivo', 'arquivo falso por fetch: recusado, com o erro apontando o campo')
+with portal.app.app_context():
+    ok(portal.db().execute("SELECT 1 FROM noticias WHERE titulo='Capa falsa'").fetchone() is None, 'falha ao salvar não grava nada pela metade')
+r = c.post('/admin/noticias', data={'csrf': _t, 'acao': 'salvar', 'titulo': ''}, follow_redirects=False)
+ok(r.status_code == 302, 'sem fetch, o erro continua voltando ao formulário')
+
+r = anon.post('/admin/noticias/previa', data={'titulo': 'x'})
+ok(r.status_code in (302, 400, 403), 'prévia exige login e CSRF')
+r = c.post('/admin/noticias/previa', data={'csrf': 'errado', 'titulo': 'x'})
+ok(r.status_code == 400, 'prévia recusa CSRF inválido')
+with portal.app.app_context():
+    _antes = portal.db().execute('SELECT COUNT(*) FROM noticias').fetchone()[0]
+r = c.post('/admin/noticias/previa', data={'csrf': _t, 'titulo': 'Título da prévia', 'subtitulo': 'Sub da prévia',
+           'resumo': 'ponto um\nponto dois', 'corpo': '<p>Texto <b>da prévia</b></p><script>alert(1)</script><img src="/static/uploads/x.png" onerror="y()">',
+           'lateral': '<p>lateral da prévia</p>', 'estado': 'rascunho'})
+_pg = r.get_data(as_text=True)
+ok(r.status_code == 200 and 'Título da prévia' in _pg and 'Sub da prévia' in _pg and 'lateral da prévia' in _pg, 'prévia desenha título, subtítulo, texto e coluna lateral')
+ok('Prévia do editor' in _pg and 'alert(1)' not in _pg and 'onerror' not in _pg, 'prévia avisa que nada foi publicado e usa o mesmo filtro de HTML')
+ok('data-editar-noticia' not in _pg and 'id="noticia-fundo"' not in _pg, 'prévia não traz os botões de edição da página pública')
+with portal.app.app_context():
+    ok(portal.db().execute('SELECT COUNT(*) FROM noticias').fetchone()[0] == _antes, 'prévia não grava nada no banco')
+
+# ── Fase 5: onde a imagem é usada ─────────────────────────────────────────────
+_up = c.post('/admin/midia/enviar', data={'csrf': _t, 'arquivo': (io.BytesIO(png()), 'lateral.png')}, content_type='multipart/form-data').get_json()
+_arq = _up['item']['arquivo']
+with portal.app.app_context():
+    ok(portal.modulos.midia.dimensoes(_arq) == (8, 8), 'dimensões da imagem lidas do cabeçalho (PNG 8×8)')
+    ok(portal.modulos.midia.dimensoes('nao-existe.png') is None, 'dimensões de arquivo inexistente: sem erro')
+c.post('/admin/noticias', data={'csrf': _t, 'acao': 'publicar', 'titulo': 'Imagem só na lateral', 'corpo': '<p>x</p>',
+       'lateral': '<p><img src="/static/uploads/%s" alt="a"></p>' % _arq, 'estado': 'publicado'}, follow_redirects=True)
+with portal.app.test_request_context():
+    _usos = portal.modulos.midia.usos_todos().get(_arq, [])
+ok(any('Imagem só na lateral' in d for d, _ in _usos), 'imagem usada só na coluna lateral conta como "em uso"')
+c.post('/admin/midia', data={'csrf': _t, 'acao': 'excluir', 'arquivo': _arq}, follow_redirects=True)
+ok(os.path.isfile(os.path.join(portal.UPLOAD_DIR, _arq)), 'imagem em uso na coluna lateral não pode ser excluída')
+
+# ── Fase 6: política de segurança de conteúdo ─────────────────────────────────
+_csp = anon.get('/').headers.get('Content-Security-Policy', '')
+ok("default-src 'self'" in _csp and "object-src 'none'" in _csp and "frame-ancestors 'self'" in _csp, 'cabeçalho Content-Security-Policy presente')
+ok('http' not in _csp.replace("'self'", ''), 'a política não libera nenhum endereço externo')
+
+# ── Fase 7: backup e restauração ──────────────────────────────────────────────
+import zipfile
+_r = c.post('/admin/backup/baixar', data={'csrf': _t})
+_zip = _r.get_data()
+with zipfile.ZipFile(io.BytesIO(_zip)) as _z:
+    _nomes = _z.namelist()
+ok(_r.status_code == 200 and 'dados.db' in _nomes, 'backup baixa um .zip com o banco')
+ok('secret.key' not in _nomes and not any(n.endswith('.key') for n in _nomes), 'backup não leva a chave de sessão')
+with portal.app.app_context():
+    _con = portal.db(); _con.execute("DELETE FROM noticias WHERE titulo='Com tópicos'"); _con.commit()
+    _sem = _con.execute("SELECT COUNT(*) FROM noticias WHERE titulo='Com tópicos'").fetchone()[0]
+ok(_sem == 0, 'notícia apagada antes de restaurar')
+_malicioso = io.BytesIO()
+with zipfile.ZipFile(_malicioso, 'w') as _z2:
+    with zipfile.ZipFile(io.BytesIO(_zip)) as _orig:
+        for _n in _orig.namelist():
+            _z2.writestr(_n, _orig.read(_n))
+    _z2.writestr('../fora-da-pasta.txt', 'nao pode')
+_malicioso.seek(0)
+c.post('/admin/backup/restaurar', data={'csrf': _t, 'arquivo': (_malicioso, 'backup.zip')}, content_type='multipart/form-data')
+with portal.app.app_context():
+    _volta = portal.db().execute("SELECT COUNT(*) FROM noticias WHERE titulo='Com tópicos'").fetchone()[0]
+ok(_volta == 1, 'restaurar o backup traz a notícia de volta')
+ok(not os.path.exists(os.path.join(os.path.dirname(portal.BASE_DIR), 'fora-da-pasta.txt')), 'entrada com ../ no backup é ignorada')
+ok(any(n.startswith('antes-de-restaurar-') for n in os.listdir(portal.BACKUP_DIR)), 'restaurar guarda antes uma cópia do estado atual')
 
 shutil.rmtree(TMP, ignore_errors=True)
 print('\nFALHAS: %d' % len(falhas) if falhas else '\nTodos os testes passaram.')

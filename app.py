@@ -392,7 +392,7 @@ PADROES = {
     'capa_titulo_tam': '1.75', 'capa_titulo_cor': '#ffffff',
     'capa_texto_tam':  '0.83', 'capa_texto_cor':  '#dde6f4',
     'botao_sigla_tam': '0.80', 'botao_sigla_cor': '#1e293b',
-    'botao_nome_tam':  '0.67', 'botao_nome_cor':  '#7c8ba1',
+    'botao_nome_tam':  '0.67', 'botao_nome_cor':  '#5b6b82',
     # Cores de fundo. A barra lateral aceita duas: iguais dão cor sólida,
     # diferentes dão degradê de cima para baixo.
     'capa_cor':     '#16294f',
@@ -406,7 +406,7 @@ PADROES = {
     # existem na máquina de quem lê.
     'com_fonte':      'padrao',    # padrao | classica | serifa | mono
     'com_titulo_tam': '0.83', 'com_titulo_cor': '#1e293b',
-    'com_texto_tam':  '0.74', 'com_texto_cor':  '#7c8ba1',
+    'com_texto_tam':  '0.74', 'com_texto_cor':  '#5b6b82',
     'fundo_modo': 'imagem',    # imagem | cor | nenhum
     'fundo_cor':  '#f6f8fc',
     'fundo_veu':  '82',        # 0 a 100
@@ -491,10 +491,10 @@ CARTOES_SEMENTE = [
 CARTAO_APARENCIA = {
     #                prefixo       título          texto
     # Os cinco cartões do painel nascem iguais — nada mais os distingue.
-    **{c: (c, '0.83', '#1e293b', '0.74', '#7c8ba1')
+    **{c: (c, '0.83', '#1e293b', '0.74', '#5b6b82')
        for c, *_ in CARTOES_SEMENTE},
-    'sistemas':      ('sistemas', '0.80', '#1e293b', '0.67', '#7c8ba1'),
-    'atalhos':       ('atalhos',  '0.80', '#1e293b', '0.67', '#7c8ba1'),
+    'sistemas':      ('sistemas', '0.80', '#1e293b', '0.67', '#5b6b82'),
+    'atalhos':       ('atalhos',  '0.80', '#1e293b', '0.67', '#5b6b82'),
     # Medidas do cartão do painel, que é do que a tela de Ramais fala. A página
     # "ver todos" é outra coisa — três colunas de lista — e tem medida própria.
     'ramais':        ('ramais',   '0.74', '#1e293b', '0.78', '#1e293b'),
@@ -970,7 +970,7 @@ def _semear_aparencia(con, chave):
     cartão criado depois."""
     for sufixo, valor in (('fonte', 'padrao'), ('titulo_tam', '0.83'),
                           ('titulo_cor', '#1e293b'), ('texto_tam', '0.74'),
-                          ('texto_cor', '#7c8ba1')):
+                          ('texto_cor', '#5b6b82')):
         con.execute('INSERT OR IGNORE INTO config (chave,valor) VALUES (?,?)',
                     (f'{chave}_{sufixo}', valor))
 
@@ -1269,7 +1269,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.16'
+VERSAO = '1.10.0'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']

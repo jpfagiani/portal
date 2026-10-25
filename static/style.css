@@ -27,15 +27,15 @@
      simplesmente some — a faixa vira um bloco de texto solto. */
   --borda-botao:#c2d0e6;
   --texto:#1e293b;
-  --texto-fraco:#7c8ba1;
+  --texto-fraco:#5b6b82;   /* contraste 5,4:1 sobre branco (antes #7c8ba1, 3,5:1) */
   --sombra:0 1px 2px rgba(16,30,60,.05);
 
   /* Tons pastel dos ícones — fundo claro com o traço na cor cheia. */
-  --tom-azul-fundo:#e5edfd;    --tom-azul:#2563eb;
-  --tom-verde-fundo:#e3f6ec;   --tom-verde:#16a34a;
+  --tom-azul-fundo:#e5edfd;    --tom-azul:#1d4ed8;
+  --tom-verde-fundo:#e3f6ec;   --tom-verde:#166534;
   --tom-roxo-fundo:#ece9fc;    --tom-roxo:#6d5ae0;
   --tom-laranja-fundo:#fdf0e2; --tom-laranja:#e08a2a;
-  --tom-vermelho-fundo:#fdeae7;--tom-vermelho:#e0503c;
+  --tom-vermelho-fundo:#fdeae7;--tom-vermelho:#c2331f;
 
   --raio:12px;
   --fonte:'Inter','Segoe UI Variable','Segoe UI',system-ui,-apple-system,

@@ -9,7 +9,8 @@
 
   <section class="painel-caixa pe-form">
     {% if formulario %}
-    <h2>{{ 'Editar notícia' if editar else 'Nova notícia' }}</h2>
+    <h2>{{ 'Editar notícia' if editar else 'Nova notícia' }}
+      <span class="ed-estado" id="ed-estado" data-s="limpo" role="status" aria-live="polite">Sem alterações</span></h2>
     <form method="post" enctype="multipart/form-data" id="form-noticia">
       <input type="hidden" name="csrf" value="{{ csrf_token }}">
       <input type="hidden" name="id" value="{{ editar.id if editar else '' }}">
@@ -50,7 +51,7 @@
       <img class="pe-miniatura" src="{{ url_for('static', filename='uploads/' ~ editar.capa) }}" alt="">
       <label class="check"><input type="checkbox" name="remover_capa"> Remover a capa</label>
       {% endif %}
-      <input type="file" name="capa_arquivo" accept=".png,.jpg,.jpeg,.webp,.gif">
+      <input type="file" name="capa_arquivo" accept=".png,.jpg,.jpeg,.webp,.gif" aria-label="Enviar imagem de capa do computador">
       <select name="capa_biblioteca" aria-label="Escolher da biblioteca">
         <option value="">… ou escolha uma imagem da biblioteca</option>
         {% for m in biblioteca %}<option value="{{ m.arquivo }}">{{ m.nome }}</option>{% endfor %}
@@ -69,10 +70,12 @@
       <input id="n-slug" name="slug" maxlength="80" value="{{ editar.slug if editar else '' }}">
       <label class="check"><input type="checkbox" name="destaque" {{ 'checked' if editar and editar.destaque }}> Destaque (fica fixada no topo da lista, como manchete)</label>
 
+      <p class="ed-mensagem" id="ed-mensagem" role="alert" hidden></p>
       <div class="acoes">
         <button class="btn btn-principal" type="submit" name="acao" value="salvar">Salvar</button>
         <button class="btn" type="submit" name="acao" value="publicar" title="Publica agora, ou na data escolhida">Publicar</button>
-        {% if editar %}<a class="btn" target="_blank" rel="noopener" href="{{ url_for('noticia', slug=editar.slug) }}">Pré-visualizar</a>{% endif %}
+        <button class="btn" type="button" id="ed-previa" aria-expanded="false" aria-controls="pv-painel" title="Mostra como a notícia vai ficar, sem publicar">Prévia</button>
+        {% if editar %}<a class="btn" target="_blank" rel="noopener" href="{{ url_for('noticia', slug=editar.slug) }}">Abrir pré-visualização</a>{% endif %}
         <a class="btn" href="{{ url_for('admin_noticias') }}">Cancelar</a>
       </div>
     </form>
@@ -121,5 +124,16 @@
     </table>
   </section>
 </div>
+{% if formulario %}
+<aside class="pv-painel" id="pv-painel" hidden aria-label="Prévia da notícia">
+  <header>
+    <strong>Prévia</strong><span id="pv-estado" class="muted" role="status" aria-live="polite"></span>
+    <span class="pv-acoes"><button type="button" class="btn btn-sm" id="pv-atualizar">Atualizar</button>
+      <button type="button" class="btn btn-sm" id="pv-fechar">Voltar à edição</button></span>
+  </header>
+  <iframe id="pv-quadro" title="Prévia da notícia" sandbox="allow-same-origin allow-scripts"></iframe>
+</aside>
+{% endif %}
 <script src="{{ url_for('static', filename='editor-rico.js') }}"></script>
+<script src="{{ url_for('static', filename='editor-estado.js') }}"></script>
 {% endblock %}

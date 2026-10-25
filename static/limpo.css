@@ -630,7 +630,7 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .pagina-texto blockquote a{text-decoration-thickness:2px}
 
 /* página larga como a dos portais de notícia: título, capa e texto com as mesmas bordas */
-:root{--leitura:780px}
+:root{--leitura:640px}
 .pagina-noticia .noticia-corpo{max-width:none}
 .pagina-noticia .noticia-corpo,.pagina-materia>.mat-corpo{font-size:1.15rem;line-height:1.75}
 .pagina-noticia .noticia-corpo p,.pagina-materia>.mat-corpo p{margin:0 0 1.2rem}
@@ -693,3 +693,55 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .pagina-texto .fig-d,.re-area .fig-d{margin-left:auto;margin-right:0}
 .pagina-texto .fig-e,.re-area .fig-e{margin-left:0;margin-right:auto}
 .pagina-texto .figura>img,.re-area .figura>img{max-width:100%}
+
+/* como no UOL: coluna de ~640px, texto de 20px com 32px entre linhas, imagem com a largura inteira da coluna */
+.pagina-noticia .noticia-corpo,.pagina-materia>.mat-corpo,.mat-principal>.mat-corpo{font-size:1.25rem;line-height:1.6;text-align:left}
+.pagina-noticia .noticia-corpo p,.pagina-materia>.mat-corpo p,.mat-principal>.mat-corpo p{margin:0 0 1.5rem}
+.noticia-corpo h2,.mat-corpo h2{font-size:2.25rem;line-height:1.2;font-weight:700;margin:2rem 0 1.5rem}
+.noticia-corpo h3,.mat-corpo h3{font-size:1.6rem;line-height:1.25;font-weight:700;margin:1.6rem 0 1.2rem}
+.noticia-corpo img,.mat-corpo img{border-radius:0}
+@media (max-width:700px){.noticia-corpo h2,.mat-corpo h2{font-size:1.7rem}}
+
+/* ── Fase 3: tokens e componentes públicos ─────────────────────────────────────
+   Tokens de espaçamento e raio usados pelos componentes novos. As cores continuam
+   as que o painel de aparência já define (--azul, --texto, --borda…). */
+:root{--esp-1:.35rem;--esp-2:.7rem;--esp-3:1.1rem;--esp-4:1.8rem;--raio-1:8px;--raio-2:14px}
+/* Resumo em tópicos (manchete e lista de notícias) */
+.not-topicos{list-style:none;margin:var(--esp-2) 0 0;padding:0}
+.not-topicos li{position:relative;padding-left:1.1rem;margin:0 0 var(--esp-1);font-size:.95rem;line-height:1.45;color:var(--texto)}
+.not-topicos li::before{content:"";position:absolute;left:.1rem;top:.55em;width:.42rem;height:.42rem;border-radius:50%;background:var(--azul)}
+.not-linha .not-topicos li{font-size:.86rem;color:var(--texto-fraco)}
+.not-manchete .not-topicos li{font-size:1.02rem}
+/* Imagens sempre proporcionais: nunca esticam */
+.not-foto{object-fit:cover}
+
+/* ── Fase 4: editor de notícias — estado de salvamento, erro junto do campo, prévia ── */
+.ed-estado{display:inline-block;margin-left:.6rem;padding:.15rem .6rem;border-radius:999px;font-size:.74rem;font-weight:700;
+  vertical-align:middle;background:#eef2f8;color:#475569;border:1px solid var(--borda)}
+.ed-estado[data-s=pendente]{background:#fff5d9;color:#8a5a00;border-color:#e6c36a}
+.ed-estado[data-s=salvando]{background:#e8f0ff;color:#1d4ed8;border-color:#a9c0f5}
+.ed-estado[data-s=salvo]{background:#e6f6ee;color:#146c43;border-color:#9dd5b8}
+.ed-estado[data-s=falha]{background:#fdecec;color:#9d2d2d;border-color:#eba9a9}
+.ed-erro-campo,.ed-mensagem{margin:.25rem 0 .6rem;padding:.4rem .7rem;border-radius:8px;background:#fdecec;color:#9d2d2d;
+  border-left:4px solid #c0392b;font-size:.88rem;font-weight:600}
+[aria-invalid=true]{outline:2px solid #c0392b;outline-offset:1px}
+.btn[aria-disabled=true]{opacity:.6;pointer-events:none}
+.pv-painel{position:fixed;top:0;right:0;bottom:0;width:min(820px,64vw);z-index:1050;display:flex;flex-direction:column;
+  background:var(--cartao,#fff);border-left:1px solid var(--borda);box-shadow:-12px 0 36px rgba(15,23,42,.22)}
+.pv-painel[hidden]{display:none}
+.pv-painel header{display:flex;align-items:center;gap:.8rem;padding:.6rem .9rem;border-bottom:1px solid var(--borda);background:var(--cartao,#fff)}
+.pv-painel header .pv-acoes{margin-left:auto;display:flex;gap:.4rem}
+.pv-painel iframe{flex:1;width:100%;border:0;background:#fff}
+@media (max-width:1100px){.pv-painel{width:100vw;border-left:0}}
+
+/* ── Fase 7: telas pequenas — nada de rolagem horizontal na página ─────────────── */
+@media (max-width:760px){
+  .tabela{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .pagina-admin,.pagina-admin>*,.painel-caixa{min-width:0;max-width:100%;box-sizing:border-box}
+  .painel-caixa{overflow-x:auto}
+  .abas{display:flex;flex-wrap:nowrap;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .abas a{flex:0 0 auto;white-space:nowrap}
+}
+
+/* Contraste mínimo de 4,5:1 (WCAG AA) no selo "Fixada" */
+.not-fixada{color:#b45309}
