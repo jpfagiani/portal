@@ -465,6 +465,7 @@ ok(_volta == 1, 'restaurar o backup traz a notícia de volta')
 ok(not os.path.exists(os.path.join(os.path.dirname(portal.BASE_DIR), 'fora-da-pasta.txt')), 'entrada com ../ no backup é ignorada')
 ok(any(n.startswith('antes-de-restaurar-') for n in os.listdir(portal.BACKUP_DIR)), 'restaurar guarda antes uma cópia do estado atual')
 
+ok('imagem ocupa a coluna inteira' in open(os.path.join(portal.BASE_DIR,'static','limpo.css'),encoding='utf-8').read() or 'e o texto exatamente abaixo dela' in open(os.path.join(portal.BASE_DIR,'static','limpo.css'),encoding='utf-8').read(), 'regras de notícia no padrão UOL presentes no CSS')
 shutil.rmtree(TMP, ignore_errors=True)
 print('\nFALHAS: %d' % len(falhas) if falhas else '\nTodos os testes passaram.')
 sys.exit(1 if falhas else 0)

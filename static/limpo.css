@@ -745,3 +745,14 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 
 /* Contraste mínimo de 4,5:1 (WCAG AA) no selo "Fixada" */
 .not-fixada{color:#b45309}
+
+/* ── Notícia no padrão do UOL: uma imagem larga e o texto exatamente abaixo dela ──────
+   Vale para qualquer conteúdo, novo ou antigo (imagem pequena/média/grande, largura em px,
+   texto colado centralizado, caixas "figura"): a imagem ocupa a coluna inteira e o texto fica
+   na mesma largura, alinhado à esquerda. Colunas (.cols) continuam livres. */
+.pagina-noticia .noticia-corpo :where(p,div,h2,h3,ul,ol,blockquote,figure,span):not(.cols *){
+  max-width:none!important;margin-left:0!important;margin-right:0!important;text-align:left!important;float:none!important}
+.pagina-noticia .noticia-corpo :where(div.figura,.figura){width:auto!important}
+.pagina-noticia .noticia-corpo img:not(.cols *){
+  display:block;width:100%!important;max-width:100%!important;height:auto;float:none!important;margin:1.2rem 0!important}
+.pagina-noticia .noticia-corpo :where(p,li,span,div):not(.cols *){font-family:inherit!important}

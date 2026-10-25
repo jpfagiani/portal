@@ -104,3 +104,11 @@ de segurança de conteúdo sem mexer em arquivos: defina `PORTAL_CSP=0` no servi
 - Mover scripts embutidos para arquivos e remover `unsafe-inline` da CSP.
 - Prova de conceito do TipTap com conteúdo real.
 - Teste em aparelhos e leitor de tela; Firefox e Safari.
+
+## 1.10.1 — texto colado e conteúdo antigo na notícia
+
+Na página pública da notícia, toda imagem (pequena, média, grande, com largura em px, flutuante ou dentro
+de caixa "figura") passa a ocupar a coluna inteira, e todo texto fica na mesma largura, alinhado à
+esquerda, mesmo que tenha sido colado centralizado. Vale para notícias novas e antigas, sem precisar
+salvar de novo. Blocos de colunas (`.cols`) continuam livres. Reversão: apagar o último bloco de
+`static/limpo.css` ("Notícia no padrão do UOL").
