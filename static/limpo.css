@@ -756,3 +756,6 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .pagina-noticia .noticia-corpo img:not(.cols *){
   display:block;width:100%!important;max-width:100%!important;height:auto;float:none!important;margin:1.2rem 0!important}
 .pagina-noticia .noticia-corpo :where(p,li,span,div):not(.cols *){font-family:inherit!important}
+
+/* Barra azul antes dos títulos de cartões e do menu "Páginas": removida */
+.cartao-cab h2::before,.lp-titulo::before{content:none;display:none}
