@@ -356,6 +356,14 @@ ok('invalido' not in h and '--noticias-texto-cor: #7c8ba1' in h, 'cor inválida 
 h = c.get('/admin/links?grupo=sistema').get_data(as_text=True)
 ok('sistemas_cab_cor' in h and 'data-paleta' in h, 'os demais cartões também ganham nome e paleta editáveis')
 
+# a biblioteca de mídia aponta o cartão de texto e imagem que usa a imagem
+with portal.app.app_context():
+    con = portal.db()
+    con.execute("INSERT INTO cartoes_painel (chave,nome,icone,regiao,largura,coluna,ordem,tipo,ativo) VALUES ('cartaoX','Cartão com foto','megafone','topo',1,0,99,'conteudo',1)")
+    con.execute("INSERT INTO cartao_conteudo (chave,html,titulo_visivel) VALUES ('cartaoX',?,1)", (f'<p><img src="/static/uploads/{arq}"></p>',))
+    con.commit()
+ok('Cartão com foto' in c.get('/admin/midia').get_data(as_text=True), 'mídia mostra o cartão de texto e imagem que usa a imagem')
+
 # imagem dentro de link (botão "Link…" do editor) sobrevive à limpeza do HTML
 with portal.app.app_context():
     h = portal.limpa_html('<p><a href="https://exemplo.gov.br/x" onclick="x()"><img class="im-m" src="/static/uploads/a.png" alt="A"></a></p>'
