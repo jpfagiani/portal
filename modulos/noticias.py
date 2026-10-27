@@ -34,6 +34,9 @@ CREATE TABLE IF NOT EXISTS noticias (
     estado        TEXT NOT NULL DEFAULT 'rascunho',   -- rascunho | publicado | arquivado
     publicar_em   TEXT NOT NULL DEFAULT '',     -- AAAA-MM-DD HH:MM:SS, hora local
     destaque      INTEGER NOT NULL DEFAULT 0,
+    titulo_fonte  TEXT NOT NULL DEFAULT '',     -- chave de FONTES_TEXTO; vazio = a do cartão
+    titulo_cor    TEXT NOT NULL DEFAULT '',     -- #rrggbb; vazio = a do cartão
+    titulo_tam    TEXT NOT NULL DEFAULT '',     -- rem; vazio = o do cartão
     ordem         INTEGER NOT NULL DEFAULT 0,   -- posição escolhida pelo administrador (menor = primeiro)
     destino_url   TEXT NOT NULL DEFAULT '',     -- se preenchido, o cartão leva para lá
     meta          TEXT NOT NULL DEFAULT '',     -- descrição para buscadores
@@ -105,6 +108,34 @@ app.jinja_env.filters['data_br'] = _data_br
 app.jinja_env.globals['situacao_noticia'] = situacao
 
 
+def estilo_titulo(n):
+    """Fonte, tamanho e cor escolhidos para o título desta notícia, prontos para
+    um atributo `style`. A cor vai como variável (--n-cor) e só vale no tema
+    claro (limpo.css): uma cor pensada para fundo branco some no tema escuro."""
+    saida = []
+    fonte = nucleo.FONTES_TEXTO.get(n['titulo_fonte'] or '')
+    if fonte:
+        saida.append('font-family:' + fonte[1])
+    if n['titulo_tam']:
+        saida.append(f"font-size:{n['titulo_tam']}rem")
+    if n['titulo_cor']:
+        saida.append(f"--n-cor:{n['titulo_cor']}")
+    return ';'.join(saida)
+
+
+def _titulo_do_form(form):
+    """(fonte, cor, tamanho) do título, validados; vazio quando não escolhido."""
+    fonte = form.get('titulo_fonte', '')
+    fonte = fonte if fonte in nucleo.FONTES_TEXTO and fonte != 'padrao' else ''
+    cor = nucleo.cor_hexa(form.get('titulo_cor', ''), '')
+    tam = form.get('titulo_tam', '').strip()
+    tam = nucleo.medida(tam, '', 0.6, 3.0) if tam else ''
+    return fonte, cor, tam
+
+
+app.jinja_env.globals['estilo_titulo'] = estilo_titulo
+
+
 def recentes(limite=4):
     """Últimas publicações visíveis (destaques primeiro) para a página inicial."""
     return nucleo.db().execute(
@@ -155,7 +186,7 @@ def noticia(slug):
         previa = True
     admin = bool(session.get('admin'))
     return render_template('noticia.html', n=n, corpo=Markup(nucleo.limpa_html(n['corpo'])), previa=previa,
-                           situacao=situacao(n), estados_noticia=ESTADOS,
+                           situacao=situacao(n), estados_noticia=ESTADOS, fontes=nucleo.FONTES_TEXTO,
                            destinos_links=nucleo.destinos_de_links() if admin else [])
 
 
@@ -238,18 +269,19 @@ def admin_noticias():
                  request.form.get('capa_alt', '').strip()[:300], request.form.get('legenda', '').strip()[:300],
                  request.form.get('categoria', '').strip()[:60], estado, publicar_em,
                  1 if request.form.get('destaque') else 0, destino,
-                 request.form.get('meta', '').strip()[:300])
+                 request.form.get('meta', '').strip()[:300]) + _titulo_do_form(request.form)
         if atual:
             if dados[11] and not atual['destaque']:      # acabou de virar destaque: vai para o topo
                 con.execute('UPDATE noticias SET ordem=? WHERE id=?', (_topo(con), ident))
             con.execute("UPDATE noticias SET slug=?,titulo=?,subtitulo=?,resumo=?,corpo=?,capa=?,capa_alt=?,"
                         "legenda=?,categoria=?,estado=?,publicar_em=?,destaque=?,destino_url=?,meta=?,"
+                        "titulo_fonte=?,titulo_cor=?,titulo_tam=?,"
                         "atualizado_em=datetime('now','localtime') WHERE id=?", dados + (ident,))
             novo_id = ident
         else:
             novo_id = con.execute(
                 "INSERT INTO noticias (slug,titulo,subtitulo,resumo,corpo,capa,capa_alt,legenda,categoria,"
-                "estado,publicar_em,destaque,destino_url,meta,autor,ordem) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "estado,publicar_em,destaque,destino_url,meta,titulo_fonte,titulo_cor,titulo_tam,autor,ordem) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 dados + (session.get('nome') or session.get('user', ''), _topo(con))).lastrowid
         con.commit()
         flash('Publicada.' if acao == 'publicar' else 'Notícia salva.', 'ok')
@@ -297,12 +329,13 @@ def admin_noticia_rapida():
     if request.form.get('destaque') and not n['destaque']:
         con.execute('UPDATE noticias SET ordem=? WHERE id=?', (_topo(con), n['id']))
     con.execute("UPDATE noticias SET titulo=?,subtitulo=?,resumo=?,corpo=?,capa=?,capa_alt=?,legenda=?,"
-                "categoria=?,estado=?,publicar_em=?,destaque=?,atualizado_em=datetime('now','localtime') WHERE id=?",
+                "categoria=?,estado=?,publicar_em=?,destaque=?,titulo_fonte=?,titulo_cor=?,titulo_tam=?,"
+                "atualizado_em=datetime('now','localtime') WHERE id=?",
                 (titulo, request.form.get('subtitulo', '').strip()[:300],
                  request.form.get('resumo', '').strip()[:600],
                  nucleo.limpa_html(request.form.get('corpo', '')), capa,
                  request.form.get('capa_alt', '').strip()[:300], request.form.get('legenda', '').strip()[:300],
                  request.form.get('categoria', '').strip()[:60], estado, publicar_em,
-                 1 if request.form.get('destaque') else 0, n['id']))
+                 1 if request.form.get('destaque') else 0) + _titulo_do_form(request.form) + (n['id'],))
     con.commit()
     return jsonify(ok=True)

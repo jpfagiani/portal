@@ -1,5 +1,6 @@
 {% extends 'shell.html' %}
 {% import 'rico.html' as r with context %}
+{% import 'campos.html' as campos %}
 {% set pagina = 'noticias' %}
 {% block titulo %}{{ n.titulo }}{% endblock %}
 {% block meta %}{% if n.meta or n.resumo %}<meta name="description" content="{{ n.meta or n.resumo }}">{% endif %}{% endblock %}
@@ -13,7 +14,7 @@
   <article class="noticia">
     <header>
       {% if n.categoria %}<span class="noticia-cat">{{ n.categoria }}</span>{% endif %}
-      <h1 class="pagina-titulo">{{ n.titulo }}</h1>
+      <h1 class="pagina-titulo ntit" style="{{ estilo_titulo(n) }}">{{ n.titulo }}</h1>
       {% if n.subtitulo %}<p class="noticia-sub">{{ n.subtitulo }}</p>{% endif %}
       <p class="noticia-meta">{% if n.publicar_em %}{{ n.publicar_em|data_br }}{% endif %}</p>
     </header>
@@ -41,6 +42,7 @@
       <input type="hidden" name="capa_biblioteca" value="">
       <label for="ne-titulo">Título</label>
       <input id="ne-titulo" name="titulo" required maxlength="200" value="{{ n.titulo }}">
+      {{ campos.titulo_noticia(n, fontes) }}
       <label for="ne-sub">Subtítulo</label>
       <input id="ne-sub" name="subtitulo" maxlength="300" value="{{ n.subtitulo }}">
       <div class="pe-duas">
@@ -77,6 +79,7 @@
     </form>
   </div>
 </div>
+<script src="{{ url_for('static', filename='paleta.js') }}"></script>
 <script src="{{ url_for('static', filename='midia-seletor.js') }}"></script>
 <script src="{{ url_for('static', filename='editor-rico.js') }}"></script>
 <script src="{{ url_for('static', filename='noticia-edicao.js') }}"></script>

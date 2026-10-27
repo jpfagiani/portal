@@ -17,6 +17,7 @@
 
       <label for="n-titulo">Título *</label>
       <input id="n-titulo" name="titulo" required maxlength="200" value="{{ editar.titulo if editar else '' }}">
+      {{ campos.titulo_noticia(editar, fontes) }}
       <label for="n-sub">Subtítulo</label>
       <input id="n-sub" name="subtitulo" maxlength="300" value="{{ editar.subtitulo if editar else '' }}">
       <label for="n-resumo">Resumo <small>(aparece nas listas e nos cartões)</small></label>
@@ -134,6 +135,7 @@
   {{ campos.aparencia_cartao(aparencia[1], cfg, fontes, csrf_token, aparencia[2], aparencia[3]) }}
 </section>
 {% endif %}
+<script src="{{ url_for('static', filename='paleta.js') }}"></script>
 <script src="{{ url_for('static', filename='ordenar.js') }}"></script>
 <script src="{{ url_for('static', filename='noticia-ordem.js') }}"></script>
 <script src="{{ url_for('static', filename='editor-rico.js') }}"></script>

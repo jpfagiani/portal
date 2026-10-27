@@ -245,7 +245,7 @@ ok('mat-leia' not in anon.get('/modulo/servidores').get_data(as_text=True), 'Lei
 # lista da seção Notícias: manchete, linhas com miniatura e destaque fixado no topo
 nova(titulo='Aviso fixado', estado='publicado', publicar_em='2020-01-04T08:00', destaque='on')
 h = anon.get('/noticias').get_data(as_text=True)
-m = re.search(r'class="not-manchete".*?<h2>(.*?)</h2>', h, re.S)
+m = re.search(r'class="not-manchete".*?<h2[^>]*>(.*?)</h2>', h, re.S)
 ok(m and m.group(1).strip() == 'Aviso fixado' and 'Fixada' in h, 'notícia em destaque vira manchete e leva a marca Fixada')
 ok('class="not-linha"' in h and 'class="not-linhas"' in h, 'as demais notícias saem em linhas')
 for i in range(8):
@@ -324,7 +324,7 @@ with portal.app.app_context():
         "SELECT id FROM noticias WHERE estado='publicado' ORDER BY ordem, destaque DESC, publicar_em DESC, id DESC")]
 def ordem_publica():
     t = anon.get('/noticias').get_data(as_text=True)
-    return re.findall(r'<h[23]>(.*?)</h[23]>', t.split('not-manchete', 1)[1])
+    return re.findall(r'<h[23][^>]*>(.*?)</h[23]>', t.split('not-manchete', 1)[1])
 def titulos_ids(ids):
     with portal.app.app_context():
         return [portal.db().execute('SELECT titulo FROM noticias WHERE id=?', (i,)).fetchone()[0] for i in ids]
@@ -394,6 +394,26 @@ ok('cartao6_cab_cor' in c.get('/admin/cartoes').get_data(as_text=True), 'cartão
 ok(c.post('/admin/cartoes', data={'csrf': tok, 'cartao': 'inexistente', 'acao': 'titulo_cartao'}).status_code == 400, 'cartão inexistente é recusado')
 r = c.post('/admin/cartoes', data={'csrf': tok, 'cartao': 'noticias', 'acao': 'titulo_cartao', 'titulo_cartao': 'Mural de notícias'}, follow_redirects=True)
 ok('Mural de notícias' in anon.get('/').get_data(as_text=True), 'renomear o cartão pela aba única')
+
+# estilo próprio do título de cada notícia (fonte, tamanho, cor)
+r = nova(titulo='Título estilizado', estado='publicado', publicar_em='2020-03-01T08:00',
+         titulo_fonte='serifa', titulo_tam='1.4', titulo_cor='#0e7490')
+with portal.app.app_context():
+    ne = portal.db().execute("SELECT id,slug,titulo_fonte,titulo_cor,titulo_tam FROM noticias WHERE titulo='Título estilizado'").fetchone()
+ok(ne and ne['titulo_fonte'] == 'serifa' and ne['titulo_cor'] == '#0e7490' and ne['titulo_tam'] == '1.40', 'estilo do título é gravado')
+h = anon.get('/').get_data(as_text=True)
+ok('--n-cor:#0e7490' in h and 'font-size:1.40rem' in h and 'Georgia' in h, 'cartão da página inicial usa o estilo do título')
+ok('--n-cor:#0e7490' in anon.get('/noticias/' + ne['slug']).get_data(as_text=True), 'página da notícia usa o estilo do título')
+ok('name="titulo_cor"' in c.get('/admin/noticias?editar=%d' % ne['id']).get_data(as_text=True)
+   and 'name="titulo_cor"' in c.get('/noticias/' + ne['slug']).get_data(as_text=True), 'campos de estilo existem nos dois formulários de edição')
+nova(id=str(ne['id']), titulo='Título estilizado', estado='publicado', publicar_em='2020-03-01T08:00',
+     titulo_fonte='hack;}', titulo_tam='999', titulo_cor='red;}')
+with portal.app.app_context():
+    ne2 = portal.db().execute('SELECT titulo_fonte,titulo_cor,titulo_tam FROM noticias WHERE id=?', (ne['id'],)).fetchone()
+ok(ne2['titulo_fonte'] == '' and ne2['titulo_cor'] == '' and ne2['titulo_tam'] == '3.00', 'valores inválidos do título são descartados')
+c.post('/admin/noticia-rapida', data={'csrf': tok, 'id': ne['id'], 'titulo': 'Título estilizado', 'estado': 'publicado',
+       'titulo_cor': '#16a34a', 'titulo_fonte': 'mono'})
+ok('--n-cor:#16a34a' in anon.get('/').get_data(as_text=True), 'edição pela própria página da notícia também grava o estilo')
 
 # imagem dentro de link (botão "Link…" do editor) sobrevive à limpeza do HTML
 with portal.app.app_context():

@@ -74,7 +74,7 @@
         <a class="not-item" href="{{ destino }}"{% if destino.startswith('http') %} target="_blank" rel="noopener"{% endif %}>
           {% if n.capa %}<img src="{{ url_for('static', filename='uploads/' ~ n.capa) }}" alt="" loading="lazy">{% endif %}
           <span><small>{% if n.categoria %}{{ n.categoria }} · {% endif %}{{ n.publicar_em|data_br }}</small>
-            <strong>{{ n.titulo }}</strong></span>
+            <strong class="ntit" style="{{ estilo_titulo(n) }}">{{ n.titulo }}</strong></span>
         </a>
         {% else %}
         <p class="vazio">Nenhuma notícia publicada ainda.</p>

@@ -1172,6 +1172,9 @@ def init_db():
             # e as já existentes não ganham um bloco novo por conta da atualização.
             ('paginas_lateral', 'mostrar_leia',   'INTEGER NOT NULL DEFAULT 0'),
             ('noticias', 'ordem',    'INTEGER NOT NULL DEFAULT 0'),
+            ('noticias', 'titulo_fonte', "TEXT NOT NULL DEFAULT ''"),
+            ('noticias', 'titulo_cor',   "TEXT NOT NULL DEFAULT ''"),
+            ('noticias', 'titulo_tam',   "TEXT NOT NULL DEFAULT ''"),
             ('cartao_conteudo', 'url', "TEXT NOT NULL DEFAULT ''"),
             ('ramais',   'destaque', 'INTEGER NOT NULL DEFAULT 0'),
             ('usuarios', 'ultimo_acesso', "TEXT DEFAULT ''")):

@@ -304,6 +304,13 @@ ramais, notícias, cartões de itens e de texto e imagem). Cada um abre para mud
 as cores** (nome do cartão, título e texto dos itens, com paleta) e leva direto à tela do conteúdo.
 A posição continua no *Mapa do painel*.
 
+### Título de cada notícia
+
+No formulário de edição da notícia (em *Administração → Notícias* e na própria página da notícia),
+logo abaixo do título: **fonte, tamanho e cor** só daquele título, que valem no cartão da página
+inicial, na lista `/noticias` e na página da notícia. Vazio = o que estiver definido para o cartão em
+*Todos os cartões*. A cor vale no tema claro.
+
 ### Posição das notícias e aparência dos títulos
 
 - **Posição**: em *Administração → Notícias*, arraste as linhas pela alça ⠿ ou use ▲ ▼. A ordem
