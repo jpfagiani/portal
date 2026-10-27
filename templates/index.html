@@ -45,7 +45,13 @@
       <div class="cartao-corpo">{{ b.atalhos(atalhos) }}</div>
     </section>
   {% elif c.tipo == 'conteudo' %}
-    <section class="cartao cartao-conteudo" {{ posicao(c) }}>
+    {% set url_c = '' if modo_edicao else cartao_url(c.chave) %}
+    <section class="cartao cartao-conteudo{{ ' cartao-clicavel' if url_c }}" {{ posicao(c) }}>
+      {#  Com endereço, um link transparente cobre o cartão todo; links e imagens
+          com link próprio ficam por cima dele. No editor ele não existe, para o
+          clique continuar abrindo a edição. #}
+      {% if url_c %}<a class="cartao-overlay" href="{{ url_c }}"{% if url_c.startswith('http') %} target="_blank" rel="noopener"{% endif %}
+         aria-label="Abrir: {{ c.nome }}"></a>{% endif %}
       {% if cartao_titulo_visivel(c.chave) or modo_edicao %}
       <div class="cartao-cab">
         <h2>{% if modo_edicao %}<a class="cab-link cab-editar" href="#" data-editar-conteudo="{{ c.chave }}"
@@ -292,7 +298,10 @@
       <label for="conteudo-nome">Título do cartão</label>
       <input id="conteudo-nome" name="nome" maxlength="80" placeholder="Ex.: Comunicado, Horários, Aviso…">
       <label class="check"><input type="checkbox" name="titulo_visivel" checked> Mostrar o título no portal</label>
-      <label>Texto e imagens</label>
+      <label for="conteudo-url">Endereço do cartão inteiro <small>(opcional: clicar no título, no texto ou na imagem abre este endereço)</small></label>
+      <input id="conteudo-url" name="url" list="conteudo-destinos" maxlength="500" placeholder="https://... ou /pagina">
+      <datalist id="conteudo-destinos">{% for n, e in destinos_links %}<option value="{{ e }}">{{ n }}</option>{% endfor %}</datalist>
+      <label>Texto e imagens <small>(um link só na imagem: clique nela e use “Link…”)</small></label>
       {{ r.editor('corpo', '', destinos_links, csrf_token) }}
       <p class="pe-erro" id="conteudo-erro" role="alert"></p>
       <div class="pe-rodape">

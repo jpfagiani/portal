@@ -331,7 +331,7 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .not-item:hover,.not-item:focus-visible{outline:0;box-shadow:inset 0 0 0 1px var(--azul)}
 .not-item img{width:3.4rem;height:3.4rem;object-fit:cover;border-radius:8px;flex-shrink:0}
 .not-item small{display:block;color:var(--noticias-texto-cor,var(--texto-fraco));font-size:var(--noticias-texto-tam,.68rem);font-family:var(--noticias-fonte,inherit)}
-.not-item strong{font-size:var(--noticias-titulo-tam,.95rem);color:var(--noticias-titulo-cor,#b91c1c);font-family:var(--noticias-fonte,inherit);line-height:1.25}
+.not-item strong{font-size:var(--noticias-titulo-tam,.95rem);color:var(--noticias-titulo-cor,#9f1239);font-family:var(--noticias-fonte,inherit);line-height:1.25}
 .not-todas{font-size:.8rem;color:var(--azul);text-decoration:none;font-weight:600;align-self:flex-end}
 .pagina-noticia{max-width:none}
 .noticia-cat{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--azul)}
@@ -593,3 +593,10 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .pagina-texto a:has(>img)>img{cursor:pointer;border-radius:10px;transition:filter .15s,box-shadow .15s}
 .pagina-texto a:has(>img):hover>img,.pagina-texto a:has(>img):focus-visible>img{filter:brightness(1.06);box-shadow:0 0 0 2px var(--azul)}
 .re-area a:has(>img){text-decoration:none}
+
+/* Cartão de texto e imagem com endereço: o cartão inteiro é clicável */
+.cartao-clicavel{position:relative;cursor:pointer}
+.cartao-overlay{position:absolute;inset:0;z-index:1;border-radius:10px}
+.cartao-clicavel .cartao-corpo a{position:relative;z-index:2}
+.cartao-clicavel:hover .cartao-cab h2,.cartao-overlay:focus-visible~.cartao-cab h2{color:var(--azul)}
+.cartao-overlay:focus-visible{outline:2px solid var(--azul);outline-offset:2px}

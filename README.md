@@ -297,6 +297,13 @@ sudo ./desinstalar.sh    # remove o serviço; PRESERVA dados e imagens
   cartão "Últimas notícias" na página inicial (pode ser movido/ocultado como os
   demais cartões).
 
+### Aba "Todos os cartões"
+
+*Administração → Todos os cartões* reúne **todos** os cartões da página inicial (sistemas, atalhos,
+ramais, notícias, cartões de itens e de texto e imagem). Cada um abre para mudar o nome, a **fonte e
+as cores** (nome do cartão, título e texto dos itens, com paleta) e leva direto à tela do conteúdo.
+A posição continua no *Mapa do painel*.
+
 ### Posição das notícias e aparência dos títulos
 
 - **Posição**: em *Administração → Notícias*, arraste as linhas pela alça ⠿ ou use ▲ ▼. A ordem

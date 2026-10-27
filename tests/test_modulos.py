@@ -345,7 +345,7 @@ ok(ordem_publica()[0].strip() == 'Notícia mais nova', 'notícia nova entra na p
 h = c.get('/admin/noticias').get_data(as_text=True)
 ok('data-mover="-1"' in h and 'data-ordenavel' in h and 'Aparência do cartão' in h, 'tela do admin tem alça, setas e aparência')
 h = re.sub(r'\s+', ' ', anon.get('/').get_data(as_text=True))
-ok('--noticias-titulo-cor: #b91c1c' in h and '--noticias-cab-cor' in h, 'título das notícias sai vermelho por padrão')
+ok('--noticias-titulo-cor: #9f1239' in h and '--noticias-cab-cor' in h, 'título das notícias sai em vinho por padrão')
 c.post('/admin/noticias', data={'csrf': tok, 'acao': 'aparencia_cartao', 'noticias_fonte': 'serifa',
         'noticias_cab_tam': '1.1', 'noticias_cab_cor': '#2563eb', 'noticias_titulo_tam': '1.2',
         'noticias_titulo_cor': '#16a34a', 'noticias_texto_tam': '0.7', 'noticias_texto_cor': 'invalido;}'})
@@ -363,6 +363,37 @@ with portal.app.app_context():
     con.execute("INSERT INTO cartao_conteudo (chave,html,titulo_visivel) VALUES ('cartaoX',?,1)", (f'<p><img src="/static/uploads/{arq}"></p>',))
     con.commit()
 ok('Cartão com foto' in c.get('/admin/midia').get_data(as_text=True), 'mídia mostra o cartão de texto e imagem que usa a imagem')
+
+# cartão de texto e imagem com endereço: o cartão inteiro vira link (só para o visitante)
+r = c.post('/admin/cartao-conteudo', data={'csrf': tok, 'nome': 'Curso EaD', 'titulo_visivel': 'on',
+           'corpo': '<p>Texto</p>', 'url': 'exemplo.gov.br/curso'})
+ok(r.get_json()['ok'], 'cartão de texto e imagem com endereço é salvo')
+h = anon.get('/').get_data(as_text=True)
+ok('class="cartao-overlay" href="http://exemplo.gov.br/curso"' in h and 'cartao-clicavel' in h, 'visitante vê o cartão inteiro como link')
+ok('cartao-overlay' not in c.get('/editor').get_data(as_text=True), 'no editor o cartão não vira link (clique abre a edição)')
+r = c.post('/admin/cartao-conteudo', data={'csrf': tok, 'nome': 'Sem link', 'corpo': '<p>x</p>', 'url': 'javascript:alert(1)'})
+ok('javascript:' not in anon.get('/').get_data(as_text=True), 'endereço javascript: é descartado no cartão')
+
+# aba única "Todos os cartões"
+h = c.get('/admin/cartoes').get_data(as_text=True)
+ok(c.get('/admin/cartoes').status_code == 200 and 'Todos os cartões' in h, 'aba Todos os cartões abre')
+ok(all(t in h for t in ('Últimas notícias', 'Acesso rápido aos sistemas', 'Atalhos úteis', 'Cartão com foto', 'Curso EaD')),
+   'a aba lista cartões de todos os tipos (fixos, genéricos, texto e imagem)')
+ok('noticias_cab_cor' in h and 'cartao1_titulo_cor' in h and 'data-paleta' in h, 'cada cartão tem fonte e paleta')
+r = c.post('/admin/cartoes', data={'csrf': tok, 'cartao': 'cartao1', 'acao': 'aparencia_cartao', 'cartao1_fonte': 'mono',
+           'cartao1_cab_tam': '1.2', 'cartao1_cab_cor': '#0e7490', 'cartao1_titulo_tam': '1.1', 'cartao1_titulo_cor': '#9f1239',
+           'cartao1_texto_tam': '0.8', 'cartao1_texto_cor': '#334155'})
+h = re.sub(r'\s+', ' ', anon.get('/').get_data(as_text=True))
+ok('--cartao1-cab-cor: #0e7490' in h and '--cartao1-titulo-cor: #9f1239' in h and
+   'data-cartao="cartao1"] .comunicados{ --com-titulo-tam:var(--cartao1-titulo-tam)' in h,
+   'aparência do cartão genérico agora chega ao CSS (nome, título e texto)')
+ok('html:not([data-tema="escuro"]) .cartao[data-cartao="cartao1"] .cartao-cab h2{ color:var(--cartao1-cab-cor)}' in h,
+   'cores só valem no tema claro')
+r = c.post('/admin/lateral', data={'csrf': tok, 'acao': 'novo_cartao'}, follow_redirects=True)
+ok('cartao6_cab_cor' in c.get('/admin/cartoes').get_data(as_text=True), 'cartão genérico novo também tem aparência editável')
+ok(c.post('/admin/cartoes', data={'csrf': tok, 'cartao': 'inexistente', 'acao': 'titulo_cartao'}).status_code == 400, 'cartão inexistente é recusado')
+r = c.post('/admin/cartoes', data={'csrf': tok, 'cartao': 'noticias', 'acao': 'titulo_cartao', 'titulo_cartao': 'Mural de notícias'}, follow_redirects=True)
+ok('Mural de notícias' in anon.get('/').get_data(as_text=True), 'renomear o cartão pela aba única')
 
 # imagem dentro de link (botão "Link…" do editor) sobrevive à limpeza do HTML
 with portal.app.app_context():

@@ -74,7 +74,7 @@ html[data-tema="escuro"]{
   --chamados-titulo-cor:#e4eaf6; --chamados-texto-cor:#8a99b5;
   --reservas-titulo-cor:#e4eaf6; --reservas-texto-cor:#8a99b5;
   --ramais-titulo-cor:#e4eaf6;   --ramais-texto-cor:#e4eaf6;
-  --noticias-titulo-cor:#f87171; --noticias-texto-cor:#8a99b5;
+  --noticias-titulo-cor:#fb7185; --noticias-texto-cor:#8a99b5;
   --cartao1-cab-cor:#e4eaf6; --cartao2-cab-cor:#e4eaf6; --cartao3-cab-cor:#e4eaf6;
   --cartao4-cab-cor:#e4eaf6; --cartao5-cab-cor:#e4eaf6; --sistemas-cab-cor:#e4eaf6;
   --atalhos-cab-cor:#e4eaf6; --ramais-cab-cor:#e4eaf6;   --noticias-cab-cor:#e4eaf6;
@@ -1411,3 +1411,13 @@ html[data-tema="escuro"] .com-img-link-fundo:hover .com-img-fundo{opacity:.2}
 .pos-noticia{white-space:nowrap}
 .mover-noticia{display:inline-flex;gap:2px;margin-left:.4rem}
 .mover-noticia .btn{padding:0 .35rem;min-width:0;line-height:1.4}
+
+/* aba "Todos os cartões" */
+.cartao-adm-sum{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;cursor:pointer;list-style:none}
+.cartao-adm-sum::-webkit-details-marker{display:none}
+.cartao-adm-sum::before{content:"▸";color:var(--texto-fraco);transition:transform .12s}
+.cartao-adm[open]>.cartao-adm-sum::before{transform:rotate(90deg)}
+.cartao-adm-acoes{margin-left:auto}
+.cartao-adm-nome{margin-top:1rem}
+.cartao-adm-linha{display:flex;gap:.5rem;align-items:center}
+.cartao-adm-linha input{flex:1}
