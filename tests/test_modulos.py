@@ -356,6 +356,14 @@ ok('invalido' not in h and '--noticias-texto-cor: #7c8ba1' in h, 'cor inválida 
 h = c.get('/admin/links?grupo=sistema').get_data(as_text=True)
 ok('sistemas_cab_cor' in h and 'data-paleta' in h, 'os demais cartões também ganham nome e paleta editáveis')
 
+# imagem dentro de link (botão "Link…" do editor) sobrevive à limpeza do HTML
+with portal.app.app_context():
+    h = portal.limpa_html('<p><a href="https://exemplo.gov.br/x" onclick="x()"><img class="im-m" src="/static/uploads/a.png" alt="A"></a></p>'
+                          '<a href="javascript:alert(1)"><img src="/static/uploads/b.png"></a>')
+ok('<a href="https://exemplo.gov.br/x" target="_blank" rel="noopener"><img src="/static/uploads/a.png"' in h and 'onclick' not in h,
+   'imagem com link continua com o link depois da limpeza')
+ok('javascript:' not in h and '<img src="/static/uploads/b.png"' in h, 'link perigoso na imagem é removido, a imagem fica')
+
 # páginas principais continuam abrindo
 for rota in ('/', '/ramais', '/sistemas', '/noticias', '/admin', '/admin/noticias', '/admin/midia',
              '/admin/historico', '/admin/noticias?nova=1'):

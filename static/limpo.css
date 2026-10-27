@@ -587,3 +587,9 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .com-img-alca,.com-img-etiqueta{display:none!important}
 .com-img-caixa[data-editavel].livre .com-imagem{cursor:auto}
 .cartao-cab h2::before,.tela-livre>.cartao .cartao-cab h2::before{content:none!important;display:none!important}
+
+/* Imagem com link (texto formatado): sem sublinhado, e o hover mostra que clica */
+.pagina-texto a:has(>img){text-decoration:none;display:contents}   /* contents: não altera float nem largura da imagem */
+.pagina-texto a:has(>img)>img{cursor:pointer;border-radius:10px;transition:filter .15s,box-shadow .15s}
+.pagina-texto a:has(>img):hover>img,.pagina-texto a:has(>img):focus-visible>img{filter:brightness(1.06);box-shadow:0 0 0 2px var(--azul)}
+.re-area a:has(>img){text-decoration:none}
