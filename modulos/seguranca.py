@@ -93,22 +93,8 @@ def conteudo_confere(arquivo, ext):
 
 # ── cabeçalhos ─────────────────────────────────────────────────────────────────
 
-# Política de segurança de conteúdo: o navegador só carrega script, estilo, imagem e vídeo do
-# próprio portal, e ninguém consegue embutir o portal em página de outro site. O portal usa
-# scripts e estilos escritos dentro das páginas (`unsafe-inline`); por isso esta política
-# limita a origem do que carrega, mas não impede script escrito na própria página — quem
-# impede isso é a limpeza do HTML no servidor. PORTAL_CSP=0 desliga a política se algum
-# recurso externo legítimo precisar ser liberado (ex.: mapa de outro site).
-CSP = ("default-src 'self'; img-src 'self' data: blob:; media-src 'self'; font-src 'self' data:; "
-       "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; "
-       "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'")
-CSP_LIGADA = os.environ.get('PORTAL_CSP', '1') != '0'
-
-
 @app.after_request
 def _cabecalhos(resp):
-    if CSP_LIGADA:
-        resp.headers.setdefault('Content-Security-Policy', CSP)
     resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
     resp.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
     resp.headers.setdefault('Referrer-Policy', 'same-origin')

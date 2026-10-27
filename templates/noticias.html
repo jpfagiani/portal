@@ -12,13 +12,6 @@
                       alt="{{ n.capa_alt or midia_alt(n.capa, '') }}" loading="lazy">
   {% else %}<span class="not-foto" aria-hidden="true"></span>{% endif %}
 {% endmacro %}
-{#  Resumo em tópicos (uma linha do campo "Resumo" = um tópico), como nas manchetes dos
-    portais de notícia. Sem resumo, usa o subtítulo em uma frase. #}
-{% macro resumo(n, max=3) %}
-  {% set linhas = (n.resumo or '').splitlines()|map('trim')|select|list %}
-  {% if linhas %}<ul class="not-topicos">{% for l in linhas[:max] %}<li>{{ l }}</li>{% endfor %}</ul>
-  {% elif n.subtitulo %}<p>{{ n.subtitulo }}</p>{% endif %}
-{% endmacro %}
 {% block miolo %}
 <main class="pagina pagina-noticias">
   <div class="migalha"><a href="{{ url_for('index') }}">← Início</a><span>/</span><span>Notícias</span></div>
@@ -40,7 +33,7 @@
       <div class="not-texto">
         <small>{{ marca(m) }}</small>
         <h2>{{ m.titulo }}</h2>
-        {{ resumo(m, 4) }}
+        {% if m.resumo or m.subtitulo %}<p>{{ m.resumo or m.subtitulo }}</p>{% endif %}
         <time class="not-data">{{ m.publicar_em|data_br }}</time>
       </div>
     </a>
@@ -56,7 +49,7 @@
         <div class="not-texto">
           <small>{{ marca(n) }}</small>
           <h3>{{ n.titulo }}</h3>
-          {{ resumo(n, 2) }}
+          {% if n.resumo or n.subtitulo %}<p>{{ n.resumo or n.subtitulo }}</p>{% endif %}
           <time class="not-data">{{ n.publicar_em|data_br }}</time>
         </div>
       </a>

@@ -78,55 +78,6 @@ def sincroniza():
     con.commit()
 
 
-def _arquivos_em(*textos):
-    """Nomes dos arquivos de static/uploads citados em trechos de HTML."""
-    achados = set()
-    for t in textos:
-        achados.update(re.findall(r'uploads/([\w.\-]+)', t or ''))
-    return achados
-
-
-def dimensoes(arquivo):
-    """(largura, altura) lidas do cabeçalho do arquivo, sem depender de biblioteca de imagens.
-    None se o formato não for reconhecido."""
-    try:
-        with open(_caminho(arquivo), 'rb') as f:
-            c = f.read(64 * 1024)
-    except OSError:
-        return None
-    try:
-        if c.startswith(b'\x89PNG\r\n\x1a\n'):
-            return int.from_bytes(c[16:20], 'big'), int.from_bytes(c[20:24], 'big')
-        if c[:6] in (b'GIF87a', b'GIF89a'):
-            return int.from_bytes(c[6:8], 'little'), int.from_bytes(c[8:10], 'little')
-        if c[:4] == b'RIFF' and c[8:12] == b'WEBP':
-            tipo = c[12:16]
-            if tipo == b'VP8X':
-                return 1 + int.from_bytes(c[24:27], 'little'), 1 + int.from_bytes(c[27:30], 'little')
-            if tipo == b'VP8L':
-                b = int.from_bytes(c[21:25], 'little')
-                return 1 + (b & 0x3FFF), 1 + ((b >> 14) & 0x3FFF)
-            if tipo == b'VP8 ':
-                return int.from_bytes(c[26:28], 'little') & 0x3FFF, int.from_bytes(c[28:30], 'little') & 0x3FFF
-        if c.startswith(b'\xff\xd8'):
-            i = 2
-            while i + 9 < len(c):
-                if c[i] != 0xFF:
-                    i += 1
-                    continue
-                marca = c[i + 1]
-                if marca in (0xD8, 0x01) or 0xD0 <= marca <= 0xD7:
-                    i += 2
-                    continue
-                tam = int.from_bytes(c[i + 2:i + 4], 'big')
-                if marca in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
-                    return int.from_bytes(c[i + 7:i + 9], 'big'), int.from_bytes(c[i + 5:i + 7], 'big')
-                i += 2 + tam
-    except (IndexError, ValueError):
-        pass
-    return None
-
-
 def usos_todos():
     """{arquivo: [(descrição, endereço de edição)]} — onde cada imagem aparece."""
     con = nucleo.db()
@@ -146,21 +97,13 @@ def usos_todos():
         usos[r['imagem']].append((f"Cartão “{r['titulo']}”", url_for('admin_lateral')))
     for r in con.execute("SELECT imagem, titulo FROM cartoes WHERE imagem<>''"):
         usos[r['imagem']].append((f"Cartão “{r['titulo']}”", url_for('admin_lateral')))
-    for r in con.execute("SELECT id, titulo, capa, corpo, lateral FROM noticias"):
-        achados = _arquivos_em(r['corpo'], r['lateral'])
+    for r in con.execute("SELECT id, titulo, capa, corpo FROM noticias"):
+        achados = set(re.findall(r'uploads/([\w.\-]+)', r['corpo'] or ''))
         if r['capa']:
             achados.add(r['capa'])
         for arq in achados:
             usos[arq].append((f"Notícia “{r['titulo']}”",
                               url_for('admin_noticias', editar=r['id'])))
-    # Texto das páginas do menu (corpo e coluna lateral): também aceitam imagens.
-    for r in con.execute("SELECT chave, nome, corpo, lateral FROM paginas_lateral"):
-        for arq in _arquivos_em(r['corpo'], r['lateral']):
-            usos[arq].append((f"Texto da página “{r['nome']}”", url_for('admin_pagina', chave=r['chave'])))
-    # Conteúdo livre dos cartões da página inicial.
-    for r in con.execute("SELECT chave, html FROM cartao_conteudo"):
-        for arq in _arquivos_em(r['html']):
-            usos[arq].append((f"Cartão “{r['chave']}” da página inicial", url_for('admin_lateral')))
     return usos
 
 
@@ -179,7 +122,7 @@ def itens(busca='', filtro='', limite=None):
             continue
         if filtro == 'livre' and u:
             continue
-        saida.append({**dict(r), 'usos': u, 'dim': dimensoes(r['arquivo']),
+        saida.append({**dict(r), 'usos': u,
                       'url': url_for('static', filename='uploads/' + r['arquivo']),
                       'nome': r['titulo'] or r['original']})
         if limite and len(saida) >= limite:

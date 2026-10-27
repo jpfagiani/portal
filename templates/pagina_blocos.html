@@ -28,7 +28,7 @@
 </figure>
 {% endif %}
 {% if cab.resumo %}
-<details class="mat-resumo"{% if not cab.resumo_fechado %} open{% endif %}>
+<details class="mat-resumo" open>
   <summary>Resumo</summary>
   <ul>{% for linha in cab.resumo %}<li>{{ linha }}</li>{% endfor %}</ul>
 </details>

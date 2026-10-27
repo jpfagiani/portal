@@ -328,7 +328,7 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .not-texto p{margin:0;font-size:.88rem;color:var(--texto-fraco)}
 .not-lista{display:flex;flex-direction:column;gap:.5rem}
 .not-item{display:flex;gap:.6rem;align-items:center;text-decoration:none;color:inherit;padding:.35rem;border-radius:10px;background:var(--cartao-suave)}
-.not-item:hover{outline:1px solid var(--azul)}
+.not-item:hover,.not-item:focus-visible{outline:0;box-shadow:inset 0 0 0 1px var(--azul)}
 .not-item img{width:3.4rem;height:3.4rem;object-fit:cover;border-radius:8px;flex-shrink:0}
 .not-item small{display:block;color:var(--texto-fraco);font-size:.68rem}
 .not-item strong{font-size:.85rem;line-height:1.25}
@@ -548,7 +548,7 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 
 /* página da notícia: coluna de leitura centralizada, como nos portais de notícia */
 .pagina-noticia>.migalha,.pagina-noticia>.pe-dica,.pagina-noticia>.noticia,.pagina-noticia>.pagina-acoes,.pagina-noticia>.mt-leia{
-  width:100%;max-width:var(--leitura,780px);margin-left:auto;margin-right:auto;box-sizing:border-box}
+  width:100%;max-width:720px;margin-left:auto;margin-right:auto;box-sizing:border-box}
 .pagina-noticia>.noticia{margin-top:1rem;display:flex;flex-direction:column;gap:1rem}
 .pagina-noticia .noticia header{display:flex;flex-direction:column;gap:.4rem}
 .pagina-noticia .noticia-corpo{font-size:1.08rem;line-height:1.7}
@@ -564,19 +564,15 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 
 .pagina-texto img.im-bloco,.re-area img.im-bloco{display:block;float:none;margin:.6rem auto .6rem 0}
 .pagina-texto img.im-bloco-dir,.re-area img.im-bloco-dir{display:block;float:none;margin:.6rem 0 .6rem auto}
-.re-alcas{position:absolute;pointer-events:none;z-index:5;outline:2px solid var(--azul);outline-offset:0}
-.re-alca{position:absolute;width:13px;height:13px;background:#fff;border:2px solid var(--azul);border-radius:3px;box-shadow:0 1px 4px rgba(0,0,0,.35);pointer-events:auto;touch-action:none;box-sizing:border-box}
-.re-alca-nw{left:-7px;top:-7px;cursor:nwse-resize}.re-alca-se{right:-7px;bottom:-7px;cursor:nwse-resize}
-.re-alca-ne{right:-7px;top:-7px;cursor:nesw-resize}.re-alca-sw{left:-7px;bottom:-7px;cursor:nesw-resize}
-.re-alca:hover{background:var(--azul)}
-.re-alca-dica{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--azul);color:#fff;font-size:.8rem;font-weight:700;border-radius:6px;padding:.1rem .5rem;white-space:nowrap}
+.re-alca{position:absolute;width:18px;height:18px;border-radius:50%;background:var(--azul);border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.4);cursor:nwse-resize;z-index:5;touch-action:none}
+.re-alca-dica{position:absolute;left:22px;top:-4px;background:var(--azul);color:#fff;font-size:.7rem;font-weight:700;border-radius:6px;padding:.05rem .4rem;white-space:nowrap}
 .re-alca-dica:empty{display:none}
 @media (max-width:560px){.pagina-texto img.im-esq,.pagina-texto img.im-dir{width:100%!important}}
 
 /* páginas de conteúdo com texto único: mesma coluna centralizada das notícias */
 .pagina-conteudo.pagina-materia{max-width:none}
 .pagina-materia>.migalha,.pagina-materia>.pe-dica,.pagina-materia>.mat-cab,.pagina-materia>.mat-capa,.pagina-materia>.mat-resumo,
-.pagina-materia>.mat-corpo,.pagina-materia>.mat-leia,.pagina-materia>.pagina-acoes{width:100%;max-width:var(--leitura,780px);margin-left:auto;margin-right:auto;box-sizing:border-box}
+.pagina-materia>.mat-corpo,.pagina-materia>.mat-leia,.pagina-materia>.pagina-acoes{width:100%;max-width:720px;margin-left:auto;margin-right:auto;box-sizing:border-box}
 .pagina-materia>.mat-corpo{font-size:1.08rem;line-height:1.7;margin-top:1rem}
 .pagina-materia>.mat-corpo p{margin:0 0 1rem}
 .pagina-materia>.pagina-acoes{margin-top:1.6rem}
@@ -584,178 +580,5 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 .pagina>.cartao-lista{max-width:760px;margin-left:auto;margin-right:auto}
 .pagina>.ramais-voltar{max-width:760px;margin-left:auto;margin-right:auto}
 
-/* ── colunas no texto: cada coluna começa no topo, lado a lado ── */
-.pagina-texto .cols,.re-area .cols{display:grid;gap:1.2rem;align-items:start;margin:0 0 .9rem}
-.pagina-texto .cols.c2,.re-area .cols.c2{grid-template-columns:repeat(2,minmax(0,1fr))}
-.pagina-texto .cols.c3,.re-area .cols.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
-.pagina-texto .cols.c13,.re-area .cols.c13{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}
-.pagina-texto .cols.c31,.re-area .cols.c31{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
-.pagina-texto .col,.re-area .col{min-width:0}
-.pagina-texto .col>:last-child,.re-area .col>:last-child{margin-bottom:0}
-.pagina-texto .col::after,.re-area .col::after{content:"";display:block;clear:both}
-@media (max-width:560px){.pagina-texto .cols,.re-area .cols{grid-template-columns:minmax(0,1fr)!important}}
-/* imagem solta no meio de uma linha: o texto ao lado começa no topo dela */
-.pagina-texto img:not(.im-esq):not(.im-dir):not(.im-centro):not(.im-bloco):not(.im-bloco-dir),
-.re-area img:not(.im-esq):not(.im-dir):not(.im-centro):not(.im-bloco):not(.im-bloco-dir){vertical-align:top}
-/* no editor, as colunas aparecem tracejadas para se ver onde escrever */
-.re-area .cols{outline:1px dashed var(--azul);outline-offset:4px;padding:.1rem}
-.re-area .col{min-height:3.4rem;outline:1px dashed var(--borda);outline-offset:2px;padding:.15rem .3rem}
-.re-area .col.re-col-alvo{outline:2px solid var(--azul);background:rgba(37,99,235,.07)}
-.re-area.re-arrastando,.re-area.re-arrastando *{cursor:grabbing!important;user-select:none}
-.re-area img{cursor:grab;-webkit-user-drag:none;user-select:none}
-.re-soltar{position:fixed;width:3px;background:var(--azul);border-radius:2px;pointer-events:none;z-index:50;box-shadow:0 0 0 1px #fff}
-.re-fantasma{position:fixed;pointer-events:none;opacity:.65;z-index:60;max-width:180px;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
-.re-img-barra select{font:inherit;font-size:.78rem}
-
-.pagina-texto .cols.c23,.re-area .cols.c23{grid-template-columns:minmax(0,2fr) minmax(0,3fr)}
-/* manchete no estilo de portal de notícias: foto à esquerda, título grande ao lado */
-.pagina-texto .cols.c23 .col h2,.re-area .cols.c23 .col h2{font-size:1.9rem;line-height:1.12;font-weight:800;letter-spacing:-.015em;margin:0 0 .5rem}
-.pagina-texto .cols.c23 .col img,.re-area .cols.c23 .col img{border-radius:10px;display:block;margin:0}
-.pagina-texto .cols.c23+ul,.re-area .cols.c23+ul{list-style:square;margin-top:.4rem}
-.pagina-texto .cols.c23+ul li::marker,.re-area .cols.c23+ul li::marker{color:#c1121f}
-.pagina-texto .cols.c23+ul li,.re-area .cols.c23+ul li{margin-bottom:.55rem}
-
-/* ── página da notícia no estilo de portal: título grande, assinatura, capa, resumo ── */
-.pagina-noticia>.migalha,.pagina-noticia>.pe-dica,.pagina-noticia>.noticia,.pagina-noticia>.pagina-acoes,.pagina-noticia>.mt-leia{max-width:var(--leitura,780px)}
-.pagina-noticia .noticia .mat-cab,.pagina-noticia .noticia .mat-capa,.pagina-noticia .noticia .mat-resumo{max-width:none}
-.pagina-noticia .mat-cab{gap:.7rem}
-.pagina-noticia .mat-chapeu{font-size:.9rem;letter-spacing:.02em}
-.pagina-noticia .mat-cab .pagina-titulo{font-size:clamp(1.9rem,4.6vw,2.9rem);line-height:1.1;font-weight:800;letter-spacing:-.025em}
-.pagina-noticia .mat-fina{font-size:1.2rem}
-.pagina-noticia .mat-capa img{max-height:none;aspect-ratio:16/9;border-radius:10px}
-.pagina-noticia .mat-resumo{background:var(--cartao-suave);border-color:var(--borda)}
-/* frase ou link em destaque dentro do texto (botão "Destaque" do editor) */
-.pagina-texto blockquote{margin:1.2rem 0;padding:.1rem 0 .1rem 1rem;border-left:3px solid var(--azul);
-  color:var(--texto);font-weight:600;line-height:1.5}
-.pagina-texto blockquote a{text-decoration-thickness:2px}
-
-/* página larga como a dos portais de notícia: título, capa e texto com as mesmas bordas */
-:root{--leitura:640px}
-.pagina-noticia .noticia-corpo{max-width:none}
-.pagina-noticia .noticia-corpo,.pagina-materia>.mat-corpo{font-size:1.15rem;line-height:1.75}
-.pagina-noticia .noticia-corpo p,.pagina-materia>.mat-corpo p{margin:0 0 1.2rem}
-/* páginas feitas de blocos (texto, imagens, botões): a mesma coluna, com as mesmas bordas */
-.pagina-conteudo>.migalha,.pagina-conteudo>.pe-dica,.pagina-conteudo>.mat-cab,.pagina-conteudo>.mat-capa,.pagina-conteudo>.mat-resumo,
-.pagina-conteudo>.mat-leia,.pagina-conteudo>.pagina-acoes,.pagina-conteudo>.bl,.pagina-conteudo>.pagina-imagens,.pagina-conteudo>.pe-folha{
-  width:100%;max-width:var(--leitura,780px);margin-left:auto;margin-right:auto;box-sizing:border-box}
-.pagina-conteudo>.bl .pagina-texto{max-width:none}
-
-/* ── barra "Word": tamanho em px e paleta de cores ── */
-.re-px-bloco{display:inline-flex;align-items:center;gap:.25rem;flex-wrap:nowrap}
-.re-px-grupo{display:inline-flex;align-items:stretch}
-.re-px-grupo button{padding:.25rem .5rem!important;font-weight:700}
-.re-px-grupo button:first-child{border-radius:6px 0 0 6px!important}
-.re-px-grupo button:last-child{border-radius:0 6px 6px 0!important}
-.re-px{width:3.2rem;text-align:center;font:inherit;font-size:.8rem;border:1px solid var(--borda);border-left:0;border-right:0;background:var(--cartao);color:var(--texto);padding:.25rem .1rem;margin:0;border-radius:0;box-sizing:border-box}
-.re-px-aviso{outline:2px solid #dc2626;outline-offset:1px}
-.re-larg{width:4.4rem;font:inherit;font-size:.78rem;border:1px solid var(--borda);border-radius:6px;padding:.2rem .3rem;background:var(--cartao);color:var(--texto)}
-.re-cor-btn{display:inline-flex!important;flex-direction:column;align-items:center;gap:1px;padding:.15rem .4rem .2rem!important;position:relative;min-width:2.2rem}
-.re-cor-a,.re-cor-m{font-weight:800;font-size:.95rem;line-height:1}
-.re-cor-m{background:#fde047;color:#1e293b;padding:0 .2rem;border-radius:2px;font-size:.8rem}
-.re-cor-barra{display:block;width:1.3rem;height:4px;border-radius:2px;border:1px solid rgba(0,0,0,.25)}
-.re-cor-seta{position:absolute;right:.12rem;top:.1rem;font-size:.55rem;color:var(--texto-fraco)}
-.re-pop{position:fixed;z-index:200;background:var(--cartao);border:1px solid var(--borda);border-radius:10px;padding:.6rem;box-shadow:0 10px 30px rgba(0,0,0,.25);width:max-content;max-width:calc(100vw - 12px)}
-.re-pop-grade{display:flex;flex-direction:column;gap:3px;margin:.5rem 0}
-.re-pop-linha{display:flex;gap:3px}
-.re-amostra{width:22px;height:22px;border-radius:4px;border:1px solid rgba(0,0,0,.2);padding:0;cursor:pointer;flex:none}
-.re-amostra:hover{transform:scale(1.2);outline:2px solid var(--azul);z-index:1;position:relative}
-.re-pop-auto{display:block;width:100%;text-align:left;font:inherit;font-size:.8rem;padding:.3rem .5rem;border:1px solid var(--borda);border-radius:6px;background:var(--cartao-suave);color:var(--texto);cursor:pointer}
-.re-pop-auto:hover{border-color:var(--azul)}
-.re-pop-tit{font-size:.72rem;font-weight:600;color:var(--texto-fraco);margin:.4rem 0 .25rem}
-.re-pop-mais{display:flex;align-items:center;gap:.4rem;font-size:.8rem;margin-top:.5rem;cursor:pointer}
-.re-pop-mais input{width:2rem;height:1.6rem;padding:0;border:1px solid var(--borda);border-radius:5px;background:none}
-
-/* ── coluna lateral (como no UOL): matéria à esquerda, textos complementares à direita ── */
-.pagina-noticia>.mat-grade{width:100%;max-width:var(--leitura,780px);margin:1rem auto 0;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr);gap:2rem}
-.pagina-noticia>.mat-grade>.noticia{max-width:none;margin:0;display:flex;flex-direction:column;gap:1rem}
-.mat-grade.com-lateral{width:100%;max-width:calc(var(--leitura,780px) + 340px);margin-left:auto;margin-right:auto;display:grid;grid-template-columns:minmax(0,var(--leitura,780px)) minmax(0,300px);gap:2.5rem;align-items:start;box-sizing:border-box}
-.pagina-materia>.mat-grade{margin-top:1rem}
-.mat-principal{display:flex;flex-direction:column;gap:1.1rem;min-width:0}
-.mat-principal>.mat-cab,.mat-principal>.mat-capa,.mat-principal>.mat-resumo,.mat-principal>.mat-corpo{width:100%;max-width:none;box-sizing:border-box}
-.mat-principal>.mat-corpo{font-size:1.15rem;line-height:1.75}
-.mat-principal>.mat-corpo p{margin:0 0 1.2rem}
-.mat-lateral{font-size:.95rem;line-height:1.6;max-width:none;border-left:1px solid var(--borda);padding-left:1.3rem;min-width:0;position:sticky;top:1rem;align-self:start}
-.mat-lateral img{max-width:100%;height:auto}
-.mat-lateral h2{font-size:1.15rem}.mat-lateral h3{font-size:1rem}
-/* migalha, ações e "Leia também" alinhados à esquerda da grade com coluna lateral */
-.pagina-noticia:has(.com-lateral)>.migalha,.pagina-noticia:has(.com-lateral)>.pe-dica,.pagina-noticia:has(.com-lateral)>.pagina-acoes,
-.pagina-materia:has(.com-lateral)>.migalha,.pagina-materia:has(.com-lateral)>.pe-dica,.pagina-materia:has(.com-lateral)>.pagina-acoes,.pagina-materia:has(.com-lateral)>.mat-leia{max-width:calc(var(--leitura,780px) + 340px)}
-@media (max-width:1100px){
-  .mat-grade.com-lateral{grid-template-columns:minmax(0,1fr);max-width:var(--leitura,780px)}
-  .mat-lateral{position:static;border-left:0;border-top:1px solid var(--borda);padding:1.2rem 0 0}
-  .pagina-noticia:has(.com-lateral)>.migalha,.pagina-noticia:has(.com-lateral)>.pe-dica,.pagina-noticia:has(.com-lateral)>.pagina-acoes,
-  .pagina-materia:has(.com-lateral)>.migalha,.pagina-materia:has(.com-lateral)>.pe-dica,.pagina-materia:has(.com-lateral)>.pagina-acoes,.pagina-materia:has(.com-lateral)>.mat-leia{max-width:var(--leitura,780px)}
-}
-
-/* bloco imagem + texto: o texto abaixo da imagem tem exatamente a largura dela */
-.pagina-texto .figura,.re-area .figura{max-width:100%;box-sizing:border-box;margin-bottom:.9rem}
-.pagina-texto .fig-c,.re-area .fig-c{margin-left:auto;margin-right:auto}
-.pagina-texto .fig-d,.re-area .fig-d{margin-left:auto;margin-right:0}
-.pagina-texto .fig-e,.re-area .fig-e{margin-left:0;margin-right:auto}
-.pagina-texto .figura>img,.re-area .figura>img{max-width:100%}
-
-/* como no UOL: coluna de ~640px, texto de 20px com 32px entre linhas, imagem com a largura inteira da coluna */
-.pagina-noticia .noticia-corpo,.pagina-materia>.mat-corpo,.mat-principal>.mat-corpo{font-size:1.25rem;line-height:1.6;text-align:left}
-.pagina-noticia .noticia-corpo p,.pagina-materia>.mat-corpo p,.mat-principal>.mat-corpo p{margin:0 0 1.5rem}
-.noticia-corpo h2,.mat-corpo h2{font-size:2.25rem;line-height:1.2;font-weight:700;margin:2rem 0 1.5rem}
-.noticia-corpo h3,.mat-corpo h3{font-size:1.6rem;line-height:1.25;font-weight:700;margin:1.6rem 0 1.2rem}
-.noticia-corpo img,.mat-corpo img{border-radius:0}
-@media (max-width:700px){.noticia-corpo h2,.mat-corpo h2{font-size:1.7rem}}
-
-/* ── Fase 3: tokens e componentes públicos ─────────────────────────────────────
-   Tokens de espaçamento e raio usados pelos componentes novos. As cores continuam
-   as que o painel de aparência já define (--azul, --texto, --borda…). */
-:root{--esp-1:.35rem;--esp-2:.7rem;--esp-3:1.1rem;--esp-4:1.8rem;--raio-1:8px;--raio-2:14px}
-/* Resumo em tópicos (manchete e lista de notícias) */
-.not-topicos{list-style:none;margin:var(--esp-2) 0 0;padding:0}
-.not-topicos li{position:relative;padding-left:1.1rem;margin:0 0 var(--esp-1);font-size:.95rem;line-height:1.45;color:var(--texto)}
-.not-topicos li::before{content:"";position:absolute;left:.1rem;top:.55em;width:.42rem;height:.42rem;border-radius:50%;background:var(--azul)}
-.not-linha .not-topicos li{font-size:.86rem;color:var(--texto-fraco)}
-.not-manchete .not-topicos li{font-size:1.02rem}
-/* Imagens sempre proporcionais: nunca esticam */
-.not-foto{object-fit:cover}
-
-/* ── Fase 4: editor de notícias — estado de salvamento, erro junto do campo, prévia ── */
-.ed-estado{display:inline-block;margin-left:.6rem;padding:.15rem .6rem;border-radius:999px;font-size:.74rem;font-weight:700;
-  vertical-align:middle;background:#eef2f8;color:#475569;border:1px solid var(--borda)}
-.ed-estado[data-s=pendente]{background:#fff5d9;color:#8a5a00;border-color:#e6c36a}
-.ed-estado[data-s=salvando]{background:#e8f0ff;color:#1d4ed8;border-color:#a9c0f5}
-.ed-estado[data-s=salvo]{background:#e6f6ee;color:#146c43;border-color:#9dd5b8}
-.ed-estado[data-s=falha]{background:#fdecec;color:#9d2d2d;border-color:#eba9a9}
-.ed-erro-campo,.ed-mensagem{margin:.25rem 0 .6rem;padding:.4rem .7rem;border-radius:8px;background:#fdecec;color:#9d2d2d;
-  border-left:4px solid #c0392b;font-size:.88rem;font-weight:600}
-[aria-invalid=true]{outline:2px solid #c0392b;outline-offset:1px}
-.btn[aria-disabled=true]{opacity:.6;pointer-events:none}
-.pv-painel{position:fixed;top:0;right:0;bottom:0;width:min(820px,64vw);z-index:1050;display:flex;flex-direction:column;
-  background:var(--cartao,#fff);border-left:1px solid var(--borda);box-shadow:-12px 0 36px rgba(15,23,42,.22)}
-.pv-painel[hidden]{display:none}
-.pv-painel header{display:flex;align-items:center;gap:.8rem;padding:.6rem .9rem;border-bottom:1px solid var(--borda);background:var(--cartao,#fff)}
-.pv-painel header .pv-acoes{margin-left:auto;display:flex;gap:.4rem}
-.pv-painel iframe{flex:1;width:100%;border:0;background:#fff}
-@media (max-width:1100px){.pv-painel{width:100vw;border-left:0}}
-
-/* ── Fase 7: telas pequenas — nada de rolagem horizontal na página ─────────────── */
-@media (max-width:760px){
-  .tabela{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .pagina-admin,.pagina-admin>*,.painel-caixa{min-width:0;max-width:100%;box-sizing:border-box}
-  .painel-caixa{overflow-x:auto}
-  .abas{display:flex;flex-wrap:nowrap;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .abas a{flex:0 0 auto;white-space:nowrap}
-}
-
-/* Contraste mínimo de 4,5:1 (WCAG AA) no selo "Fixada" */
-.not-fixada{color:#b45309}
-
-/* ── Notícia no padrão do UOL: uma imagem larga e o texto exatamente abaixo dela ──────
-   Vale para qualquer conteúdo, novo ou antigo (imagem pequena/média/grande, largura em px,
-   texto colado centralizado, caixas "figura"): a imagem ocupa a coluna inteira e o texto fica
-   na mesma largura, alinhado à esquerda. Colunas (.cols) continuam livres. */
-.pagina-noticia .noticia-corpo :where(p,div,h2,h3,ul,ol,blockquote,figure,span):not(.cols *){
-  max-width:none!important;margin-left:0!important;margin-right:0!important;text-align:left!important;float:none!important}
-.pagina-noticia .noticia-corpo :where(div.figura,.figura){width:auto!important}
-.pagina-noticia .noticia-corpo img:not(.cols *){
-  display:block;width:100%!important;max-width:100%!important;height:auto;float:none!important;margin:1.2rem 0!important}
-.pagina-noticia .noticia-corpo :where(p,li,span,div):not(.cols *){font-family:inherit!important}
-
-/* Barra azul antes dos títulos de cartões e do menu "Páginas": removida */
-.cartao-cab h2::before,.lp-titulo::before{content:none;display:none}
+.lista-admin{display:flex;flex-wrap:wrap;gap:.5rem;align-items:flex-start;padding:.5rem 1rem;border-bottom:1px dashed #cbd5e1}
+.lista-admin details{flex:1 1 100%}.lista-admin ul{margin:.4rem 0 0;padding-left:1rem;list-style:none}

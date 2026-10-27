@@ -261,18 +261,6 @@ def nome_icone(valor):
 BACKUP_DIR = os.path.join(BASE_DIR, 'backups')
 
 app = Flask(__name__)
-
-
-@app.url_defaults
-def _versao_estatico(endpoint, values):
-    """Arquivo de static/ ganha ?v=<data de alteração> no endereço: quando o arquivo
-    muda numa atualização, o navegador busca a versão nova em vez de usar a antiga."""
-    if endpoint == 'static' and values.get('filename') and 'v' not in values \
-            and not values['filename'].startswith('uploads/'):     # imagens enviadas mantêm o endereço de sempre
-        try:
-            values['v'] = int(os.path.getmtime(os.path.join(app.static_folder, values['filename'])))
-        except OSError:
-            pass
 # 64 MB: um backup carrega o banco mais a foto de fundo, o logo e as imagens
 # do banner. As imagens avulsas continuam limitadas pela extensão aceita.
 app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024
@@ -392,7 +380,7 @@ PADROES = {
     'capa_titulo_tam': '1.75', 'capa_titulo_cor': '#ffffff',
     'capa_texto_tam':  '0.83', 'capa_texto_cor':  '#dde6f4',
     'botao_sigla_tam': '0.80', 'botao_sigla_cor': '#1e293b',
-    'botao_nome_tam':  '0.67', 'botao_nome_cor':  '#5b6b82',
+    'botao_nome_tam':  '0.67', 'botao_nome_cor':  '#7c8ba1',
     # Cores de fundo. A barra lateral aceita duas: iguais dão cor sólida,
     # diferentes dão degradê de cima para baixo.
     'capa_cor':     '#16294f',
@@ -406,7 +394,7 @@ PADROES = {
     # existem na máquina de quem lê.
     'com_fonte':      'padrao',    # padrao | classica | serifa | mono
     'com_titulo_tam': '0.83', 'com_titulo_cor': '#1e293b',
-    'com_texto_tam':  '0.74', 'com_texto_cor':  '#5b6b82',
+    'com_texto_tam':  '0.74', 'com_texto_cor':  '#7c8ba1',
     'fundo_modo': 'imagem',    # imagem | cor | nenhum
     'fundo_cor':  '#f6f8fc',
     'fundo_veu':  '82',        # 0 a 100
@@ -491,10 +479,10 @@ CARTOES_SEMENTE = [
 CARTAO_APARENCIA = {
     #                prefixo       título          texto
     # Os cinco cartões do painel nascem iguais — nada mais os distingue.
-    **{c: (c, '0.83', '#1e293b', '0.74', '#5b6b82')
+    **{c: (c, '0.83', '#1e293b', '0.74', '#7c8ba1')
        for c, *_ in CARTOES_SEMENTE},
-    'sistemas':      ('sistemas', '0.80', '#1e293b', '0.67', '#5b6b82'),
-    'atalhos':       ('atalhos',  '0.80', '#1e293b', '0.67', '#5b6b82'),
+    'sistemas':      ('sistemas', '0.80', '#1e293b', '0.67', '#7c8ba1'),
+    'atalhos':       ('atalhos',  '0.80', '#1e293b', '0.67', '#7c8ba1'),
     # Medidas do cartão do painel, que é do que a tela de Ramais fala. A página
     # "ver todos" é outra coisa — três colunas de lista — e tem medida própria.
     'ramais':        ('ramais',   '0.74', '#1e293b', '0.78', '#1e293b'),
@@ -970,7 +958,7 @@ def _semear_aparencia(con, chave):
     cartão criado depois."""
     for sufixo, valor in (('fonte', 'padrao'), ('titulo_tam', '0.83'),
                           ('titulo_cor', '#1e293b'), ('texto_tam', '0.74'),
-                          ('texto_cor', '#5b6b82')):
+                          ('texto_cor', '#7c8ba1')):
         con.execute('INSERT OR IGNORE INTO config (chave,valor) VALUES (?,?)',
                     (f'{chave}_{sufixo}', valor))
 
@@ -999,15 +987,6 @@ def _semear_cartoes(con):
 
     # 1.8.0: "Acesso rápido" e "Atalhos" passam a largura total (uma vez só; quem
     # ajustar depois não é desfeito) e o cartão de notícias vai para a lateral.
-    # 1.9.17: o nome de quem criou a notícia era gravado como autor; agora só aparece
-    # assinatura se for digitada no campo "Autor ou setor". Limpa o que foi gravado antes.
-    if not con.execute("SELECT 1 FROM config WHERE chave='autor_noticias_v1917'").fetchone():
-        try:
-            con.execute("UPDATE noticias SET autor=''")
-        except sqlite3.OperationalError:
-            pass
-        con.execute("INSERT OR REPLACE INTO config (chave,valor) VALUES ('autor_noticias_v1917','1')")
-
     if not con.execute("SELECT 1 FROM config WHERE chave='layout_v18'").fetchone():
         con.execute("UPDATE cartoes_painel SET largura=3, coluna=0"
                     " WHERE chave IN ('sistemas','atalhos')")
@@ -1143,8 +1122,6 @@ def init_db():
             # "Leia também" começa desligado: ligá-lo é escolha de cada página,
             # e as já existentes não ganham um bloco novo por conta da atualização.
             ('paginas_lateral', 'mostrar_leia',   'INTEGER NOT NULL DEFAULT 0'),
-            ('noticias', 'lateral', "TEXT NOT NULL DEFAULT ''"),          # coluna lateral da notícia
-            ('paginas_lateral', 'lateral', "TEXT DEFAULT ''"),             # coluna lateral da página de conteúdo
             ('ramais',   'destaque', 'INTEGER NOT NULL DEFAULT 0'),
             ('usuarios', 'ultimo_acesso', "TEXT DEFAULT ''")):
         existentes = {c[1] for c in con.execute(f'PRAGMA table_info({tabela})')}
@@ -1269,7 +1246,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.10.2'
+VERSAO = '1.9.19'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -1369,7 +1346,7 @@ def lista(chave):
     if registrado and registrado['tipo'] == 'itens':
         return render_template(
             'lista.html', chave=chave, titulo=registrado['nome'],
-            macro='comunicados', marca_bloco=marca_atual('comunicados'),
+            macro='comunicados', marca_bloco=marca_atual('comunicados'), editavel=True,
             itens=db().execute('SELECT * FROM lateral WHERE ativo=1 AND cartao=?'
                                ' ORDER BY ordem, id', (chave,)).fetchall())
     if chave not in FONTES:
@@ -1377,6 +1354,7 @@ def lista(chave):
     _, consulta, titulo, macro = FONTES[chave]
     return render_template('lista.html', chave=chave, titulo=titulo, macro=macro,
                            marca_bloco=marca_atual(macro),
+                           editavel=bool(cartao_por_chave(chave)),
                            itens=db().execute(consulta).fetchall())
 
 # Menu lateral. Os itens sem módulo próprio ainda levam a uma página que
@@ -1619,8 +1597,6 @@ _TAGS_OK = {'p', 'br', 'strong', 'em', 'u', 's', 'ul', 'ol', 'li', 'h2', 'h3',
             'h4', 'blockquote', 'a', 'span', 'div'}
 _TAGS_COM_ESTILO = {'p', 'div', 'span', 'li', 'h2', 'h3', 'h4', 'blockquote'}
 _CLASSES_IMG = {'im-p', 'im-m', 'im-g', 'im-c', 'im-esq', 'im-dir', 'im-centro', 'im-bloco', 'im-bloco-dir'}
-# Colunas do texto: um <div class="cols c2"> com <div class="col"> dentro.
-_CLASSES_DIV = {'cols', 'c2', 'c3', 'c13', 'c23', 'c31', 'col', 'figura', 'fig-e', 'fig-c', 'fig-d'}
 _SINONIMOS = {'b': 'strong', 'i': 'em', 'strike': 's', 'del': 's', 'h1': 'h2',
               'h5': 'h4', 'h6': 'h4', 'font': 'span'}
 _DESCARTA = {'script', 'style', 'iframe', 'object', 'embed', 'noscript',
@@ -1643,7 +1619,7 @@ def _cor_limpa(valor):
     return ''
 
 
-def _estilo_limpo(css, largura=False):
+def _estilo_limpo(css):
     """Só as propriedades que o editor produz, com valores conferidos."""
     saida = []
     for decl in (css or '').split(';'):
@@ -1659,12 +1635,8 @@ def _estilo_limpo(css, largura=False):
             if m:
                 n, un = float(m.group(1)), m.group(2)
                 rem = {'rem': n, 'em': n, 'px': n / 16, '%': n / 100}[un]
-            if rem is not None and .5 <= rem <= 6:
+            if rem is not None and .6 <= rem <= 4:
                 saida.append(f'font-size:{round(rem, 3)}rem')
-        elif prop == 'width' and largura:
-            m = re.fullmatch(r'(\d{2,4})(?:\.\d+)?px', valor)       # largura fixa do bloco imagem + texto
-            if m:
-                saida.append(f'width:{max(40, min(1600, int(m.group(1))))}px')
         elif prop == 'text-align' and valor in ('left', 'center', 'right', 'justify'):
             saida.append(f'text-align:{valor}')
         elif prop == 'font-weight' and valor in ('bold', '700', '600', '800'):
@@ -1695,7 +1667,7 @@ class _LimpaHTML(HTMLParser):
         if tag == 'img':
             # Só imagens da própria biblioteca (static/uploads); nada de endereço
             # externo, data: ou javascript:.
-            m = re.fullmatch(r'/static/uploads/([A-Za-z0-9._\-]+\.(?:png|jpe?g|gif|webp))(?:\?v=\d+)?',
+            m = re.fullmatch(r'/static/uploads/([A-Za-z0-9._\-]+\.(?:png|jpe?g|gif|webp))',
                              attrs.get('src', '').strip())
             if m:
                 alt = escape(attrs.get('alt', '')[:300])
@@ -1706,14 +1678,10 @@ class _LimpaHTML(HTMLParser):
                 w = re.search(r'(\d{1,3})(?:\.\d+)?\s*%?', attrs.get('data-w', '')) or \
                     re.search(r'width\s*:\s*(\d{1,3})(?:\.\d+)?%', attrs.get('style', ''))
                 estilo_w = f' style="width:{max(5, min(100, int(w.group(1))))}%"' if w else ''
-                # Largura em pixels, digitada ou arrastada no editor (24 a 1600).
-                px = re.search(r'width\s*:\s*(\d{2,6})(?:\.\d+)?px', attrs.get('style', ''))
-                if px and not attrs.get('data-w'):
-                    estilo_w = f' style="width:{max(24, min(1600, int(px.group(1))))}px"'
                 self.saida.append(f'<img src="/static/uploads/{m.group(1)}" alt="{alt}" loading="lazy"{cls}{estilo_w}>')
             return
         if tag in _TAGS_OK:
-            estilo = _estilo_limpo(attrs.get('style'), tag == 'div')
+            estilo = _estilo_limpo(attrs.get('style'))
             if original == 'font':                # <font color size> do editor
                 extra = []
                 c = _cor_limpa(attrs.get('color'))
@@ -1735,10 +1703,6 @@ class _LimpaHTML(HTMLParser):
             else:
                 emitida = tag
             if emitida:
-                if tag == 'div':
-                    cls = ' '.join(c for c in attrs.get('class', '').split() if c in _CLASSES_DIV)
-                    if cls:
-                        marcas += f' class="{cls}"'
                 if estilo and tag in _TAGS_COM_ESTILO:
                     marcas += f' style="{escape(estilo)}"'
                 self.saida.append(f'<{tag}{marcas}>')
@@ -1960,9 +1924,7 @@ def modulo(chave):
                         'imagem': url_for('static', filename='uploads/' + b['arquivo'])
                                   if b['arquivo'] else ''})
     corpo = limpa_html(row['corpo'] or '') if (row['corpo'] or '').strip() else ''
-    lateral = limpa_html(row['lateral'] or '') if (corpo and (row['lateral'] or '').strip()) else ''
-    return render_template('modulo.html', chave=chave, nome=row['nome'], lateral=Markup(lateral),
-                           lateral_editar=Markup(limpa_html(row['lateral'] or '')) if admin else '',
+    return render_template('modulo.html', chave=chave, nome=row['nome'],
                            cab=cab, leia=leia, corpo=Markup(corpo),
                            corpo_editar=Markup(corpo or (blocos_para_html(linhas) if admin else '')),
                            cab_campos=row if admin else None,
@@ -2343,7 +2305,7 @@ def index():
 
     return render_template(
         'index.html', numeros=numeros, saudacao=saudacao(),
-        noticias_recentes=modulos.noticias.recentes(4),
+        noticias_recentes=modulos.noticias.recentes(5),
         cartoes_painel=cartoes_painel, livre=livre, cartoes_livre=cartoes_livre,
         lateral_livre=lateral_livre,
         destinos_links=destinos_de_links() if session.get('admin') else [],
@@ -3948,15 +3910,14 @@ def admin_pagina_rapida():
     resumo = '\n'.join([l.strip()[:200] for l in request.form.get('resumo', '').splitlines()
                         if l.strip()][:6])
     con.execute('UPDATE paginas_lateral SET chapeu=?,linha_fina=?,autor=?,publicada_em=?,capa=?,'
-                'capa_legenda=?,capa_credito=?,resumo=?,mostrar_resumo=?,mostrar_leia=?,corpo=?,lateral=?'
+                'capa_legenda=?,capa_credito=?,resumo=?,mostrar_resumo=?,mostrar_leia=?,corpo=?'
                 ' WHERE chave=?',
                 (campo('chapeu', 40), campo('linha_fina', 220), campo('autor', 60),
                  _dt_banco(request.form.get('publicada_em')), capa,
                  campo('capa_legenda', 200), campo('capa_credito', 80), resumo,
                  1 if request.form.get('mostrar_resumo') else 0,
                  1 if request.form.get('mostrar_leia') else 0,
-                 limpa_html(request.form.get('corpo', '')),
-                 limpa_html(request.form.get('lateral', '')), chave))
+                 limpa_html(request.form.get('corpo', '')), chave))
     pagina_tocada(con, chave)
     con.commit()
     return jsonify(ok=True)

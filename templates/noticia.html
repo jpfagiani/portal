@@ -1,6 +1,5 @@
 {% extends 'shell.html' %}
 {% import 'rico.html' as r with context %}
-{% import 'pagina_blocos.html' as pb with context %}
 {% set pagina = 'noticias' %}
 {% block titulo %}{{ n.titulo }}{% endblock %}
 {% block meta %}{% if n.meta or n.resumo %}<meta name="description" content="{{ n.meta or n.resumo }}">{% endif %}{% endblock %}
@@ -8,24 +7,31 @@
 <main class="pagina pagina-noticia">
   <div class="migalha"><a href="{{ url_for('index') }}">← Início</a><span>/</span><a href="{{ url_for('noticias') }}">Notícias</a></div>
   {% if previa %}
-  <div class="pe-dica">{% if previa_ao_vivo %}<span><strong>Prévia do editor.</strong> Nada foi publicado. Situação atual: <b>{{ situacao|lower }}</b>.</span>
-    {% else %}<span><strong>Pré-visualização.</strong> Esta notícia está <b>{{ situacao|lower }}</b> e só você a vê.
-    {% if eh_admin %}<a href="{{ url_for('admin_noticias', editar=n.id) }}">Voltar à edição</a>{% endif %}</span>{% endif %}</div>
+  <div class="pe-dica"><span><strong>Pré-visualização.</strong> Esta notícia está <b>{{ situacao|lower }}</b> e só você a vê.
+    {% if eh_admin %}<a href="{{ url_for('admin_noticias', editar=n.id) }}">Voltar à edição</a>{% endif %}</span></div>
   {% endif %}
-  <div class="mat-grade{{ ' com-lateral' if lateral }}">
   <article class="noticia">
-    {{ pb.topo(cab, n.titulo) }}
+    <header>
+      {% if n.categoria %}<span class="noticia-cat">{{ n.categoria }}</span>{% endif %}
+      <h1 class="pagina-titulo">{{ n.titulo }}</h1>
+      {% if n.subtitulo %}<p class="noticia-sub">{{ n.subtitulo }}</p>{% endif %}
+      <p class="noticia-meta">{% if n.publicar_em %}{{ n.publicar_em|data_br }}{% endif %}</p>
+    </header>
+    {% if n.capa %}
+    <figure class="noticia-capa">
+      <img src="{{ url_for('static', filename='uploads/' ~ n.capa) }}" alt="{{ n.capa_alt or midia_alt(n.capa, '') }}">
+      {% if n.legenda %}<figcaption>{{ n.legenda }}</figcaption>{% endif %}
+    </figure>
+    {% endif %}
     <div class="pagina-texto noticia-corpo">{{ corpo }}</div>
   </article>
-  {% if lateral %}<aside class="mat-lateral pagina-texto" aria-label="Informações complementares">{{ lateral }}</aside>{% endif %}
-  </div>
   <div class="acoes pagina-acoes">
     <a class="btn" href="{{ url_for('noticias') }}">Todas as notícias</a>
-    {% if eh_admin and not previa_ao_vivo %}<button type="button" class="btn btn-principal" data-editar-noticia>Editar nesta página</button>
+    {% if eh_admin %}<button type="button" class="btn btn-principal" data-editar-noticia>Editar nesta página</button>
     <a class="btn" href="{{ url_for('admin_noticias', editar=n.id) }}">Editor completo</a>{% endif %}
   </div>
 </main>
-{% if eh_admin and not previa_ao_vivo %}
+{% if eh_admin %}
 <div class="pe-fundo" id="noticia-fundo" style="display:none">
   <div class="pe-janela" role="dialog" aria-modal="true" aria-labelledby="noticia-ed-titulo">
     <h3 id="noticia-ed-titulo">Editar notícia</h3>
@@ -42,9 +48,7 @@
         <div><label for="ne-estado">Situação</label>
           <select id="ne-estado" name="estado">{% for k, v in estados_noticia.items() %}<option value="{{ k }}" {{ 'selected' if n.estado == k }}>{{ v }}</option>{% endfor %}</select></div>
       </div>
-      <label for="ne-autor">Autor ou setor <small>(aparece na assinatura da notícia)</small></label>
-      <input id="ne-autor" name="autor" maxlength="60" value="{{ n.autor }}" placeholder="ex.: Seção de Pessoal">
-      <label for="ne-resumo">Resumo <small>(aparece nas listas; cada linha vira um item do quadro "Resumo" da notícia)</small></label>
+      <label for="ne-resumo">Resumo <small>(aparece nas listas)</small></label>
       <textarea id="ne-resumo" name="resumo" rows="2" maxlength="600">{{ n.resumo }}</textarea>
 
       <label>Imagem de capa</label>
@@ -64,8 +68,6 @@
 
       <label>Texto e imagens <small>(arraste ou cole imagens no texto; clique numa imagem para mudar tamanho e posição)</small></label>
       {{ r.editor('corpo', corpo, destinos_links, csrf_token) }}
-      <label>Coluna lateral <small>(opcional: textos e imagens que ficam ao lado da notícia, como no UOL; em branco = sem coluna)</small></label>
-      {{ r.editor('lateral', lateral, destinos_links, csrf_token) }}
       <label class="check"><input type="checkbox" name="destaque" {{ 'checked' if n.destaque }}> Fixar no topo da lista de notícias</label>
       <p class="pe-erro" id="noticia-erro" role="alert"></p>
       <div class="pe-rodape">
