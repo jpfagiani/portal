@@ -486,11 +486,19 @@ CARTAO_APARENCIA = {
     # Medidas do cartão do painel, que é do que a tela de Ramais fala. A página
     # "ver todos" é outra coisa — três colunas de lista — e tem medida própria.
     'ramais':        ('ramais',   '0.74', '#1e293b', '0.78', '#1e293b'),
+    # Últimas notícias: título de cada notícia em vermelho e um pouco maior que
+    # os demais cartões (era .80–.85rem e cor do texto); o texto é a data.
+    'noticias':      ('noticias', '0.95', '#b91c1c', '0.68', '#7c8ba1'),
 }
+# Nome do cartão (o cabeçalho "ÚLTIMAS NOTÍCIAS", "ATALHOS ÚTEIS"...): tamanho e
+# cor próprios, iguais em todos os cartões. Os padrões são o que a folha já
+# desenhava (.82rem, cor do texto), então nada muda de lugar até alguém mexer.
+CAB_TAM_PADRAO, CAB_COR_PADRAO = '0.82', '#1e293b'
 PADROES.update({
     chave: valor
     for pref, t_tam, t_cor, x_tam, x_cor in CARTAO_APARENCIA.values()
     for chave, valor in ((f'{pref}_fonte', 'padrao'),
+                         (f'{pref}_cab_tam', CAB_TAM_PADRAO), (f'{pref}_cab_cor', CAB_COR_PADRAO),
                          (f'{pref}_titulo_tam', t_tam), (f'{pref}_titulo_cor', t_cor),
                          (f'{pref}_texto_tam', x_tam),  (f'{pref}_texto_cor', x_cor))
     if chave not in PADROES})
@@ -519,6 +527,7 @@ CARTAO_PARTES = {
     'sistemas': ('a sigla do botão', 'o nome embaixo dela'),
     'atalhos':  ('o nome do atalho', 'a descrição embaixo dele'),
     'ramais':   ('o nome do setor',  'o número do ramal'),
+    'noticias': ('o título de cada notícia', 'a data e a categoria acima dele'),
 }
 
 
@@ -526,6 +535,7 @@ def campos_aparencia(chave):
     """(campo, faixa) de cada ajuste do cartão. Faixa só para tamanho."""
     pref = CARTAO_APARENCIA[chave][0]
     return ((f'{pref}_fonte', None),
+            (f'{pref}_cab_tam', (0.6, 1.8)), (f'{pref}_cab_cor', None),
             (f'{pref}_titulo_tam', (0.6, 2.0)), (f'{pref}_titulo_cor', None),
             (f'{pref}_texto_tam', (0.5, 2.0)),  (f'{pref}_texto_cor', None))
 
@@ -629,6 +639,11 @@ def posicao_capa(valor):
 def cor_hexa(valor, padrao):
     valor = (valor or '').strip()
     return valor if _HEX.match(valor) else padrao
+
+
+# A paleta de amostras fica disponível a qualquer template, inclusive os macros
+# importados sem contexto (campos.html), que desenham a aparência dos cartões.
+app.jinja_env.globals['PALETA'] = PALETA
 
 
 @app.template_global()
@@ -1122,6 +1137,7 @@ def init_db():
             # "Leia também" começa desligado: ligá-lo é escolha de cada página,
             # e as já existentes não ganham um bloco novo por conta da atualização.
             ('paginas_lateral', 'mostrar_leia',   'INTEGER NOT NULL DEFAULT 0'),
+            ('noticias', 'ordem',    'INTEGER NOT NULL DEFAULT 0'),
             ('ramais',   'destaque', 'INTEGER NOT NULL DEFAULT 0'),
             ('usuarios', 'ultimo_acesso', "TEXT DEFAULT ''")):
         existentes = {c[1] for c in con.execute(f'PRAGMA table_info({tabela})')}
@@ -1246,7 +1262,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.19'
+VERSAO = '1.9.21'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']

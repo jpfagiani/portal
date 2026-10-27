@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS noticias (
     estado        TEXT NOT NULL DEFAULT 'rascunho',   -- rascunho | publicado | arquivado
     publicar_em   TEXT NOT NULL DEFAULT '',     -- AAAA-MM-DD HH:MM:SS, hora local
     destaque      INTEGER NOT NULL DEFAULT 0,
+    ordem         INTEGER NOT NULL DEFAULT 0,   -- posição escolhida pelo administrador (menor = primeiro)
     destino_url   TEXT NOT NULL DEFAULT '',     -- se preenchido, o cartão leva para lá
     meta          TEXT NOT NULL DEFAULT '',     -- descrição para buscadores
     criado_em     TEXT NOT NULL DEFAULT (datetime('now','localtime')),
@@ -46,6 +47,30 @@ ESTADOS = {'rascunho': 'Rascunho', 'publicado': 'Publicado', 'arquivado': 'Arqui
 # Só aparece para o público o que está publicado E já chegou a hora.
 VISIVEL = "estado='publicado' AND publicar_em<>'' AND publicar_em <= datetime('now','localtime')"
 POR_PAGINA = 10
+# A ordem escolhida pelo administrador manda; sem escolha (tudo empatado em 0,
+# como nas instalações antigas) vale o critério de sempre: destaque, mais nova.
+ORDEM = 'ordem ASC, destaque DESC, publicar_em DESC, id DESC'
+
+
+def _topo(con):
+    """Posição que coloca uma notícia à frente de todas."""
+    return con.execute('SELECT COALESCE(MIN(ordem), 0) - 1 FROM noticias').fetchone()[0]
+
+
+def _reordenar(con, ids):
+    """Aplica a sequência vinda do arrastar-e-soltar.
+
+    `ids` pode ser só um pedaço da lista (filtro por situação): as notícias
+    enviadas trocam de lugar entre as posições que já ocupavam, e as demais
+    ficam onde estão. Antes disso a lista toda é numerada 0,1,2... na ordem
+    atual, para empates não esconderem a mudança."""
+    atual = [r[0] for r in con.execute(f'SELECT id FROM noticias ORDER BY {ORDEM}')]
+    enviados = [i for i in dict.fromkeys(ids) if i in set(atual)]
+    lugares = sorted(atual.index(i) for i in enviados)
+    for lugar, ident in zip(lugares, enviados):
+        atual[lugar] = ident
+    for posicao, ident in enumerate(atual):
+        con.execute('UPDATE noticias SET ordem=? WHERE id=?', (posicao, ident))
 
 
 def slugify(texto):
@@ -83,7 +108,7 @@ app.jinja_env.globals['situacao_noticia'] = situacao
 def recentes(limite=4):
     """Últimas publicações visíveis (destaques primeiro) para a página inicial."""
     return nucleo.db().execute(
-        f'SELECT * FROM noticias WHERE {VISIVEL} ORDER BY destaque DESC, publicar_em DESC, id DESC LIMIT ?',
+        f'SELECT * FROM noticias WHERE {VISIVEL} ORDER BY {ORDEM} LIMIT ?',
         (limite,)).fetchall()
 
 
@@ -105,7 +130,7 @@ def noticias():
         args.append(cat)
     total = con.execute(f'SELECT COUNT(*) FROM noticias WHERE {onde}', args).fetchone()[0]
     linhas = con.execute(
-        f'SELECT * FROM noticias WHERE {onde} ORDER BY destaque DESC, publicar_em DESC, id DESC LIMIT ? OFFSET ?',
+        f'SELECT * FROM noticias WHERE {onde} ORDER BY {ORDEM} LIMIT ? OFFSET ?',
         args + [POR_PAGINA, (pagina - 1) * POR_PAGINA]).fetchall()
     cats = [r[0] for r in con.execute(
         f"SELECT DISTINCT categoria FROM noticias WHERE {VISIVEL} AND categoria<>'' ORDER BY categoria COLLATE NOCASE")]
@@ -160,6 +185,18 @@ def admin_noticias():
         ident = nucleo._int(request.form.get('id'))
         atual = con.execute('SELECT * FROM noticias WHERE id=?', (ident,)).fetchone() if ident else None
 
+        if acao == 'ordenar':
+            ids = [int(x) for x in request.form.get('ids', '').split(',') if x.strip().isdigit()]
+            if not ids:
+                return ('', 400)
+            _reordenar(con, ids)
+            con.commit()
+            return ('', 204)
+
+        if acao == 'aparencia_cartao':
+            nucleo.salvar_aparencia_cartao('noticias')
+            return redirect(url_for('admin_noticias'))
+
         if acao == 'excluir':
             if atual:
                 con.execute('DELETE FROM noticias WHERE id=?', (ident,))
@@ -203,6 +240,8 @@ def admin_noticias():
                  1 if request.form.get('destaque') else 0, destino,
                  request.form.get('meta', '').strip()[:300])
         if atual:
+            if dados[11] and not atual['destaque']:      # acabou de virar destaque: vai para o topo
+                con.execute('UPDATE noticias SET ordem=? WHERE id=?', (_topo(con), ident))
             con.execute("UPDATE noticias SET slug=?,titulo=?,subtitulo=?,resumo=?,corpo=?,capa=?,capa_alt=?,"
                         "legenda=?,categoria=?,estado=?,publicar_em=?,destaque=?,destino_url=?,meta=?,"
                         "atualizado_em=datetime('now','localtime') WHERE id=?", dados + (ident,))
@@ -210,8 +249,8 @@ def admin_noticias():
         else:
             novo_id = con.execute(
                 "INSERT INTO noticias (slug,titulo,subtitulo,resumo,corpo,capa,capa_alt,legenda,categoria,"
-                "estado,publicar_em,destaque,destino_url,meta,autor) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                dados + (session.get('nome') or session.get('user', ''),)).lastrowid
+                "estado,publicar_em,destaque,destino_url,meta,autor,ordem) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                dados + (session.get('nome') or session.get('user', ''), _topo(con))).lastrowid
         con.commit()
         flash('Publicada.' if acao == 'publicar' else 'Notícia salva.', 'ok')
         return redirect(url_for('admin_noticias', editar=novo_id))
@@ -221,10 +260,10 @@ def admin_noticias():
         editar = con.execute('SELECT * FROM noticias WHERE id=?', (nucleo._int(request.args['editar']),)).fetchone()
     filtro = request.args.get('estado') if request.args.get('estado') in ESTADOS else ''
     lista = con.execute('SELECT * FROM noticias' + (' WHERE estado=?' if filtro else '') +
-                        ' ORDER BY id DESC', ([filtro] if filtro else [])).fetchall()
+                        f' ORDER BY {ORDEM}', ([filtro] if filtro else [])).fetchall()
     return render_template('admin_noticias.html', itens=lista, editar=editar, nova=nova, filtro=filtro,
                            estados=ESTADOS, categorias=categorias(), biblioteca=midia.itens(limite=100), destinos_links=nucleo.destinos_de_links(),
-                           campo_data=_para_campo, corpo_editar=Markup(nucleo.limpa_html(editar['corpo'])) if editar else '')
+                           campo_data=_para_campo, aparencia=nucleo.dados_aparencia_cartao('noticias'), fontes=nucleo.FONTES_TEXTO, corpo_editar=Markup(nucleo.limpa_html(editar['corpo'])) if editar else '')
 
 
 @app.route('/admin/noticia-rapida', methods=['POST'])
@@ -255,6 +294,8 @@ def admin_noticia_rapida():
     publicar_em = n['publicar_em']
     if estado == 'publicado' and not publicar_em:
         publicar_em = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if request.form.get('destaque') and not n['destaque']:
+        con.execute('UPDATE noticias SET ordem=? WHERE id=?', (_topo(con), n['id']))
     con.execute("UPDATE noticias SET titulo=?,subtitulo=?,resumo=?,corpo=?,capa=?,capa_alt=?,legenda=?,"
                 "categoria=?,estado=?,publicar_em=?,destaque=?,atualizado_em=datetime('now','localtime') WHERE id=?",
                 (titulo, request.form.get('subtitulo', '').strip()[:300],

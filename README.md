@@ -297,6 +297,15 @@ sudo ./desinstalar.sh    # remove o serviço; PRESERVA dados e imagens
   cartão "Últimas notícias" na página inicial (pode ser movido/ocultado como os
   demais cartões).
 
+### Posição das notícias e aparência dos títulos
+
+- **Posição**: em *Administração → Notícias*, arraste as linhas pela alça ⠿ ou use ▲ ▼. A ordem
+  vale para o cartão "Últimas notícias" e para `/noticias`, e é salva na hora. Notícia nova, ou
+  marcada como destaque, entra na primeira posição.
+- **Aparência**: no fim da mesma tela, fonte, tamanho e cor (paleta ou cor livre) do nome do cartão
+  e do título de cada notícia — por padrão, vermelho. Todos os demais cartões ganharam os mesmos
+  controles para o **nome do cartão**, na tela de edição de cada um.
+
 ## Cartões de texto e imagem
 
 Em **Editar portal**, o botão **+ Texto ou imagem** cria um cartão com texto

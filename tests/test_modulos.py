@@ -317,6 +317,45 @@ h = c.get('/admin/historico').get_data(as_text=True)
 ok('noticias' in h.lower() or 'Notícia' in h, 'histórico registra as ações do admin')
 ok('Teste1234' not in h and 'errada' not in h, 'histórico não guarda senhas')
 
+
+# ── ordem das notícias e aparência dos títulos ──────────────────────────────
+with portal.app.app_context():
+    ids_pub = [r[0] for r in portal.db().execute(
+        "SELECT id FROM noticias WHERE estado='publicado' ORDER BY ordem, destaque DESC, publicar_em DESC, id DESC")]
+def ordem_publica():
+    t = anon.get('/noticias').get_data(as_text=True)
+    return re.findall(r'<h[23]>(.*?)</h[23]>', t.split('not-manchete', 1)[1])
+def titulos_ids(ids):
+    with portal.app.app_context():
+        return [portal.db().execute('SELECT titulo FROM noticias WHERE id=?', (i,)).fetchone()[0] for i in ids]
+antes = [x.strip() for x in ordem_publica()]
+invertida = list(reversed(ids_pub[:3])) + ids_pub[3:]
+r = c.post('/admin/noticias', data={'csrf': tok, 'acao': 'ordenar', 'ids': ','.join(map(str, invertida))})
+ok(r.status_code == 204, 'rota de ordenar notícias responde 204')
+depois = [x.strip() for x in ordem_publica()]
+ok(depois[:3] == titulos_ids(invertida[:3]) and depois != antes, 'ordem escolhida vale na página pública')
+r = anon.post('/admin/noticias', data={'acao': 'ordenar', 'ids': '1,2'})
+ok(r.status_code in (302, 400, 401, 403), 'ordenar exige administrador')
+# subconjunto (filtro): as demais não se mexem
+sub = [invertida[1], invertida[0]]
+c.post('/admin/noticias', data={'csrf': tok, 'acao': 'ordenar', 'ids': ','.join(map(str, sub))})
+ok([x.strip() for x in ordem_publica()][2:] == depois[2:], 'ordenar um subconjunto não mexe nas outras')
+nova(titulo='Notícia mais nova', estado='publicado', publicar_em='2019-01-01T08:00')
+ok(ordem_publica()[0].strip() == 'Notícia mais nova', 'notícia nova entra na primeira posição')
+h = c.get('/admin/noticias').get_data(as_text=True)
+ok('data-mover="-1"' in h and 'data-ordenavel' in h and 'Aparência do cartão' in h, 'tela do admin tem alça, setas e aparência')
+h = re.sub(r'\s+', ' ', anon.get('/').get_data(as_text=True))
+ok('--noticias-titulo-cor: #b91c1c' in h and '--noticias-cab-cor' in h, 'título das notícias sai vermelho por padrão')
+c.post('/admin/noticias', data={'csrf': tok, 'acao': 'aparencia_cartao', 'noticias_fonte': 'serifa',
+        'noticias_cab_tam': '1.1', 'noticias_cab_cor': '#2563eb', 'noticias_titulo_tam': '1.2',
+        'noticias_titulo_cor': '#16a34a', 'noticias_texto_tam': '0.7', 'noticias_texto_cor': 'invalido;}'})
+h = re.sub(r'\s+', ' ', anon.get('/').get_data(as_text=True))
+ok('--noticias-cab-cor: #2563eb' in h and '--noticias-titulo-tam: 1.20rem' in h and 'Georgia' in h,
+   'fonte, tamanho e cor do título são gravados')
+ok('invalido' not in h and '--noticias-texto-cor: #7c8ba1' in h, 'cor inválida cai no padrão')
+h = c.get('/admin/links?grupo=sistema').get_data(as_text=True)
+ok('sistemas_cab_cor' in h and 'data-paleta' in h, 'os demais cartões também ganham nome e paleta editáveis')
+
 # páginas principais continuam abrindo
 for rota in ('/', '/ramais', '/sistemas', '/noticias', '/admin', '/admin/noticias', '/admin/midia',
              '/admin/historico', '/admin/noticias?nova=1'):
