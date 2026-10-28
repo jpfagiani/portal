@@ -346,3 +346,18 @@ python3 tests/test_modulos.py   # trabalha numa cópia temporária; não toca no
 | `static/banner.js` | Rotação automática do banner |
 | `instalar.sh` / `desinstalar.sh` | Instalação e remoção no Debian |
 | `dados.db` | Banco SQLite (criado na primeira execução, fora do Git) |
+
+## Administração: aba "Conteúdos"
+
+Cartões de texto e imagem, notícias e comunicados (itens dos cartões de comunicados) são criados,
+pesquisados, filtrados, pré-visualizados, duplicados e excluídos em **Administração → Conteúdos**
+(`/admin/conteudos`), e todos abrem no mesmo editor (`/admin/conteudos/<cartao|noticia|comunicado>/<id|novo>`).
+
+- Notícia: **Salvar alterações** mantém a situação escolhida, **Salvar como rascunho** nunca publica e
+  **Publicar** publica agora (ou na data escolhida, se for futura).
+- A ordem das notícias é alterada arrastando na lista, com o filtro "Notícias".
+- Os botões de edição da página inicial e da página da notícia abrem este mesmo editor.
+- Endereços antigos (`/admin/noticias`, `/admin/lateral?editar=…`) redirecionam. Os dados continuam nas
+  mesmas tabelas (`cartao_conteudo`, `noticias`, `lateral`); nada foi migrado.
+- Implementação: `modulos/conteudos.py`, `templates/admin_conteudos.html`,
+  `templates/admin_conteudo_editor.html`, `static/conteudo-editor.js`. Testes: `python3 tests/test_modulos.py`.

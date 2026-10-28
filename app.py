@@ -2707,9 +2707,9 @@ def _editar_conteudo_cartao(c):
     if t == 'ramais':
         return 'Editar ramais', url_for('admin_ramais')
     if t == 'noticias':
-        return 'Editar notícias', url_for('admin_noticias')
+        return 'Editar notícias', url_for('conteudos', tipo='noticia')
     if t == 'conteudo':
-        return 'Editar no portal', url_for('editor')
+        return 'Editar conteúdo', url_for('conteudos_editor', tipo='cartao', ident=k)
     return 'Editar itens', url_for('admin_lateral', cartao=k)
 
 
@@ -2878,15 +2878,13 @@ def admin_lateral():
     chave = request.args.get('cartao') or ''
     if not cartao_por_chave(chave):
         chave = CARTOES_SEMENTE[0][0]
-    editar = None
+    # Itens (comunicados) são editados no editor único de Conteúdos.
     if request.args.get('editar'):
-        editar = con.execute('SELECT * FROM lateral WHERE id=? AND cartao=?',
-                             (_int(request.args['editar']), chave)).fetchone()
-    elif not request.args.get('novo'):
-        # Clicar no cartão já abre o primeiro item para edição, sem passar pelo
-        # botão "Editar". Para cadastrar outro: "+ Novo item" (?novo=1).
-        editar = con.execute('SELECT * FROM lateral WHERE cartao=?'
-                             ' ORDER BY ordem, id LIMIT 1', (chave,)).fetchone()
+        return redirect(url_for('conteudos_editor', tipo='comunicado',
+                                ident=_int(request.args['editar'])))
+    if request.args.get('novo'):
+        return redirect(url_for('conteudos_editor', tipo='comunicado', ident='novo', cartao=chave))
+    editar = None
     return render_template(
         'admin_lateral.html', editar=editar, destaques=DESTAQUES_COMUNICADO,
         paleta=PALETA, paleta_fundo=PALETA_FUNDO,

@@ -612,3 +612,17 @@ html:not([data-tema="escuro"]) .ntit[style*="--n-cor"]{color:var(--n-cor)}
 .comunicado-clicavel .conteudo a,.comunicado-clicavel .com-img-link{position:relative;z-index:2}
 .comunicado-clicavel:hover .titulo,.com-overlay:focus-visible~.conteudo .titulo{color:var(--azul)}
 .com-overlay:focus-visible{outline:2px solid var(--azul);outline-offset:2px}
+
+/* Conteúdos: lista e editor único */
+.cont-novo{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+.cont-inline{display:inline-flex;gap:.4rem;align-items:center}
+.cont-filtros{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.7rem}
+.cont-editor{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem;align-items:start}
+.cont-editor form input:not([type=checkbox]):not([type=hidden]):not([type=file]),.cont-editor form textarea,.cont-editor form select{width:100%;box-sizing:border-box}
+.cont-bloco{border:1px solid var(--borda);border-radius:10px;padding:.6rem .9rem .9rem;margin:.9rem 0}
+.cont-bloco legend{font-weight:700;padding:0 .4rem}
+.cont-editor label{display:block;font-weight:600;font-size:.85rem;margin:.7rem 0 .25rem}
+.cont-editor label.check,.cont-editor label.btn{font-weight:500}
+.cont-acoes{display:flex;flex-wrap:wrap;gap:.5rem;position:sticky;bottom:0;background:var(--cartao);padding:.6rem 0}
+.cont-previa{min-width:0}
+@media (min-width:1100px){.cont-editor{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}.cont-previa{position:sticky;top:.8rem}}

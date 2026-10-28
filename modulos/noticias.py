@@ -211,6 +211,13 @@ def _para_campo(valor):
 @nucleo.admin_obrigatorio
 def admin_noticias():
     con = nucleo.db()
+    if request.method == 'GET':
+        # A edição de notícias mora em Conteúdos; o endereço antigo continua valendo.
+        if request.args.get('editar'):
+            return redirect(url_for('conteudos_editor', tipo='noticia', ident=nucleo._int(request.args['editar'])))
+        if request.args.get('nova'):
+            return redirect(url_for('conteudos_editor', tipo='noticia', ident='novo'))
+        return redirect(url_for('conteudos', tipo='noticia', situacao=request.args.get('estado') or None))
     if request.method == 'POST':
         acao = request.form.get('acao')
         ident = nucleo._int(request.form.get('id'))
