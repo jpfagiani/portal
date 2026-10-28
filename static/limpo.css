@@ -604,3 +604,11 @@ a.lp-destaque:hover{background:var(--azul-forte)}
 /* Título de notícia com cor própria (campo "Cor do título"): só no tema claro */
 html:not([data-tema="escuro"]) .ntit[style*="--n-cor"]{color:var(--n-cor)}
 .titulo-estilo{margin:.2rem 0 .4rem}
+
+/* Item de comunicado inteiro clicável: um link transparente cobre o item; links
+   e imagens com endereço próprio ficam por cima dele. */
+.comunicado-clicavel{position:relative;cursor:pointer}
+.com-overlay{position:absolute;inset:0;z-index:1}
+.comunicado-clicavel .conteudo a,.comunicado-clicavel .com-img-link{position:relative;z-index:2}
+.comunicado-clicavel:hover .titulo,.com-overlay:focus-visible~.conteudo .titulo{color:var(--azul)}
+.com-overlay:focus-visible{outline:2px solid var(--azul);outline-offset:2px}
