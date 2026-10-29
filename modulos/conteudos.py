@@ -16,7 +16,7 @@ import os
 import secrets
 from datetime import datetime
 
-from flask import abort, jsonify, redirect, render_template, request, session, url_for
+from flask import abort, flash, jsonify, redirect, render_template, request, session, url_for
 from markupsafe import Markup
 
 import app as nucleo
@@ -74,7 +74,8 @@ def _linhas():
     for r in con.execute('SELECT * FROM lateral WHERE cartao<>\'\' ORDER BY cartao, ordem, id'):
         saida.append(dict(tipo='comunicado', id=r['id'], titulo=r['titulo'] or _texto_curto(r['conteudo'], 60) or '(sem título)',
                           extra=_texto_curto(r['conteudo']), situacao='visivel' if r['ativo'] else 'oculto',
-                          atualizado='', ordem=r['ordem'], onde=nomes.get(r['cartao'], r['cartao'])))
+                          atualizado='', ordem=r['ordem'], onde=nomes.get(r['cartao'], r['cartao']),
+                          cartao=r['cartao']))
     for n in con.execute(f'SELECT * FROM noticias ORDER BY {mn.ORDEM}'):
         s = mn.situacao(n)
         chave = {'Publicada': 'publicado', 'Agendada': 'agendado', 'Rascunho': 'rascunho',
@@ -85,14 +86,62 @@ def _linhas():
     return saida
 
 
-@app.route('/admin/conteudos')
+def _acao_cartao():
+    """Ações sobre os cartões da página inicial, feitas na própria tela de Conteúdos."""
+    con = nucleo.db()
+    acao = request.form.get('acao')
+    chave = request.form.get('cartao') or ''
+    if acao == 'novo_cartao':
+        nova = nucleo._proxima_chave_cartao(con)
+        ordem = con.execute('SELECT COALESCE(MAX(ordem),0)+1 FROM cartoes_painel').fetchone()[0]
+        con.execute("INSERT INTO cartoes_painel (chave,nome,icone,regiao,largura,coluna,ordem,tipo,ativo)"
+                    " VALUES (?,?,'prancheta','baixo',1,0,?,'itens',1)",
+                    (nova, 'Cartão ' + nova.replace('cartao', ''), ordem))
+        nucleo._semear_aparencia(con, nova)
+        con.commit()
+        flash('Cartão criado. Arraste-o no Mapa do painel para posicioná-lo.', 'ok')
+        return redirect(url_for('conteudos', tipo='comunicado', cartao=nova))
+    if acao == 'aparencia_cartao':
+        nucleo.salvar_aparencia_cartao(chave or 'noticias')
+        return redirect(_volta(url_for('conteudos')) + ('#c-' + chave if chave else ''))
+    if not nucleo.cartao_por_chave(chave):
+        abort(400)
+    if acao == 'titulo_cartao':
+        if (request.form.get('titulo_cartao') or '').strip():
+            nucleo.salvar_nome_cartao_painel(chave)
+        else:
+            flash('O nome do cartão não pode ficar em branco.', 'erro')
+    elif acao == 'excluir_cartao':
+        itens = con.execute("SELECT COUNT(*) FROM cartoes_painel WHERE tipo='itens'").fetchone()[0]
+        if not con.execute("SELECT 1 FROM cartoes_painel WHERE chave=? AND tipo='itens'", (chave,)).fetchone():
+            flash('Só cartões de comunicados podem ser excluídos aqui.', 'erro')
+        elif itens <= 1:
+            flash('Este é o último cartão de comunicados — crie outro antes de excluí-lo.', 'erro')
+        else:
+            for linha in con.execute('SELECT imagem, video FROM lateral WHERE cartao=?', (chave,)):
+                nucleo.remove_upload(linha['imagem'])
+                nucleo.remove_upload(linha['video'])
+            con.execute('DELETE FROM lateral WHERE cartao=?', (chave,))
+            con.execute("DELETE FROM cartoes_painel WHERE chave=? AND tipo='itens'", (chave,))
+            con.commit()
+            flash('Cartão e itens removidos.', 'ok')
+        return redirect(url_for('conteudos') + '#cartoes')
+    return redirect(url_for('conteudos') + '#c-' + chave)
+
+
+@app.route('/admin/conteudos', methods=['GET', 'POST'])
 @nucleo.admin_obrigatorio
 def conteudos():
+    if request.method == 'POST':
+        return _acao_cartao()
     q = (request.args.get('q') or '').strip()
     tipo = request.args.get('tipo') if request.args.get('tipo') in TIPOS else ''
     sit = request.args.get('situacao') if request.args.get('situacao') in SITUACOES else ''
+    cartao = request.args.get('cartao') or ''
+    cartao = cartao if (tipo == 'comunicado' and nucleo.cartao_por_chave(cartao)) else ''
     linhas = [l for l in _linhas()
               if (not tipo or l['tipo'] == tipo) and (not sit or l['situacao'] == sit)
+              and (not cartao or l.get('cartao') == cartao)
               and (not q or _casa(l['titulo'], q) or _casa(l['extra'], q))]
     for l in linhas:
         l['rotulo_tipo'] = TIPOS[l['tipo']]
@@ -100,8 +149,11 @@ def conteudos():
     cartoes_itens = [c for c in nucleo.cartoes_do_painel() if c['tipo'] == 'itens']
     return render_template('admin_conteudos.html', linhas=linhas, tipos=TIPOS, situacoes=SITUACOES,
                            filtro_tipo=tipo, filtro_sit=sit, q=q, cartoes_itens=cartoes_itens,
-                           ordenavel=(tipo == 'noticia' and not sit and not q),
-                           aparencia=nucleo.dados_aparencia_cartao('noticias'), fontes=nucleo.FONTES_TEXTO)
+                           ordenavel=((tipo == 'noticia' or (tipo == 'comunicado' and cartao)) and not sit and not q),
+                           url_ordenar=(url_for('admin_noticias') if tipo == 'noticia'
+                                        else url_for('admin_lateral', cartao=cartao)),
+                           filtro_cartao=cartao, cartoes=nucleo.cartoes_para_gerenciar(),
+                           fontes=nucleo.FONTES_TEXTO, noticias_vitrine=mn.vitrine())
 
 
 # ── leitura de um conteúdo para o editor ──────────────────────────────────────
@@ -355,7 +407,7 @@ def conteudos_previa():
         return _erro('Tipo de conteúdo desconhecido.')
     f = request.form
     ident = f.get('id', '')
-    contexto = dict(tipo=tipo, titulo=f.get('titulo', '').strip(), corpo=Markup(nucleo.limpa_html(f.get('corpo', ''))))
+    contexto = dict(tipo=tipo, titulo=f.get('titulo', '').strip(), corpo=Markup(nucleo.agrupa_figuras(nucleo.limpa_html(f.get('corpo', '')))))
     if tipo == 'cartao':
         contexto.update(titulo_visivel=bool(f.get('titulo_visivel')))
     elif tipo == 'noticia':

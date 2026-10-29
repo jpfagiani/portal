@@ -29,7 +29,7 @@ LARGURA_NOVO, ALTURA_NOVO = 3, 12       # em células do quadro livre (12 coluna
 def conteudo(chave):
     """HTML já limpo do cartão (guardado limpo, e limpo de novo ao ler)."""
     r = nucleo.db().execute('SELECT html FROM cartao_conteudo WHERE chave=?', (chave,)).fetchone()
-    return Markup(nucleo.limpa_html(r['html'])) if r else Markup('')
+    return Markup(nucleo.agrupa_figuras(nucleo.limpa_html(r['html']))) if r else Markup('')
 
 
 def titulo_visivel(chave):

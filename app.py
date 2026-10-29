@@ -488,9 +488,9 @@ CARTAO_APARENCIA = {
     # Medidas do cartão do painel, que é do que a tela de Ramais fala. A página
     # "ver todos" é outra coisa — três colunas de lista — e tem medida própria.
     'ramais':        ('ramais',   '0.74', '#1e293b', '0.78', '#1e293b'),
-    # Últimas notícias: título de cada notícia em vinho e um pouco maior que
+    # Últimas notícias: título de cada notícia em azul e um pouco maior que
     # os demais cartões (era .80–.85rem e cor do texto); o texto é a data.
-    'noticias':      ('noticias', '0.95', '#9f1239', '0.68', '#7c8ba1'),
+    'noticias':      ('noticias', '0.95', '#2563eb', '0.68', '#7c8ba1'),
 }
 # Nome do cartão (o cabeçalho "ÚLTIMAS NOTÍCIAS", "ATALHOS ÚTEIS"...): tamanho e
 # cor próprios, iguais em todos os cartões. Os padrões são o que a folha já
@@ -1218,6 +1218,12 @@ def init_db():
         con.execute('INSERT OR IGNORE INTO config (chave, valor) VALUES (?,?)',
                     (chave, valor))
 
+    # Título das notícias: o padrão passou de vinho para azul. Uma vez só, troca quem ainda
+    # estava no vinho antigo; depois disso, a cor escolhida no painel é respeitada.
+    if not con.execute("SELECT 1 FROM config WHERE chave='noticias_azul_v1'").fetchone():
+        con.execute("UPDATE config SET valor='#2563eb' WHERE chave='noticias_titulo_cor' AND valor='#9f1239'")
+        con.execute("INSERT INTO config (chave,valor) VALUES ('noticias_azul_v1','1')")
+
     if not con.execute('SELECT 1 FROM links LIMIT 1').fetchone():
         for i, (t, u, d, sigla, cor) in enumerate(SEED_LINKS):
             con.execute('INSERT INTO links (titulo,url,descricao,icone,simbolo,cor,ordem)'
@@ -1303,7 +1309,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.21'
+VERSAO = '1.9.22'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -1692,7 +1698,7 @@ def _estilo_limpo(css):
             if m:
                 n, un = float(m.group(1)), m.group(2)
                 rem = {'rem': n, 'em': n, 'px': n / 16, '%': n / 100}[un]
-            if rem is not None and .6 <= rem <= 4:
+            if rem is not None and .5 <= rem <= 6:        # 8 a 96 px
                 saida.append(f'font-size:{round(rem, 3)}rem')
         elif prop == 'text-align' and valor in ('left', 'center', 'right', 'justify'):
             saida.append(f'text-align:{valor}')
@@ -1732,9 +1738,15 @@ class _LimpaHTML(HTMLParser):
                 cls = ' '.join(c for c in attrs.get('class', '').split() if c in _CLASSES_IMG)
                 cls = f' class="{cls}"' if cls else ''
                 # Largura arrastada no editor, em % (5 a 100); nada de outro CSS.
-                w = re.search(r'(\d{1,3})(?:\.\d+)?\s*%?', attrs.get('data-w', '')) or \
-                    re.search(r'width\s*:\s*(\d{1,3})(?:\.\d+)?%', attrs.get('style', ''))
-                estilo_w = f' style="width:{max(5, min(100, int(w.group(1))))}%"' if w else ''
+                # Largura em pixels (campo "Largura" do editor); vale mais que a em %.
+                px = re.fullmatch(r'\s*(\d{1,4})(?:\.\d+)?\s*(?:px)?\s*', attrs.get('data-px', '')) or \
+                    re.search(r'(?<![-\w])width\s*:\s*(\d{1,4})(?:\.\d+)?px', attrs.get('style', ''))
+                w = None if px else (re.search(r'(\d{1,3})(?:\.\d+)?\s*%?', attrs.get('data-w', '')) or
+                                     re.search(r'width\s*:\s*(\d{1,3})(?:\.\d+)?%', attrs.get('style', '')))
+                if px:
+                    estilo_w = f' style="width:{max(20, min(2000, int(px.group(1))))}px"'
+                else:
+                    estilo_w = f' style="width:{max(5, min(100, int(w.group(1))))}%"' if w else ''
                 self.saida.append(f'<img src="/static/uploads/{m.group(1)}" alt="{alt}" loading="lazy"{cls}{estilo_w}>')
             return
         if tag in _TAGS_OK:
@@ -1759,6 +1771,14 @@ class _LimpaHTML(HTMLParser):
                     emitida = tag
             else:
                 emitida = tag
+            if emitida == 'div':
+                # Figura (imagem + texto na mesma largura): só estas classes e a largura em px.
+                cls = [c for c in attrs.get('class', '').split() if c in ('fig', 'fig-e', 'fig-c', 'fig-d')]
+                if 'fig' in cls:
+                    marcas += f' class="{" ".join(cls)}"'
+                    mw = re.search(r'(?<![-\w])width\s*:\s*(\d{1,4})(?:\.\d+)?px', attrs.get('style', ''))
+                    if mw:
+                        estilo = ';'.join(filter(None, [estilo, f'width:{max(20, min(2000, int(mw.group(1))))}px']))
             if emitida:
                 if estilo and tag in _TAGS_COM_ESTILO:
                     marcas += f' style="{escape(estilo)}"'
@@ -1798,6 +1818,110 @@ def limpa_html(html):
     p.feed((html or '')[:60000])
     p.close()
     return p.resultado()
+
+
+# ── imagem + texto abaixo, sempre da mesma largura ────────────────────────────
+# Em qualquer cartão ou conteúdo, uma imagem sozinha no parágrafo e o texto que vem
+# logo depois dela (até a próxima imagem) formam uma "figura": a caixa tem a largura
+# da imagem (px ou %), a imagem ocupa 100% dela e o texto acompanha. Assim o texto
+# fica alinhado à imagem, qualquer que seja o tamanho dela. É feito na hora de
+# mostrar; o que está guardado não muda.
+_VAZIOS_HTML = {'br', 'img', 'hr'}
+_FLUTUA_IMG = ('im-esq', 'im-dir')
+_PCT_IMG = {'im-p': 25, 'im-m': 50, 'im-g': 75, 'im-c': 100}
+
+
+class _TopoHTML(HTMLParser):
+    """Divide um HTML já limpo em pedaços de nível superior (p, ul, h2, div...)."""
+    def __init__(self):
+        super().__init__(convert_charrefs=False)
+        self.pedacos, self.atual, self.prof = [], [], 0
+
+    def _fecha(self):
+        if self.atual:
+            self.pedacos.append(''.join(self.atual))
+            self.atual = []
+
+    def handle_starttag(self, tag, attrs):
+        if self.prof == 0 and self.atual and not ''.join(self.atual).strip() == '':
+            self._fecha()
+        self.atual.append(self.get_starttag_text())
+        if tag in _VAZIOS_HTML:
+            if self.prof == 0:
+                self._fecha()
+        else:
+            self.prof += 1
+
+    def handle_startendtag(self, tag, attrs):
+        self.atual.append(self.get_starttag_text())
+        if self.prof == 0:
+            self._fecha()
+
+    def handle_endtag(self, tag):
+        self.atual.append(f'</{tag}>')
+        self.prof = max(0, self.prof - 1)
+        if self.prof == 0:
+            self._fecha()
+
+    def handle_data(self, d):
+        self.atual.append(d)
+
+    def handle_entityref(self, n):
+        self.atual.append(f'&{n};')
+
+    def handle_charref(self, n):
+        self.atual.append(f'&#{n};')
+
+
+def _so_imagem(pedaco):
+    """(largura css, alinhamento) se o pedaço é um parágrafo só com uma imagem; senão None."""
+    if not pedaco.startswith('<p') or pedaco.count('<img') != 1:
+        return None
+    resto = re.sub(r'<(?!img)[^>]+>', '', pedaco).replace('&nbsp;', ' ')
+    if re.sub(r'<img[^>]*>', '', resto).strip():
+        return None
+    tag = re.search(r'<img[^>]*>', pedaco).group(0)
+    classes = (re.search(r'class="([^"]*)"', tag) or [None, ''])[1].split()
+    if any(c in classes for c in _FLUTUA_IMG):
+        return None
+    px = re.search(r'width:(\d+)px', tag)
+    pct = re.search(r'width:(\d+)%', tag)
+    if px:
+        larg = f'{px.group(1)}px'
+    elif pct:
+        larg = f'{pct.group(1)}%'
+    else:
+        p = next((_PCT_IMG[c] for c in classes if c in _PCT_IMG), 100)
+        larg = f'{p}%'
+    if larg == '100%':
+        return None                       # largura total: o texto já acompanha
+    alinha = (re.search(r'text-align:(center|right)', pedaco.split('>', 1)[0]) or [None, ''])[1]
+    return larg, {'center': 'fig-c', 'right': 'fig-d'}.get(alinha, 'fig-e')
+
+
+def agrupa_figuras(html):
+    """Veja o comentário acima. Recebe e devolve HTML já limpo."""
+    if '<img' not in (html or ''):
+        return html
+    p = _TopoHTML()
+    p.feed(html)
+    p.close()
+    p._fecha()
+    pedacos, saida, i = p.pedacos, [], 0
+    while i < len(pedacos):
+        info = _so_imagem(pedacos[i])
+        if not info:
+            saida.append(pedacos[i])
+            i += 1
+            continue
+        larg, cls = info
+        grupo = [pedacos[i]]
+        i += 1
+        while i < len(pedacos) and '<img' not in pedacos[i] and not pedacos[i].startswith('<div class="fig'):
+            grupo.append(pedacos[i])
+            i += 1
+        saida.append(f'<div class="fig {cls}" style="width:{larg}">{"".join(grupo)}</div>')
+    return ''.join(saida)
 
 
 def so_texto(html):
@@ -1843,6 +1967,7 @@ def agrupar_blocos(linhas):
         else:
             html = (limpa_html(b['texto']) if b['formato'] == 'html'
                     else texto_para_html(b['texto']))
+            html = agrupa_figuras(str(html))
             if so_texto(html) or '<li' in html or '<img' in html:
                 saida.append({'tipo': 'texto', 'id': b['id'], 'ativo': ativo,
                               'html': Markup(html),
@@ -1982,7 +2107,7 @@ def modulo(chave):
                                   if b['arquivo'] else ''})
     corpo = limpa_html(row['corpo'] or '') if (row['corpo'] or '').strip() else ''
     return render_template('modulo.html', chave=chave, nome=row['nome'],
-                           cab=cab, leia=leia, corpo=Markup(corpo),
+                           cab=cab, leia=leia, corpo=Markup(agrupa_figuras(corpo)),
                            corpo_editar=Markup(corpo or (blocos_para_html(linhas) if admin else '')),
                            cab_campos=row if admin else None,
                            blocos=agrupar_blocos(linhas), edicao=admin, blocos_cru=cru,
@@ -2362,7 +2487,8 @@ def index():
 
     return render_template(
         'index.html', numeros=numeros, saudacao=saudacao(),
-        noticias_recentes=modulos.noticias.recentes(5),
+        noticias_recentes=modulos.noticias.recentes(modulos.noticias.vitrine()[2]),
+        noticias_vitrine=modulos.noticias.vitrine(),
         cartoes_painel=cartoes_painel, livre=livre, cartoes_livre=cartoes_livre,
         lateral_livre=lateral_livre,
         destinos_links=destinos_de_links() if session.get('admin') else [],
@@ -2729,15 +2855,20 @@ def admin_cartoes():
                 salvar_nome_cartao_painel(chave)
             else:
                 flash('O nome do cartão não pode ficar em branco.', 'erro')
-        return redirect(url_for('admin_cartoes') + '#c-' + chave)
-    cartoes = []
+        return redirect(url_for('conteudos') + '#c-' + chave)
+    # "Todos os cartões" agora é uma seção de Conteúdos.
+    return redirect(url_for('conteudos') + '#cartoes')
+
+
+def cartoes_para_gerenciar():
+    """Todos os cartões da página inicial, com o que a seção de Conteúdos mostra de cada um."""
+    saida = []
     for c in cartoes_do_painel():
         rotulo, destino = _editar_conteudo_cartao(c)
-        cartoes.append({'c': c, 'tipo': TIPOS_CARTAO.get(c['tipo'], c['tipo']),
-                        'rotulo': rotulo, 'destino': destino,
-                        'aparencia': dados_aparencia_cartao(c['chave'])})
-    return render_template('admin_cartoes.html', cartoes=cartoes, fontes=FONTES_TEXTO,
-                           regioes=CARTAO_REGIOES)
+        saida.append({'c': c, 'tipo': TIPOS_CARTAO.get(c['tipo'], c['tipo']),
+                      'rotulo': rotulo, 'destino': destino,
+                      'aparencia': dados_aparencia_cartao(c['chave'])})
+    return saida
 
 
 @app.route('/admin/lateral', methods=['GET', 'POST'])
@@ -2884,16 +3015,9 @@ def admin_lateral():
                                 ident=_int(request.args['editar'])))
     if request.args.get('novo'):
         return redirect(url_for('conteudos_editor', tipo='comunicado', ident='novo', cartao=chave))
-    editar = None
-    return render_template(
-        'admin_lateral.html', editar=editar, destaques=DESTAQUES_COMUNICADO,
-        paleta=PALETA, paleta_fundo=PALETA_FUNDO,
-        abas=abas_painel(chave), fontes=FONTES_TEXTO,
-        cartao_atual=cartao_por_chave(chave),
-        icones_cartao=dados_icone_cartao(chave), img_pos=CARTAO_IMG_POS,
-        aparencia=dados_aparencia_cartao(chave),
-        itens=con.execute('SELECT * FROM lateral WHERE cartao=?'
-                          ' ORDER BY ordem, id', (chave,)).fetchall())
+    # A aba "Cartões do painel" não existe mais: os itens de cada cartão ficam em Conteúdos.
+    # Este endereço continua valendo (links antigos e o POST de ordenar/excluir) e leva para lá.
+    return redirect(url_for('conteudos', tipo='comunicado', cartao=chave))
 
 
 @app.route('/admin/imagem-tamanho/<int:item>', methods=['POST'])
@@ -4040,7 +4164,9 @@ def destinos_de_links():
     """Páginas do portal para onde um link pode apontar: (nome, endereço)."""
     return [('Início', '/'), ('Ramais', '/ramais'), ('Sistemas', '/sistemas')] + \
         [(r['nome'], r['url'] if (r['url'] or '').startswith('/') else f"/modulo/{r['chave']}") for r in db().execute(
-            'SELECT nome,chave,url FROM paginas_lateral ORDER BY ordem, id')]
+            'SELECT nome,chave,url FROM paginas_lateral ORDER BY ordem, id')] + \
+        [('Notícia: ' + r['titulo'], f"/noticias/{r['slug']}") for r in db().execute(
+            "SELECT titulo,slug FROM noticias WHERE estado='publicado' ORDER BY id DESC LIMIT 60")]
 
 
 @app.route('/admin/pagina/<chave>', methods=['GET', 'POST'])

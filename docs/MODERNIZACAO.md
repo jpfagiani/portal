@@ -19,7 +19,7 @@ Este arquivo registra o que foi feito seguindo a Especificação-Mestra do Porta
 | Comando | Resultado antes das mudanças |
 |---|---|
 | `python3 -m py_compile app.py modulos/*.py` | passou |
-| `python3 -I tests/test_modulos.py` | 129 verificações, todas passaram |
+| `python3 -I tests/verificacoes_portal.py` | 129 verificações, todas passaram |
 | `python3 -m unittest discover -s tests -v` | não achava nenhum teste (script comum) |
 
 ## Entregas desta versão
@@ -38,14 +38,14 @@ Este arquivo registra o que foi feito seguindo a Especificação-Mestra do Porta
 `app.py` (versão, cores padrão), `modulos/noticias.py` (respostas JSON, prévia), `modulos/midia.py`
 (usos, dimensões), `modulos/seguranca.py` (CSP), `templates/noticias.html`, `noticia.html`,
 `admin_noticias.html`, `admin_midia.html`, `static/limpo.css`, `static/style.css`,
-`static/editor-estado.js` (novo), `tests/test_modulos.py`, `tests/test_unittest.py` (novo),
+`static/editor-estado.js` (novo), `tests/verificacoes_portal.py`, `tests/test_unittest.py` (novo),
 `.gitignore`, `docs/MODERNIZACAO.md` (novo).
 
 Nenhuma tabela, coluna ou arquivo de dados foi alterado: **não há migração de banco nesta versão**.
 
 ## Testes executados
 
-- `python3 -I tests/test_modulos.py`: 153 verificações, todas passaram (inclui salvar por fetch,
+- `python3 -I tests/verificacoes_portal.py`: 153 verificações, todas passaram (inclui salvar por fetch,
   prévia, CSRF, uso de imagem, CSP, backup e restauração, entrada `../` em backup).
 - `python3 -m unittest discover -s tests -v`: passa.
 - Navegador real (Chromium): editor completo (estado, erro, falha do servidor, prévia, aviso de
@@ -87,7 +87,7 @@ recomendado, se houver interesse: prova de conceito isolada com amostras reais d
 3. Extraia `portal-atualizacao.zip` sobre a pasta do portal.
 4. `sudo systemctl restart portal` (ou `./atualizar.sh`) e Ctrl+F5 no navegador.
 5. Abra Administração → Notícias, edite uma notícia, clique em **Prévia** e depois em **Salvar**.
-6. Para validar: `python3 -I tests/test_modulos.py` (usa cópia temporária; não toca no banco real).
+6. Para validar: `python3 -I tests/verificacoes_portal.py` (usa cópia temporária; não toca no banco real).
 
 ## Reversão
 
@@ -112,3 +112,23 @@ de caixa "figura") passa a ocupar a coluna inteira, e todo texto fica na mesma l
 esquerda, mesmo que tenha sido colado centralizado. Vale para notícias novas e antigas, sem precisar
 salvar de novo. Blocos de colunas (`.cols`) continuam livres. Reversão: apagar o último bloco de
 `static/limpo.css` ("Notícia no padrão do UOL").
+
+## 1.9.22 — Cartões dentro de Conteúdos (Fases 0 e 1 do plano de 29/10/2026)
+
+- **Aba "Cartões do painel" removida.** Em Administração → Conteúdos há agora a seção
+  "Cartões da página inicial" (nome, ícone de cada cartão, fonte e cores, vitrine de notícias, novo cartão de
+  comunicados, excluir cartão) e o filtro "Comunicados → cartão", com ordem por arrastar e caixa de visível.
+  `/admin/lateral` e `/admin/cartoes` continuam existindo e redirecionam para Conteúdos; o POST de ordenar e excluir
+  itens segue em `/admin/lateral`. Os templates `admin_lateral.html` e `admin_cartoes.html` foram removidos.
+- **Erro 405 corrigido:** o formulário de aparência de "Últimas notícias" na tela Conteúdos agora é aceito
+  (`/admin/conteudos` passou a receber POST).
+- **Testes:** `tests/test_modulos.py` virou `tests/verificacoes_portal.py` (o `unittest discover` tentava importá-lo e
+  quebrava). 225 verificações passam; `python3 -m unittest discover -s tests` passa.
+- **Texto exatamente na largura da imagem, em qualquer cartão ou conteúdo** (`agrupa_figuras` em `app.py`), tamanho da
+  letra e da imagem em pixels (`static/tamanho-px.js`, `static/editor-rico.js`), grade de notícias opcional.
+- **Não alterado:** banco de dados (sem migração), `secret.key`, uploads. Cópias antigas na raiz (`index.html`,
+  `blocos.html`, `style.css`, `encaixe.js`) e os scripts sem uso (`static/barra-extra.js`, `static/alinha-texto.js`)
+  aguardam sua confirmação para serem removidos.
+- Reversão: restaurar os arquivos anteriores; não há alteração de banco.
+
+Mapa de destinos (Fase 1): ver `docs/MAPA-DE-DESTINOS.md`.
