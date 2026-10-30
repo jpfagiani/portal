@@ -1084,6 +1084,43 @@ def _semear_cartoes(con):
     con.execute("INSERT INTO config (chave,valor) VALUES ('cartoes_migrados','1')")
 
 
+def _backup_pre_exibicao(con):
+    """Cópia consistente do banco (API de backup do SQLite) antes da migração de exibição.
+    Só acontece uma vez: quando já há dados e a coluna nova ainda não existe."""
+    try:
+        tem_dados = con.execute("SELECT 1 FROM sqlite_master WHERE name='cartoes_painel'").fetchone()
+        cols = {c[1] for c in con.execute('PRAGMA table_info(cartao_conteudo)')}
+        if not tem_dados or 'exibir_titulo' in cols or not cols:
+            return
+        destino = DB_PATH + '.pre-exibicao-v1'
+        if os.path.exists(destino):
+            return
+        copia = sqlite3.connect(destino)
+        with copia:
+            con.backup(copia)
+        copia.close()
+        try:
+            os.chmod(destino, 0o600)
+        except OSError:
+            pass
+    except sqlite3.Error:
+        pass    # a migração é aditiva; a falta da cópia não deve impedir o portal de subir
+
+
+def _migrar_exibicao(con):
+    """Uma vez só. Cartões de texto e imagem mostravam `cartoes_painel.nome` como título quando
+    `titulo_visivel` estava ligado. Para o visitante não ver mudança nenhuma, esse valor é COPIADO
+    para a coluna nova `titulo_publico` (e `titulo_visivel` vira `exibir_titulo`). Nada é sobrescrito
+    nem apagado: o nome interno e `titulo_visivel` continuam como estavam. Depois disso o nome
+    interno deixa de ser lido pelo HTML público, e o título público passa a ser editável à parte."""
+    if con.execute("SELECT 1 FROM config WHERE chave='exibicao_v1'").fetchone():
+        return
+    con.execute("UPDATE cartao_conteudo SET"
+                " titulo_publico=COALESCE((SELECT nome FROM cartoes_painel p WHERE p.chave=cartao_conteudo.chave),''),"
+                " exibir_titulo=titulo_visivel WHERE titulo_publico='' AND exibir_titulo=0")
+    con.execute("INSERT OR IGNORE INTO config (chave,valor) VALUES ('exibicao_v1','1')")
+
+
 def init_db():
     """Cria o banco e o conteúdo inicial.
 
@@ -1096,6 +1133,11 @@ def init_db():
     con = sqlite3.connect(DB_PATH, timeout=30)
     con.isolation_level = None
     con.executescript(SCHEMA)
+
+    # Antes da primeira migração de exibição (1.11.0), guarda uma cópia do banco ao lado
+    # dele. A migração só ACRESCENTA colunas e copia valores para colunas novas; a
+    # cópia existe para o caso de querer voltar atrás (ver docs/MODERNIZACAO.md).
+    _backup_pre_exibicao(con)
 
     # Colunas acrescentadas depois da primeira versão. Instalações antigas já
     # têm dados, então nada de recriar tabela: só adiciona o que falta.
@@ -1176,12 +1218,37 @@ def init_db():
             ('noticias', 'titulo_cor',   "TEXT NOT NULL DEFAULT ''"),
             ('noticias', 'titulo_tam',   "TEXT NOT NULL DEFAULT ''"),
             ('cartao_conteudo', 'url', "TEXT NOT NULL DEFAULT ''"),
+            # Nome administrativo × conteúdo público (1.11.0). O nome interno do cartão
+            # continua em cartoes_painel.nome e nunca vai ao HTML público; o que o
+            # visitante lê é titulo_publico/texto_apoio, só se o item mandar exibir.
+            ('cartao_conteudo', 'titulo_publico',      "TEXT NOT NULL DEFAULT ''"),
+            ('cartao_conteudo', 'texto_apoio',         "TEXT NOT NULL DEFAULT ''"),
+            ('cartao_conteudo', 'exibir_titulo',       'INTEGER NOT NULL DEFAULT 0'),
+            ('cartao_conteudo', 'exibir_texto_apoio',  'INTEGER NOT NULL DEFAULT 0'),
+            ('cartao_conteudo', 'imagem',              "TEXT NOT NULL DEFAULT ''"),
+            ('cartao_conteudo', 'alt_imagem',          "TEXT NOT NULL DEFAULT ''"),
+            # Destino do clique: '' = registro antigo (tipo inferido do endereço);
+            # padrao | nenhum | interno | noticia | externo. nova_aba: -1 = regra antiga.
+            ('cartao_conteudo', 'destino_tipo',        "TEXT NOT NULL DEFAULT ''"),
+            ('cartao_conteudo', 'nova_aba',            'INTEGER NOT NULL DEFAULT -1'),
+            ('noticias', 'nome_admin',          "TEXT NOT NULL DEFAULT ''"),
+            ('noticias', 'exibir_titulo',       'INTEGER NOT NULL DEFAULT 1'),
+            ('noticias', 'exibir_texto_apoio',  'INTEGER NOT NULL DEFAULT 0'),
+            ('noticias', 'destino_tipo',        "TEXT NOT NULL DEFAULT ''"),
+            ('noticias', 'nova_aba',            'INTEGER NOT NULL DEFAULT -1'),
+            ('lateral',  'nome_admin',          "TEXT NOT NULL DEFAULT ''"),
+            ('lateral',  'exibir_titulo',       'INTEGER NOT NULL DEFAULT 1'),
+            ('lateral',  'exibir_texto_apoio',  'INTEGER NOT NULL DEFAULT 1'),
+            ('lateral',  'alt_imagem',          "TEXT NOT NULL DEFAULT ''"),
+            ('lateral',  'destino_tipo',        "TEXT NOT NULL DEFAULT ''"),
+            ('lateral',  'nova_aba',            'INTEGER NOT NULL DEFAULT -1'),
             ('ramais',   'destaque', 'INTEGER NOT NULL DEFAULT 0'),
             ('usuarios', 'ultimo_acesso', "TEXT DEFAULT ''")):
         existentes = {c[1] for c in con.execute(f'PRAGMA table_info({tabela})')}
         if coluna not in existentes:
             con.execute(f'ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}')
 
+    _migrar_exibicao(con)
     _semear_cartoes(con)
     # Cartões genéricos já existentes ganham os campos de aparência novos (nome do cartão).
     for r in con.execute("SELECT chave FROM cartoes_painel WHERE tipo='itens'").fetchall():
@@ -1309,7 +1376,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.22'
+VERSAO = '1.11.0'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']

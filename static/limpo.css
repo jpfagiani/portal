@@ -665,3 +665,24 @@ html:not([data-tema="escuro"]) .ntit[style*="--n-cor"]{color:var(--n-cor)}
 /* Figura: nada de texto justificado ou à direita dentro dela (em coluna estreita abre vãos enormes) */
 .fig [style*="justify"],.fig [style*="text-align:right"]{text-align:left!important}
 .fig>p{margin-top:0}
+
+/* ── Chamadas com apresentação configurável (1.11.0) ─────────────────────────────
+   Cartão de texto e imagem, chamadas de notícia e comunicados seguem a mesma regra
+   (modulos/exibicao.py): somente imagem · imagem e título · imagem, título e texto.
+   Reversão: apagar este bloco. */
+.chamada-img{display:block;width:100%;height:auto;object-fit:cover;border-radius:var(--raio,8px)}
+.not-vitrine .chamada-img{aspect-ratio:16/9}
+.not-lista .chamada-img{aspect-ratio:4/3;object-fit:cover}
+.chamada-titulo{display:block;overflow-wrap:anywhere}
+.not-vitrine .chamada-titulo{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.chamada-texto{display:block;margin:.25rem 0 0;font-size:.9rem;line-height:1.4;color:var(--texto-2,#5b6b82);overflow-wrap:anywhere}
+.not-vitrine .chamada-texto{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.cartao-apoio{margin:.4rem 1rem 0}
+.not-vitrine{align-items:start}
+.not-chamada[data-modo=imagem],.not-item[data-modo=imagem]{padding:0}
+.not-chamada[data-modo=imagem] .chamada-img{margin:0}
+.cartao-conteudo > .chamada-img{border-radius:0}
+.cartao-cab-admin h2{font-size:.85rem;opacity:.8}
+@media (max-width:600px){.not-vitrine{grid-template-columns:1fr}}
+/* Lista de Conteúdos no celular: sem rolagem horizontal da página (1.11.0). */
+@media (max-width:700px){#cont-tabela{display:block;max-width:100%;overflow-x:auto}#cont-tabela td,#cont-tabela th{overflow-wrap:anywhere}}

@@ -1,0 +1,23 @@
+{#  Peças públicas de uma chamada (cartão, notícia, comunicado). Todas recebem o
+    dicionário de modulos/exibicao.py (`it`) e só desenham o que ele autoriza:
+    nome administrativo, chave, slug e nome de arquivo nunca chegam até aqui. #}
+
+{#  Imagem da chamada. Texto alternativo próprio (pode ser vazio = decorativa). #}
+{% macro imagem(it, classe='chamada-img') %}
+  {% if it.imagem %}<img class="{{ classe }}" src="{{ url_for('static', filename='uploads/' ~ it.imagem) }}" alt="{{ it.alt }}" loading="lazy">{% endif %}
+{% endmacro %}
+
+{#  Título e texto de apoio, só se o modo mandar e houver conteúdo. #}
+{% macro textos(it, tag='strong', estilo='') %}
+  {% if it.mostrar_titulo %}<{{ tag }} class="chamada-titulo ntit"{% if estilo %} style="{{ estilo }}"{% endif %}>{{ it.titulo }}</{{ tag }}>{% endif %}
+  {% if it.mostrar_texto %}<span class="chamada-texto">{{ it.texto }}</span>{% endif %}
+{% endmacro %}
+
+{#  Atributos de abertura do link: nova aba leva rel de proteção. O endereço
+    nunca é exibido ao visitante (sem title com a URL). #}
+{% macro alvo(it) %}{% if it.nova_aba %} target="_blank" rel="{{ it.rel }}"{% endif %}{% endmacro %}
+
+{#  Link transparente sobre a área toda (links internos do conteúdo ficam por cima). #}
+{% macro overlay(it, classe='cartao-overlay') %}
+  {% if it.href %}<a class="{{ classe }}" href="{{ it.href }}"{{ alvo(it) }} aria-label="{{ it.rotulo }}"></a>{% endif %}
+{% endmacro %}

@@ -18,6 +18,13 @@ class TestePortal(unittest.TestCase):
         self.assertEqual(r.returncode, 0, 'testes do portal falharam:\n' + '\n'.join(falhas) + r.stderr[-800:])
         self.assertGreater(r.stdout.count('\nOK '), 100)
 
+    def test_exibicao_e_destinos(self):
+        r = subprocess.run([sys.executable, '-I', os.path.join(AQUI, 'verificacoes_exibicao.py')],
+                           capture_output=True, text=True, timeout=600)
+        falhas = [l for l in r.stdout.splitlines() if l.startswith('FALHA')]
+        self.assertEqual(r.returncode, 0, 'testes de exibição falharam:\n' + '\n'.join(falhas) + r.stderr[-800:])
+        self.assertGreater(r.stdout.count('\nOK '), 60)
+
 
 if __name__ == '__main__':
     unittest.main()

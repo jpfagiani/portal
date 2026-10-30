@@ -1,4 +1,5 @@
 {% extends 'shell.html' %}
+{% import 'chamada.html' as ch with context %}
 {% set pagina = 'noticias' %}
 {% block titulo %}Notícias{% endblock %}
 {#  Lista da seção: a primeira notícia da página vira manchete, com foto grande, e
@@ -26,33 +27,39 @@
 
   {% if itens %}
   {% set m = itens[0] %}
-  {% set destino_m = m.destino_url or url_for('noticia', slug=m.slug) %}
+  {% set it = noticia_publico(m) %}
+  {% set tag = 'a' if it.href else 'div' %}
   <article>
-    <a class="not-manchete" href="{{ destino_m }}"{% if destino_m.startswith('http') %} target="_blank" rel="noopener"{% endif %}>
+    <{{ tag }} class="not-manchete" data-modo="{{ it.modo }}"{% if it.href %} href="{{ it.href }}"{{ ch.alvo(it) }}{% if not it.mostrar_titulo %} aria-label="{{ it.rotulo }}"{% endif %}{% endif %}>
       {{ foto(m) }}
+      {% if it.mostrar_titulo or it.mostrar_texto %}
       <div class="not-texto">
         <small>{{ marca(m) }}</small>
-        <h2 class="ntit" style="{{ estilo_titulo(m) }}">{{ m.titulo }}</h2>
-        {% if m.resumo or m.subtitulo %}<p>{{ m.resumo or m.subtitulo }}</p>{% endif %}
+        {% if it.mostrar_titulo %}<h2 class="ntit" style="{{ estilo_titulo(m) }}">{{ it.titulo }}</h2>{% endif %}
+        {% if it.mostrar_texto %}<p>{{ it.texto }}</p>{% endif %}
         <time class="not-data">{{ m.publicar_em|data_br }}</time>
       </div>
-    </a>
+      {% endif %}
+    </{{ tag }}>
   </article>
 
   {% if itens|length > 1 %}
   <div class="not-linhas">
     {% for n in itens[1:] %}
-    {% set destino = n.destino_url or url_for('noticia', slug=n.slug) %}
+    {% set it = noticia_publico(n) %}
+    {% set tag = 'a' if it.href else 'div' %}
     <article>
-      <a class="not-linha" href="{{ destino }}"{% if destino.startswith('http') %} target="_blank" rel="noopener"{% endif %}>
+      <{{ tag }} class="not-linha" data-modo="{{ it.modo }}"{% if it.href %} href="{{ it.href }}"{{ ch.alvo(it) }}{% if not it.mostrar_titulo %} aria-label="{{ it.rotulo }}"{% endif %}{% endif %}>
         {{ foto(n) }}
+        {% if it.mostrar_titulo or it.mostrar_texto %}
         <div class="not-texto">
           <small>{{ marca(n) }}</small>
-          <h3 class="ntit" style="{{ estilo_titulo(n) }}">{{ n.titulo }}</h3>
-          {% if n.resumo or n.subtitulo %}<p>{{ n.resumo or n.subtitulo }}</p>{% endif %}
+          {% if it.mostrar_titulo %}<h3 class="ntit" style="{{ estilo_titulo(n) }}">{{ it.titulo }}</h3>{% endif %}
+          {% if it.mostrar_texto %}<p>{{ it.texto }}</p>{% endif %}
           <time class="not-data">{{ n.publicar_em|data_br }}</time>
         </div>
-      </a>
+        {% endif %}
+      </{{ tag }}>
     </article>
     {% endfor %}
   </div>

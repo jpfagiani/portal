@@ -25,7 +25,7 @@
 
 <section class="painel-caixa" style="margin-top:.8rem">
   <form method="get" class="hist-busca cont-filtros">
-    <input type="search" name="q" value="{{ q }}" placeholder="Pesquisar por título…" aria-label="Pesquisar por título">
+    <input type="search" name="q" value="{{ q }}" placeholder="Pesquisar por nome interno, título público ou texto…" aria-label="Pesquisar por nome interno, título público ou texto">
     <select name="tipo" aria-label="Tipo">
       <option value="">Todos os tipos</option>
       {% for k, v in tipos.items() %}<option value="{{ k }}" {{ 'selected' if filtro_tipo == k }}>{{ v }}s</option>{% endfor %}
@@ -45,13 +45,14 @@
   </form>
   <p id="cont-aviso" class="pe-erro" role="alert"></p>
   <table class="tabela" id="cont-tabela">
-    <thead><tr>{% if ordenavel %}<th></th>{% endif %}<th>Título</th><th>Tipo</th><th>Onde aparece</th><th>Situação</th><th>Atualizado</th><th></th></tr></thead>
+    <thead><tr>{% if ordenavel %}<th></th>{% endif %}<th>Nome interno</th><th>Tipo</th><th>Onde aparece</th><th>Situação</th><th>Atualizado</th><th></th></tr></thead>
     <tbody{% if ordenavel %} data-ordenavel="{{ url_ordenar }}" data-csrf="{{ csrf_token }}"{% endif %}>
       {% for l in linhas %}
       <tr data-id="{{ l.id }}" data-tipo="{{ l.tipo }}">
         {% if ordenavel %}<td class="pega" title="Arraste para mudar a posição">⠿</td>{% endif %}
         <td><a href="{{ url_for('conteudos_editor', tipo=l.tipo, ident=l.id) }}"><strong>{{ l.titulo }}</strong></a>
           {% if l.destaque %}<span class="tag tag-admin">destaque</span>{% endif %}
+          {% if l.quebrado %}<span class="tag tag-off" title="O destino do clique não existe mais; o item aparece sem link até você corrigir">destino indisponível</span>{% endif %}
           {% if l.extra %}<br><small class="dica">{{ l.extra }}</small>{% endif %}</td>
         <td>{{ l.rotulo_tipo }}</td>
         <td>{{ l.onde }}</td>

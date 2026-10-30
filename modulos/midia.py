@@ -99,9 +99,12 @@ def usos_todos():
         usos[r['imagem']].append((f"Cartão “{r['titulo']}”", url_for('admin_lateral')))
     # Cartões de texto e imagem: a imagem está dentro do texto formatado. Edita-se
     # no próprio portal (Editar portal → clicar no nome do cartão).
-    for r in con.execute("SELECT p.nome, k.html FROM cartao_conteudo k"
+    for r in con.execute("SELECT p.nome, k.html, k.imagem FROM cartao_conteudo k"
                          " JOIN cartoes_painel p ON p.chave=k.chave"):
-        for arq in set(re.findall(r'uploads/([\w.\-]+)', r['html'] or '')):
+        achados = set(re.findall(r'uploads/([\w.\-]+)', r['html'] or ''))
+        if r['imagem']:
+            achados.add(r['imagem'])
+        for arq in achados:
             usos[arq].append((f"Cartão de texto e imagem “{r['nome']}” (Editar portal → clique no nome do cartão)",
                               url_for('editor')))
     for r in con.execute("SELECT id, titulo, capa, corpo FROM noticias"):
