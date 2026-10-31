@@ -479,6 +479,43 @@ def conteudos_ordenar():
 
 # ── página interna de um cartão ───────────────────────────────────────────────
 
+def _so_chamada(corpo, texto):
+    """Corpo reduzido para o cartão: as imagens e uma linha de chamada."""
+    imagens = re.findall(r'<img\b[^>]*>', nucleo.limpa_html(corpo))
+    return nucleo.limpa_html(''.join('<p>%s</p>' % i for i in imagens)
+                             + '<p><strong>%s</strong></p>' % escape((texto or 'Saiba mais').strip()[:200]))
+
+
+@app.route('/admin/conteudos/so-chamada', methods=['POST'])
+@nucleo.admin_obrigatorio
+def conteudos_so_chamada():
+    """Deixa no cartão só as imagens e um texto de chamada; o texto completo fica na página interna."""
+    tipo, ident = request.form.get('tipo', ''), request.form.get('id', '')
+    chamada_txt = request.form.get('chamada', '').strip()
+    con = nucleo.db()
+    if tipo == 'cartao':
+        r = con.execute("SELECT p.nome,k.html,k.url FROM cartoes_painel p JOIN cartao_conteudo k ON k.chave=p.chave"
+                        " WHERE p.chave=? AND p.tipo='conteudo'", (ident,)).fetchone()
+        corpo, url, nome = (r['html'], r['url'], r['nome']) if r else ('', '', '')
+    elif tipo == 'comunicado':
+        r = con.execute('SELECT * FROM lateral WHERE id=?', (nucleo._int(ident),)).fetchone()
+        corpo = (r['corpo_html'] or _corpo_legado(dict(r))) if r else ''
+        url, nome = (r['url'], r['titulo']) if r else ('', '')
+    else:
+        return _erro('Tipo de conteúdo desconhecido.')
+    if not r:
+        return _erro('Conteúdo não encontrado.', 404)
+    if not (url or '').startswith('/noticias/'):
+        return _erro('Crie a página interna antes: o texto completo precisa estar nela.')
+    novo = _so_chamada(corpo, chamada_txt or nome)
+    if tipo == 'cartao':
+        con.execute('UPDATE cartao_conteudo SET html=? WHERE chave=?', (novo, ident))
+    else:
+        con.execute('UPDATE lateral SET corpo_html=? WHERE id=?', (novo, nucleo._int(ident)))
+    con.commit()
+    return jsonify(ok=True)
+
+
 @app.route('/admin/conteudos/criar-pagina', methods=['POST'])
 @nucleo.admin_obrigatorio
 def conteudos_criar_pagina():
@@ -511,9 +548,7 @@ def conteudos_criar_pagina():
         destino = '/noticias/' + slug
         # O texto completo foi para a página; no cartão ficam as imagens e uma linha de chamada
         # (o nome, que o administrador troca depois pelo texto que quiser).
-        imagens = re.findall(r'<img\b[^>]*>', nucleo.limpa_html(corpo))
-        chamada = ''.join('<p>%s</p>' % i for i in imagens) + '<p><strong>%s</strong></p>' % escape(nome or 'Saiba mais')
-        chamada = nucleo.limpa_html(chamada)
+        chamada = _so_chamada(corpo, nome)
         if tipo == 'cartao':
             con.execute('UPDATE cartao_conteudo SET url=?, html=? WHERE chave=?', (destino, chamada, ident))
         else:

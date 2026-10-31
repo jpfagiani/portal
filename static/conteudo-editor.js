@@ -95,6 +95,19 @@
     });
   });
 
+  var so = el('c-so-chamada');
+  if (so) so.addEventListener('click', function () {
+    if (ocupado) return;
+    var t = window.prompt('Texto de chamada que fica no cartão, abaixo da imagem (o texto completo continua na página interna):', form.elements.titulo.value || '');
+    if (t === null) return;
+    var fd = new FormData(); fd.set('csrf', form.dataset.csrf); fd.set('tipo', form.elements.tipo.value); fd.set('id', form.elements.id.value);
+    fd.set('chamada', t);
+    travar(true);
+    post(so.dataset.url, fd).then(function (r) {
+      if (r.ok) { sujo = false; location.reload(); } else { travar(false); erro.textContent = r.erro || 'Não foi possível alterar o cartão.'; }
+    });
+  });
+
   var exc = el('c-excluir');
   if (exc) exc.addEventListener('click', function () {
     if (ocupado || !window.confirm('Excluir este conteúdo? Esta ação não pode ser desfeita.')) return;

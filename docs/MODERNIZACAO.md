@@ -160,3 +160,6 @@ Mapa de destinos (Fase 1): ver `docs/MAPA-DE-DESTINOS.md`.
 
 ## 1.9.29 — Consolidação (roteiro): um só caminho de edição
 Veja `docs/AUDITORIA-CONTEUDOS.md`. Rotas antigas `/admin/noticias` e `/admin/lateral` só redirecionam; removidos `/admin/noticia-rapida`, `/admin/cartao-conteudo`, `admin_noticias.html` e 5 JS sem uso; botão único "+ Novo conteúdo"; ordenar em `/admin/conteudos/ordenar`.
+
+## 1.9.30 — "Deixar só imagem e chamada no cartão"
+- Para cartões/comunicados que já têm página interna: o botão troca o texto do cartão por uma linha de chamada (perguntada na hora); o texto completo fica só na página.

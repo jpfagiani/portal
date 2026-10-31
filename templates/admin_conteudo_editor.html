@@ -88,6 +88,11 @@
       <button type="button" class="btn btn-sm" id="c-criar-pagina" data-url="{{ url_for('conteudos_criar_pagina') }}"
               title="Cria uma página, como uma notícia, com o conteúdo salvo deste cartão, e liga o clique do cartão a ela">
         {{ 'Editar a página interna' if d.url and d.url.startswith('/noticias/') else 'Criar página interna deste cartão' }}</button>
+      {% if d.url and d.url.startswith('/noticias/') %}
+      <button type="button" class="btn btn-sm" id="c-so-chamada" data-url="{{ url_for('conteudos_so_chamada') }}"
+              title="Troca o texto do cartão por uma linha de chamada; o texto completo fica só na página interna">
+        Deixar só imagem e chamada no cartão</button>
+      {% endif %}
     </div>
     <p class="dica">O conteúdo <strong>já salvo</strong> vai inteiro para a nova página (fora da lista “Últimas notícias”).
       No cartão ficam só as imagens e uma linha de chamada (o nome do cartão), que você pode trocar depois.

@@ -612,6 +612,10 @@ ok('Novo' in corpo_pg and 'Novo' not in html_c and 'Horário 3' in html_c, 'o te
 ok(url_c == '/noticias/' + sp['slug'] and sp['so_pagina'] == 1, 'o cartão passa a apontar para a página criada')
 ok(anon.get(url_c).status_code == 200 and sp['slug'] not in anon.get('/noticias').get_data(as_text=True), 'a página abre e não entra na lista de notícias')
 ok(c.post('/admin/conteudos/criar-pagina', data={'csrf': tok, 'tipo': 'cartao', 'id': ck}).get_json()['id'] == r['id'], 'repetir não cria outra página')
+cont_so = c.post('/admin/conteudos/so-chamada', data={'csrf': tok, 'tipo': 'cartao', 'id': ck, 'chamada': 'Chamada curta'}).get_json()
+with portal.app.app_context():
+    html_c2 = portal.db().execute('SELECT html FROM cartao_conteudo WHERE chave=?', (ck,)).fetchone()['html']
+ok(cont_so.get('ok') and 'Chamada curta' in html_c2 and 'Horário 3' not in html_c2, 'deixar só a chamada no cartão que já tem página')
 c.post('/admin/conteudos/excluir', data={'csrf': tok, 'tipo': 'noticia', 'id': r['id']})
 
 # lista, filtros e pesquisa
