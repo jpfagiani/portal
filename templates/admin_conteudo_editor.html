@@ -14,7 +14,8 @@
       data-salvar="{{ url_for('conteudos_salvar') }}" data-previa="{{ url_for('conteudos_previa') }}"
       data-lista="{{ volta }}" data-biblioteca="{{ url_for('admin_midia_lista') }}"
       data-enviar="{{ url_for('admin_midia_enviar') }}" data-csrf="{{ csrf_token }}" novalidate>
-  <h2>{{ ('Nova' if tipo == 'noticia' else 'Novo') if novo else 'Editar' }} {{ rotulo|lower }}
+  <h2><span class="tag tag-admin" title="Tipo de conteúdo">{{ rotulo|upper }}</span>
+    {{ ('Nova' if tipo == 'noticia' else 'Novo') if novo else 'Editar' }} {{ rotulo|lower }}
     {% if tipo == 'noticia' and not novo %}<span class="tag {{ 'tag-ok' if d.situacao == 'Publicada' else 'tag-off' }}">{{ d.situacao }}</span>{% endif %}</h2>
   <input type="hidden" name="csrf" value="{{ csrf_token }}">
   <input type="hidden" name="tipo" value="{{ tipo }}">

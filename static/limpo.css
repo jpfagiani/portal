@@ -665,3 +665,8 @@ html:not([data-tema="escuro"]) .ntit[style*="--n-cor"]{color:var(--n-cor)}
 /* Figura: nada de texto justificado ou à direita dentro dela (em coluna estreita abre vãos enormes) */
 .fig [style*="justify"],.fig [style*="text-align:right"]{text-align:left!important}
 .fig>p{margin-top:0}
+.cont-novo-menu{display:inline-block;position:relative}
+.cont-novo-menu>summary{list-style:none;cursor:pointer;display:inline-block}
+.cont-novo-menu>summary::-webkit-details-marker{display:none}
+.cont-novo-opcoes{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:.5rem;padding:.7rem;border:1px solid var(--borda,#d9e0ea);border-radius:10px;background:var(--fundo-cartao,#fff)}
+.cont-novo-opcoes .dica{flex-basis:100%;margin:0}

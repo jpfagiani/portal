@@ -1321,7 +1321,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.28'
+VERSAO = '1.9.29'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -2849,7 +2849,7 @@ def _editar_conteudo_cartao(c):
         return 'Editar notícias', url_for('conteudos', tipo='noticia')
     if t == 'conteudo':
         return 'Editar conteúdo', url_for('conteudos_editor', tipo='cartao', ident=k)
-    return 'Editar itens', url_for('admin_lateral', cartao=k)
+    return 'Editar itens', url_for('conteudos', tipo='comunicado', cartao=k)
 
 
 @app.route('/admin/cartoes', methods=['GET', 'POST'])
@@ -2884,141 +2884,10 @@ def cartoes_para_gerenciar():
     return saida
 
 
-@app.route('/admin/lateral', methods=['GET', 'POST'])
+@app.route('/admin/lateral')
 @admin_obrigatorio
 def admin_lateral():
-    con = db()
-    if request.method == 'POST':
-        acao = request.form.get('acao')
-        ident = _int(request.form.get('id'))
-        # Qual dos cinco cartoes esta sendo editado. Vem do formulario no POST
-        # e da URL no GET; chave desconhecida cai no primeiro.
-        chave = request.form.get('cartao') or ''
-        if not cartao_por_chave(chave):
-            chave = CARTOES_SEMENTE[0][0]
-        volta = url_for('admin_lateral', cartao=chave)
-
-        if acao == 'novo_cartao':
-            nova = _proxima_chave_cartao(con)
-            proxima_ordem = con.execute(
-                'SELECT COALESCE(MAX(ordem),0)+1 FROM cartoes_painel').fetchone()[0]
-            con.execute('INSERT INTO cartoes_painel (chave,nome,icone,regiao,'
-                        'largura,coluna,ordem,tipo,ativo)'
-                        " VALUES (?,?,'prancheta','baixo',1,0,?,'itens',1)",
-                        (nova, 'Cartão ' + nova.replace('cartao', ''),
-                         proxima_ordem))
-            _semear_aparencia(con, nova)
-            con.commit()
-            flash('Cartão criado. Arraste-o no mapa para posicionar.', 'ok')
-            return redirect(url_for('admin_lateral', cartao=nova))
-
-        if acao == 'excluir_cartao':
-            # O último não sai: sem nenhum cartão a tela não teria o que abrir.
-            quantos = con.execute("SELECT COUNT(*) FROM cartoes_painel"
-                                  " WHERE tipo='itens'").fetchone()[0]
-            if quantos <= 1:
-                flash('Este é o último cartão — crie outro antes de excluí-lo.',
-                      'erro')
-                return redirect(volta)
-            for linha in con.execute('SELECT imagem, video FROM lateral'
-                                     ' WHERE cartao=?', (chave,)):
-                remove_upload(linha['imagem'])
-                remove_upload(linha['video'])
-            con.execute('DELETE FROM lateral WHERE cartao=?', (chave,))
-            con.execute('DELETE FROM cartoes_painel WHERE chave=? AND '
-                        "tipo='itens'", (chave,))
-            con.commit()
-            flash('Cartão e itens removidos.', 'ok')
-            return redirect(url_for('admin_lateral'))
-
-        if acao == 'titulo_cartao':
-            salvar_nome_cartao_painel(chave)
-            return redirect(volta)
-        if acao == 'aparencia_cartao':
-            salvar_aparencia_cartao(chave)
-            return redirect(volta)
-        if acao == 'ordenar':
-            return reordenar('lateral')
-        if acao == 'excluir':
-            linha = con.execute('SELECT imagem, video FROM lateral WHERE id=?',
-                                (ident,)).fetchone()
-            # Arquivos enviados saem junto: item apagado deixaria orfao em
-            # uploads/, ocupando espaco sem nada apontando para ele.
-            if linha:
-                remove_upload(linha['imagem'])
-                remove_upload(linha['video'])
-            con.execute('DELETE FROM lateral WHERE id=?', (ident,))
-            flash('Item removido.', 'ok')
-        else:
-            urg  = request.form.get('urgencia', 'informacao')
-            dest = request.form.get('destaque', 'nenhum')
-            atuais = con.execute('SELECT imagem, video FROM lateral WHERE id=?',
-                                 (ident,)).fetchone() if ident else None
-            try:
-                imagem = salva_upload('imagem', atuais['imagem'] if atuais else '')
-                video = salva_upload('video', atuais['video'] if atuais else '',
-                                     VIDEO_EXTS)
-            except ValueError as e:
-                flash(str(e), 'erro')
-                return redirect(volta)
-            for campo, novo, antigo in (('imagem', imagem, atuais['imagem'] if atuais else ''),
-                                        ('video', video, atuais['video'] if atuais else '')):
-                if novo != antigo:
-                    remove_upload(antigo)
-                if request.form.get('remover_' + campo):
-                    remove_upload(novo)
-                    if campo == 'imagem':
-                        imagem = ''
-                    else:
-                        video = ''
-            dados = (request.form.get('tipo', 'aviso'),
-                     request.form.get('titulo', '').strip(),
-                     # strip() inteiro comeria a indentacao da primeira linha:
-                     # tira so as quebras das pontas e o espaco do fim.
-                     request.form.get('conteudo', '').strip('\r\n').rstrip(),
-                     request.form.get('url', '').strip(),
-                     _int(request.form.get('ordem')),
-                     1 if request.form.get('ativo') else 0,
-                     urg if urg in ('urgente', 'comunicado', 'informacao') else 'informacao',
-                     dest if dest in DESTAQUES_COMUNICADO else 'nenhum',
-                     # Vazio quer dizer "usa o padrão de Aparência" — por isso
-                     # o padrão dos validadores aqui é a string vazia.
-                     medida(request.form.get('titulo_tam'), '', 0.6, 2.0)
-                     if request.form.get('titulo_tam', '').strip() else '',
-                     cor_hexa(request.form.get('titulo_cor'), ''),
-                     medida(request.form.get('texto_tam'), '', 0.6, 2.0)
-                     if request.form.get('texto_tam', '').strip() else '',
-                     cor_hexa(request.form.get('texto_cor'), ''),
-                     cor_hexa(request.form.get('fundo_cor'), ''),
-                     request.form.get('data', '').strip(),
-                     imagem, video,
-                     request.form.get('url_rot', '').strip(),
-                     (request.form.get('img_pos')
-                      if request.form.get('img_pos') in CARTAO_IMG_POS else 'topo'),
-                     chave)
-            # O título é opcional (o nome do cartão já titula o bloco), mas o
-            # item precisa ter algo para mostrar: texto, imagem, vídeo ou link.
-            if not (dados[1] or dados[2] or dados[3] or imagem or video):
-                flash('Preencha ao menos um destes: título, texto, link, '
-                      'imagem ou vídeo.', 'erro')
-            elif ident:
-                con.execute('UPDATE lateral SET tipo=?,titulo=?,conteudo=?,url=?,'
-                            'ordem=?,ativo=?,urgencia=?,destaque=?,titulo_tam=?,'
-                            'titulo_cor=?,texto_tam=?,texto_cor=?,fundo_cor=?,'
-                            'data=?,imagem=?,video=?,url_rot=?,img_pos=?,cartao=?'
-                            ' WHERE id=?', dados + (ident,))
-                flash('Item atualizado.', 'ok')
-                volta = url_for('admin_lateral', cartao=chave, editar=ident)
-            else:
-                con.execute('INSERT INTO lateral (tipo,titulo,conteudo,url,ordem,'
-                            'ativo,urgencia,destaque,titulo_tam,titulo_cor,'
-                            'texto_tam,texto_cor,fundo_cor,data,imagem,video,'
-                            'url_rot,img_pos,cartao)'
-                            ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', dados)
-                flash('Item adicionado.', 'ok')
-        con.commit()
-        return redirect(volta)
-
+    """Endereço antigo, mantido só por compatibilidade (links e favoritos): leva ao editor único de Conteúdos."""
     chave = request.args.get('cartao') or ''
     if not cartao_por_chave(chave):
         chave = CARTOES_SEMENTE[0][0]
@@ -3674,7 +3543,7 @@ def abas_painel(atual):
     # registro por causa da posição, mas o conteúdo deles vem de outro cadastro
     # e cada um tem tela própria — uma aba aqui abriria uma lista que nunca
     # terá item, e duplicaria o que já existe noutra seção.
-    return [(c['nome'], url_for('admin_lateral', cartao=c['chave']),
+    return [(c['nome'], url_for('conteudos', tipo='comunicado', cartao=c['chave']),
              c['chave'] == atual)
             for c in cartoes_do_painel() if c['tipo'] == 'itens']
 

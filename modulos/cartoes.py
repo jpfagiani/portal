@@ -80,51 +80,6 @@ def vaga_livre(con, gw=LARGURA_NOVO, gh=ALTURA_NOVO):
     return {'gx': 0, 'gy': 600, 'gw': gw, 'gh': gh}
 
 
-@app.route('/admin/cartao-conteudo', methods=['POST'])
-@nucleo.admin_obrigatorio
-def admin_cartao_conteudo():
-    """Cria, altera ou exclui um cartão de texto e imagem. Responde JSON."""
-    con = nucleo.db()
-    acao = request.form.get('acao', 'salvar')
-    chave = request.form.get('chave', '')
-    existente = con.execute("SELECT * FROM cartoes_painel WHERE chave=? AND tipo='conteudo'",
-                            (chave,)).fetchone() if chave else None
-
-    if acao == 'excluir':
-        if not existente:
-            return jsonify(ok=False, erro='Cartão não encontrado.'), 404
-        con.execute('DELETE FROM cartao_conteudo WHERE chave=?', (chave,))
-        con.execute('DELETE FROM cartoes_painel WHERE chave=?', (chave,))
-        con.commit()
-        return jsonify(ok=True)
-
-    nome = request.form.get('nome', '').strip()[:80]
-    html = nucleo.limpa_html(request.form.get('corpo', ''))
-    visivel = 1 if request.form.get('titulo_visivel') else 0
-    url = nucleo.endereco_seguro(request.form.get('url', ''))
-    if not nome and not nucleo.so_texto(html) and '<img' not in html:
-        return jsonify(ok=False, erro='Escreva um texto, ou escolha uma imagem, ou dê um nome ao cartão.'), 400
-    nome = nome or 'Novo cartão'
-
-    if existente:
-        con.execute('UPDATE cartoes_painel SET nome=? WHERE chave=?', (nome, chave))
-        con.execute('INSERT INTO cartao_conteudo (chave,html,titulo_visivel,url) VALUES (?,?,?,?) '
-                    'ON CONFLICT(chave) DO UPDATE SET html=excluded.html, titulo_visivel=excluded.titulo_visivel,'
-                    ' url=excluded.url',
-                    (chave, html, visivel, url))
-    else:
-        chave = 'conteudo-' + secrets.token_hex(4)
-        ordem = con.execute('SELECT COALESCE(MAX(ordem),0)+1 FROM cartoes_painel').fetchone()[0]
-        pos = vaga_livre(con) if nucleo.layout_livre_ativo() else {'gx': 0, 'gy': 0, 'gw': 0, 'gh': 0}
-        con.execute("INSERT INTO cartoes_painel (chave,nome,icone,regiao,largura,coluna,ordem,tipo,ativo,gx,gy,gw,gh)"
-                    " VALUES (?,?,'prancheta','baixo',1,0,?,'conteudo',1,?,?,?,?)",
-                    (chave, nome, ordem, pos['gx'], pos['gy'], pos['gw'], pos['gh']))
-        con.execute('INSERT INTO cartao_conteudo (chave,html,titulo_visivel,url) VALUES (?,?,?,?)',
-                    (chave, html, visivel, url))
-    con.commit()
-    return jsonify(ok=True, chave=chave)
-
-
 # ── excluir, copiar, ocultar e mostrar (editor de layout) ──────────────────────
 
 FIXOS = ('sistemas', 'atalhos', 'ramais', 'noticias')     # um só de cada; só se ocultam

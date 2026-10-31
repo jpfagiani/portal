@@ -9,18 +9,23 @@
   <h2>Conteúdos do portal</h2>
   <p class="dica">Notícias, cartões de texto e imagem e comunicados num só lugar, no mesmo editor. Nome, aparência e
     cartões da página inicial ficam mais abaixo, em <a href="#cartoes">Cartões da página inicial</a>.</p>
-  <div class="acoes cont-novo">
-    <a class="btn btn-principal" href="{{ url_for('conteudos_editor', tipo='noticia', ident='novo') }}">+ Nova notícia</a>
-    <a class="btn" href="{{ url_for('conteudos_editor', tipo='cartao', ident='novo') }}">+ Novo cartão de texto e imagem</a>
-    {% if cartoes_itens %}
-    <form method="get" action="{{ url_for('conteudos_editor', tipo='comunicado', ident='novo') }}" class="cont-inline">
-      <select name="cartao" aria-label="Cartão do novo comunicado">
-        {% for c in cartoes_itens %}<option value="{{ c.chave }}">{{ c.nome }}</option>{% endfor %}
-      </select>
-      <button class="btn" type="submit">+ Novo comunicado</button>
-    </form>
-    {% endif %}
-  </div>
+  <details class="cont-novo-menu">
+    <summary class="btn btn-principal">+ Novo conteúdo</summary>
+    <div class="cont-novo-opcoes">
+      <p class="dica">Qual tipo de conteúdo deseja criar?</p>
+      <a class="btn" href="{{ url_for('conteudos_editor', tipo='noticia', ident='novo') }}">📰 Notícia</a>
+      <a class="btn" href="{{ url_for('conteudos_editor', tipo='cartao', ident='novo') }}">🖼️ Cartão de texto e imagem</a>
+      {% if cartoes_itens %}
+      <form method="get" action="{{ url_for('conteudos_editor', tipo='comunicado', ident='novo') }}" class="cont-inline">
+        <button class="btn" type="submit">📢 Comunicado</button>
+        <label class="dica" for="novo-com-cartao">no cartão</label>
+        <select id="novo-com-cartao" name="cartao" aria-label="Cartão do novo comunicado">
+          {% for c in cartoes_itens %}<option value="{{ c.chave }}">{{ c.nome }}</option>{% endfor %}
+        </select>
+      </form>
+      {% endif %}
+    </div>
+  </details>
 </section>
 
 <section class="painel-caixa" style="margin-top:.8rem">

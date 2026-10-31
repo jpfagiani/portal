@@ -93,10 +93,10 @@ def usos_todos():
                                 url_for('admin_pagina', chave=r['chave'], cab=1) + '#cabecalho'))
     for r in con.execute("SELECT arquivo FROM banners WHERE arquivo<>''"):
         usos[r['arquivo']].append(('Banner da página inicial', url_for('admin_banners')))
-    for r in con.execute("SELECT imagem, titulo FROM lateral WHERE imagem<>''"):
-        usos[r['imagem']].append((f"Cartão “{r['titulo']}”", url_for('admin_lateral')))
+    for r in con.execute("SELECT id, imagem, titulo FROM lateral WHERE imagem<>''"):
+        usos[r['imagem']].append((f"Comunicado “{r['titulo']}”", url_for('conteudos_editor', tipo='comunicado', ident=r['id'])))
     for r in con.execute("SELECT imagem, titulo FROM cartoes WHERE imagem<>''"):
-        usos[r['imagem']].append((f"Cartão “{r['titulo']}”", url_for('admin_lateral')))
+        usos[r['imagem']].append((f"Cartão “{r['titulo']}”", url_for('conteudos', tipo='comunicado')))
     # Cartões de texto e imagem: a imagem está dentro do texto formatado. Edita-se
     # no próprio portal (Editar portal → clicar no nome do cartão).
     for r in con.execute("SELECT p.nome, k.html FROM cartao_conteudo k"
@@ -110,7 +110,7 @@ def usos_todos():
             achados.add(r['capa'])
         for arq in achados:
             usos[arq].append((f"Notícia “{r['titulo']}”",
-                              url_for('admin_noticias', editar=r['id'])))
+                              url_for('conteudos_editor', tipo='noticia', ident=r['id'])))
     return usos
 
 

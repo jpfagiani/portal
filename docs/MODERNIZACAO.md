@@ -157,3 +157,6 @@ Mapa de destinos (Fase 1): ver `docs/MAPA-DE-DESTINOS.md`.
 
 ## 1.9.28 — Criar página interna deixa só a chamada no cartão
 - Ao criar a página interna, o texto completo vai para a página; o cartão fica com as imagens e uma linha de chamada (o nome), editável.
+
+## 1.9.29 — Consolidação (roteiro): um só caminho de edição
+Veja `docs/AUDITORIA-CONTEUDOS.md`. Rotas antigas `/admin/noticias` e `/admin/lateral` só redirecionam; removidos `/admin/noticia-rapida`, `/admin/cartao-conteudo`, `admin_noticias.html` e 5 JS sem uso; botão único "+ Novo conteúdo"; ordenar em `/admin/conteudos/ordenar`.

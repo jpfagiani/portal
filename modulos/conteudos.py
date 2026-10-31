@@ -159,8 +159,7 @@ def conteudos():
     return render_template('admin_conteudos.html', linhas=linhas, tipos=TIPOS, situacoes=SITUACOES,
                            filtro_tipo=tipo, filtro_sit=sit, q=q, cartoes_itens=cartoes_itens,
                            ordenavel=((tipo == 'noticia' or (tipo == 'comunicado' and cartao)) and not sit and not q),
-                           url_ordenar=(url_for('admin_noticias') if tipo == 'noticia'
-                                        else url_for('admin_lateral', cartao=cartao)),
+                           url_ordenar=url_for('conteudos_ordenar', tipo=tipo, cartao=cartao or None),
                            filtro_cartao=cartao, cartoes=nucleo.cartoes_para_gerenciar(),
                            fontes=nucleo.FONTES_TEXTO, noticias_vitrine=mn.vitrine())
 
@@ -459,6 +458,23 @@ def conteudos_previa():
             item['video'] = ''
         contexto['item'] = item
     return jsonify(ok=True, html=render_template('admin_conteudo_previa.html', **contexto))
+
+
+@app.route('/admin/conteudos/ordenar', methods=['POST'])
+@nucleo.admin_obrigatorio
+def conteudos_ordenar():
+    """Grava a ordem escolhida arrastando as linhas da lista (notícias ou comunicados)."""
+    tipo = request.args.get('tipo', '')
+    if tipo == 'noticia':
+        ids = [int(x) for x in request.form.get('ids', '').split(',') if x.strip().isdigit()]
+        if not ids:
+            return ('', 400)
+        mn._reordenar(nucleo.db(), ids)
+        nucleo.db().commit()
+        return ('', 204)
+    if tipo == 'comunicado':
+        return nucleo.reordenar('lateral')
+    return ('', 400)
 
 
 # ── página interna de um cartão ───────────────────────────────────────────────

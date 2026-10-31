@@ -65,7 +65,7 @@
     <section class="cartao" {{ posicao(c) }}>
       <div class="cartao-cab">
         <span class="cab-ic">{{ ic(c.icone) }}</span>
-        <h2>{% if modo_edicao %}<a class="cab-link cab-editar" href="{{ url_for('admin_noticias') }}" title="Gerenciar notícias">{{ c.nome }}</a>
+        <h2>{% if modo_edicao %}<a class="cab-link cab-editar" href="{{ url_for('conteudos', tipo='noticia') }}" title="Gerenciar notícias">{{ c.nome }}</a>
             {% else %}<a class="cab-link" href="{{ url_for('noticias') }}">{{ c.nome }}</a>{% endif %}</h2>
       </div>
       {% if noticias_vitrine[0] == 'grade' %}

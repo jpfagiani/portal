@@ -209,102 +209,15 @@ def _para_campo(valor):
     return (valor or '')[:16].replace(' ', 'T')
 
 
-@app.route('/admin/noticias', methods=['GET', 'POST'])
+@app.route('/admin/noticias')
 @nucleo.admin_obrigatorio
 def admin_noticias():
-    con = nucleo.db()
-    if request.method == 'GET':
-        # A edição de notícias mora em Conteúdos; o endereço antigo continua valendo.
-        if request.args.get('editar'):
-            return redirect(url_for('conteudos_editor', tipo='noticia', ident=nucleo._int(request.args['editar'])))
-        if request.args.get('nova'):
-            return redirect(url_for('conteudos_editor', tipo='noticia', ident='novo'))
-        return redirect(url_for('conteudos', tipo='noticia', situacao=request.args.get('estado') or None))
-    if request.method == 'POST':
-        acao = request.form.get('acao')
-        ident = nucleo._int(request.form.get('id'))
-        atual = con.execute('SELECT * FROM noticias WHERE id=?', (ident,)).fetchone() if ident else None
-
-        if acao == 'ordenar':
-            ids = [int(x) for x in request.form.get('ids', '').split(',') if x.strip().isdigit()]
-            if not ids:
-                return ('', 400)
-            _reordenar(con, ids)
-            con.commit()
-            return ('', 204)
-
-        if acao == 'aparencia_cartao':
-            nucleo.salvar_aparencia_cartao('noticias')
-            return redirect(url_for('admin_noticias'))
-
-        if acao == 'excluir':
-            if atual:
-                con.execute('DELETE FROM noticias WHERE id=?', (ident,))
-                con.commit()
-                flash('Notícia excluída. A imagem de capa continua na biblioteca.', 'ok')
-            return redirect(url_for('admin_noticias'))
-
-        titulo = request.form.get('titulo', '').strip()[:200]
-        if not titulo:
-            flash('Informe o título.', 'erro')
-            return redirect(url_for('admin_noticias', editar=ident) if ident else url_for('admin_noticias', nova=1))
-
-        estado = request.form.get('estado') if request.form.get('estado') in ESTADOS else 'rascunho'
-        if acao == 'publicar':
-            estado = 'publicado'
-        publicar_em = _para_banco(request.form.get('publicar_em'))
-        if estado == 'publicado' and (not publicar_em or acao == 'publicar' and not request.form.get('publicar_em')):
-            publicar_em = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-        corpo = nucleo.limpa_html(request.form.get('corpo', ''))
-        capa = atual['capa'] if atual else ''
-        try:
-            arq = request.files.get('capa_arquivo')
-            if arq and arq.filename:
-                capa = midia._salva_imagem(arq)
-                midia.registrar_arquivo(capa, arq.filename, os.path.getsize(midia._caminho(capa)))
-            elif request.form.get('capa_biblioteca') and midia.registrada(request.form['capa_biblioteca']):
-                capa = request.form['capa_biblioteca']
-            elif request.form.get('remover_capa'):
-                capa = ''
-        except ValueError as e:
-            flash(str(e), 'erro')
-            return redirect(url_for('admin_noticias', editar=ident) if ident else url_for('admin_noticias', nova=1))
-
-        destino = nucleo.endereco_seguro(request.form.get('destino_url', ''))
-        slug = _slug_livre(con, slugify(request.form.get('slug') or titulo), ident)
-        dados = (slug, titulo, request.form.get('subtitulo', '').strip()[:300],
-                 request.form.get('resumo', '').strip()[:600], corpo, capa,
-                 request.form.get('capa_alt', '').strip()[:300], request.form.get('legenda', '').strip()[:300],
-                 request.form.get('categoria', '').strip()[:60], estado, publicar_em,
-                 1 if request.form.get('destaque') else 0, destino,
-                 request.form.get('meta', '').strip()[:300]) + _titulo_do_form(request.form)
-        if atual:
-            if dados[11] and not atual['destaque']:      # acabou de virar destaque: vai para o topo
-                con.execute('UPDATE noticias SET ordem=? WHERE id=?', (_topo(con), ident))
-            con.execute("UPDATE noticias SET slug=?,titulo=?,subtitulo=?,resumo=?,corpo=?,capa=?,capa_alt=?,"
-                        "legenda=?,categoria=?,estado=?,publicar_em=?,destaque=?,destino_url=?,meta=?,"
-                        "titulo_fonte=?,titulo_cor=?,titulo_tam=?,"
-                        "atualizado_em=datetime('now','localtime') WHERE id=?", dados + (ident,))
-            novo_id = ident
-        else:
-            novo_id = con.execute(
-                "INSERT INTO noticias (slug,titulo,subtitulo,resumo,corpo,capa,capa_alt,legenda,categoria,"
-                "estado,publicar_em,destaque,destino_url,meta,titulo_fonte,titulo_cor,titulo_tam,autor,ordem) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                dados + (session.get('nome') or session.get('user', ''), _topo(con))).lastrowid
-        con.commit()
-        flash('Publicada.' if acao == 'publicar' else 'Notícia salva.', 'ok')
-        return redirect(url_for('admin_noticias', editar=novo_id))
-
-    editar, nova = None, bool(request.args.get('nova'))
+    """Endereço antigo, só redirecionamento para Conteúdos."""
     if request.args.get('editar'):
-        editar = con.execute('SELECT * FROM noticias WHERE id=?', (nucleo._int(request.args['editar']),)).fetchone()
-    filtro = request.args.get('estado') if request.args.get('estado') in ESTADOS else ''
-    lista = con.execute('SELECT * FROM noticias' + (' WHERE estado=?' if filtro else '') +
-                        f' ORDER BY {ORDEM}', ([filtro] if filtro else [])).fetchall()
-    return render_template('admin_noticias.html', itens=lista, editar=editar, nova=nova, filtro=filtro,
-                           estados=ESTADOS, categorias=categorias(), biblioteca=midia.itens(limite=100), destinos_links=nucleo.destinos_de_links(),
-                           campo_data=_para_campo, aparencia=nucleo.dados_aparencia_cartao('noticias'), fontes=nucleo.FONTES_TEXTO, corpo_editar=Markup(nucleo.limpa_html(editar['corpo'])) if editar else '')
+        return redirect(url_for('conteudos_editor', tipo='noticia', ident=nucleo._int(request.args['editar'])))
+    if request.args.get('nova'):
+        return redirect(url_for('conteudos_editor', tipo='noticia', ident='novo'))
+    return redirect(url_for('conteudos', tipo='noticia', situacao=request.args.get('estado') or None))
 
 
 def vitrine():
@@ -328,46 +241,3 @@ def admin_noticias_vitrine():
     con.commit()
     flash('Aparência do cartão de notícias salva.', 'ok')
     return redirect(url_for('conteudos', tipo='noticia'))
-
-
-@app.route('/admin/noticia-rapida', methods=['POST'])
-@nucleo.admin_obrigatorio
-def admin_noticia_rapida():
-    """Edição completa pela própria página da notícia, em uma janela só: título,
-    texto com imagens, capa e situação. Responde JSON."""
-    con = nucleo.db()
-    n = con.execute('SELECT * FROM noticias WHERE id=?', (nucleo._int(request.form.get('id')),)).fetchone()
-    if not n:
-        return jsonify(ok=False, erro='Notícia não encontrada.'), 404
-    titulo = request.form.get('titulo', '').strip()[:200]
-    if not titulo:
-        return jsonify(ok=False, erro='Informe o título.'), 400
-    capa = n['capa']
-    try:
-        arq = request.files.get('capa_arquivo')
-        if arq and arq.filename:
-            capa = midia._salva_imagem(arq)
-            midia.registrar_arquivo(capa, arq.filename, os.path.getsize(midia._caminho(capa)))
-        elif request.form.get('capa_biblioteca') and midia.registrada(request.form['capa_biblioteca']):
-            capa = request.form['capa_biblioteca']
-        elif request.form.get('remover_capa'):
-            capa = ''
-    except ValueError as e:
-        return jsonify(ok=False, erro=str(e)), 400
-    estado = request.form.get('estado') if request.form.get('estado') in ESTADOS else n['estado']
-    publicar_em = n['publicar_em']
-    if estado == 'publicado' and not publicar_em:
-        publicar_em = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    if request.form.get('destaque') and not n['destaque']:
-        con.execute('UPDATE noticias SET ordem=? WHERE id=?', (_topo(con), n['id']))
-    con.execute("UPDATE noticias SET titulo=?,subtitulo=?,resumo=?,corpo=?,capa=?,capa_alt=?,legenda=?,"
-                "categoria=?,estado=?,publicar_em=?,destaque=?,titulo_fonte=?,titulo_cor=?,titulo_tam=?,"
-                "atualizado_em=datetime('now','localtime') WHERE id=?",
-                (titulo, request.form.get('subtitulo', '').strip()[:300],
-                 request.form.get('resumo', '').strip()[:600],
-                 nucleo.limpa_html(request.form.get('corpo', '')), capa,
-                 request.form.get('capa_alt', '').strip()[:300], request.form.get('legenda', '').strip()[:300],
-                 request.form.get('categoria', '').strip()[:60], estado, publicar_em,
-                 1 if request.form.get('destaque') else 0) + _titulo_do_form(request.form) + (n['id'],))
-    con.commit()
-    return jsonify(ok=True)
