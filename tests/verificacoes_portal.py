@@ -113,6 +113,8 @@ def noticia_post(d):
         if velho in d:
             d[novo] = d.pop(velho)
     d['tipo'] = 'noticia'
+    d.setdefault('tem_organizacao', '1')      # o editor sempre envia o bloco de organização
+    d.setdefault('chamada_visivel', 'on')
     return c.post('/admin/conteudos/salvar', data=d, content_type='multipart/form-data')
 
 def cartao_salvar(d):
@@ -598,25 +600,33 @@ ok('Texto antigo' in h and h.index('x.png') < h.index('Texto antigo'), 'comunica
 with portal.app.app_context():
     con = portal.db(); con.execute('DELETE FROM lateral WHERE id=?', (antigo,)); con.commit()
 
-# página interna de um cartão (como uma notícia, fora das listas)
-r = c.post('/admin/conteudos/criar-pagina', data={'csrf': tok, 'tipo': 'cartao', 'id': ck}).get_json()
-ok(r.get('ok') and r.get('editar'), 'cria página interna do cartão')
+# cartão com chamada + matéria completa própria (sem notícia oculta)
+r = cartao_salvar({'chave': ck, 'nome': 'Horário 3', 'corpo': '<p>Só a chamada</p>', 'materia_titulo': 'Matéria do horário',
+                   'materia': '<p>Texto <b>completo</b> da matéria</p><script>x()</script>', 'titulo_visivel': 'on'}).get_json()
+ok(r['ok'], 'salva cartão com chamada e matéria')
+h = anon.get('/').get_data(as_text=True)
+ok('Só a chamada' in h and 'completo' not in h and 'href="/materia/cartao/%s"' % ck in h, 'o cartão mostra só a chamada e leva à matéria')
+hm = anon.get('/materia/cartao/' + ck)
+ok(hm.status_code == 200 and 'Matéria do horário' in hm.get_data(as_text=True) and 'completo' in hm.get_data(as_text=True)
+   and 'x()' not in hm.get_data(as_text=True) and 'Só a chamada' not in hm.get_data(as_text=True), 'página da matéria do cartão (HTML limpo)')
+cartao_salvar({'chave': ck, 'nome': 'Horário 3', 'corpo': '<p>Chamada nova</p>'})
+ok('completo' in anon.get('/materia/cartao/' + ck).get_data(as_text=True), 'salvar só a chamada não apaga a matéria')
+cartao_salvar({'chave': ck, 'nome': 'Horário 3', 'materia': '<p>Matéria nova</p>'})
 with portal.app.app_context():
-    cx = portal.db()
-    url_c = cx.execute('SELECT url FROM cartao_conteudo WHERE chave=?', (ck,)).fetchone()['url']
-    sp = cx.execute('SELECT slug,so_pagina FROM noticias WHERE id=?', (r['id'],)).fetchone()
-with portal.app.app_context():
-    corpo_pg = portal.db().execute('SELECT corpo FROM noticias WHERE id=?', (r['id'],)).fetchone()['corpo']
-    html_c = portal.db().execute('SELECT html FROM cartao_conteudo WHERE chave=?', (ck,)).fetchone()['html']
-ok('Novo' in corpo_pg and 'Novo' not in html_c and 'Horário 3' in html_c, 'o texto vai para a página e o cartão fica só com a chamada')
-ok(url_c == '/noticias/' + sp['slug'] and sp['so_pagina'] == 1, 'o cartão passa a apontar para a página criada')
-ok(anon.get(url_c).status_code == 200 and sp['slug'] not in anon.get('/noticias').get_data(as_text=True), 'a página abre e não entra na lista de notícias')
-ok(c.post('/admin/conteudos/criar-pagina', data={'csrf': tok, 'tipo': 'cartao', 'id': ck}).get_json()['id'] == r['id'], 'repetir não cria outra página')
-cont_so = c.post('/admin/conteudos/so-chamada', data={'csrf': tok, 'tipo': 'cartao', 'id': ck, 'chamada': 'Chamada curta'}).get_json()
-with portal.app.app_context():
-    html_c2 = portal.db().execute('SELECT html FROM cartao_conteudo WHERE chave=?', (ck,)).fetchone()['html']
-ok(cont_so.get('ok') and 'Chamada curta' in html_c2 and 'Horário 3' not in html_c2, 'deixar só a chamada no cartão que já tem página')
-c.post('/admin/conteudos/excluir', data={'csrf': tok, 'tipo': 'noticia', 'id': r['id']})
+    hc = portal.db().execute('SELECT html FROM cartao_conteudo WHERE chave=?', (ck,)).fetchone()['html']
+ok('Chamada nova' in hc and 'Matéria nova' in anon.get('/materia/cartao/' + ck).get_data(as_text=True), 'salvar só a matéria não altera a chamada')
+cartao_salvar({'chave': ck, 'nome': 'Horário 3', 'corpo': '<p>Chamada nova</p>', 'url': 'https://exemplo.gov.br/o'})
+ok('href="https://exemplo.gov.br/o"' in anon.get('/').get_data(as_text=True), 'o cartão pode levar a um site em vez da matéria')
+ok(anon.get('/materia/cartao/inexistente').status_code == 404 and anon.get('/materia/xyz/1').status_code == 404, 'matéria inexistente dá 404')
+ok('materia_titulo' in c.get('/admin/conteudos/cartao/' + ck).get_data(as_text=True) and 'Matéria completa' in c.get('/admin/conteudos/cartao/' + ck).get_data(as_text=True), 'editor do cartão tem o bloco da matéria')
+r = c.post('/admin/conteudos/previa', data={'csrf': tok, 'tipo': 'cartao', 'titulo': 'T', 'corpo': '<p>ch</p>', 'materia': '<p>mat</p>'}).get_json()
+ok(r['ok'] and 'data-visao="materia"' in r['html'] and 'mat' in r['html'], 'prévia do cartão mostra chamada e matéria')
+# comunicado com matéria
+rcom = cont({'tipo': 'comunicado', 'cartao': chave_itens, 'titulo': 'Aviso M', 'corpo': '<p>Chamada do aviso</p>', 'materia': '<p>Matéria do aviso</p>', 'ativo': 'on'}).get_json()
+ok(rcom['ok'], 'salva comunicado com matéria')
+ok('/materia/comunicado/%s' % rcom['id'] in anon.get('/').get_data(as_text=True) and 'Matéria do aviso' not in anon.get('/').get_data(as_text=True), 'comunicado leva à matéria e mostra só a chamada')
+ok('Matéria do aviso' in anon.get('/materia/comunicado/%s' % rcom['id']).get_data(as_text=True), 'página da matéria do comunicado')
+c.post('/admin/conteudos/excluir', data={'csrf': tok, 'tipo': 'comunicado', 'id': rcom['id']})
 
 # lista, filtros e pesquisa
 h = c.get('/admin/conteudos').get_data(as_text=True)
@@ -659,6 +669,75 @@ with portal.app.app_context():
     sl = portal.db().execute('SELECT slug FROM noticias WHERE id=?', (nid,)).fetchone()['slug']
 ok('/admin/conteudos/noticia/%d' % nid in c.get('/noticias/' + sl).get_data(as_text=True), 'página da notícia leva ao editor único')
 
+
+
+# ── roteiro editorial: chamada e matéria independentes ───────────────────────
+def linha_n(i):
+    with portal.app.app_context():
+        return dict(portal.db().execute('SELECT * FROM noticias WHERE id=?', (i,)).fetchone())
+r = noticia_post({'csrf': tok, 'acao': 'publicar', 'titulo': 'Matéria Alfa completa', 'subtitulo': 'Sub Alfa', 'corpo': '<p>Corpo Alfa</p>',
+                  'chamada_titulo': 'Chamada Alfa', 'chamada_resumo': 'Resumo da chamada Alfa', 'chamada_formato': 'manchete',
+                  'categoria': 'Saúde', 'publicar_em': '2020-05-01T08:00'}).get_json()
+na = r['id']; ra = linha_n(na)
+ok(r['ok'] and ra['chamada_titulo'] == 'Chamada Alfa' and ra['titulo'] == 'Matéria Alfa completa', 'cria notícia com chamada e matéria')
+h = anon.get('/').get_data(as_text=True)
+ok('Chamada Alfa' in h and 'ch-manchete' in h and 'Resumo da chamada Alfa' in h and 'Matéria Alfa completa' not in h, 'a página principal mostra a chamada (formato manchete), não o título da matéria')
+hp = anon.get('/noticias/' + ra['slug']).get_data(as_text=True)
+ok('Matéria Alfa completa' in hp and 'Corpo Alfa' in hp and 'Chamada Alfa' not in hp, 'a página da matéria mostra a matéria, não a chamada')
+# salvar só a chamada não mexe na matéria
+noticia_post({'csrf': tok, 'id': str(na), 'chamada_titulo': 'Chamada Alfa 2', 'chamada_resumo': 'Novo resumo', 'tem_organizacao': '', 'chamada_visivel': 'on'})
+rb = linha_n(na)
+ok(rb['chamada_titulo'] == 'Chamada Alfa 2' and rb['titulo'] == ra['titulo'] and rb['corpo'] == ra['corpo'] and rb['subtitulo'] == 'Sub Alfa' and rb['capa'] == ra['capa'],
+   'alterar só a chamada não altera a matéria (salvamento parcial)')
+# salvar só a matéria não mexe na chamada
+noticia_post({'csrf': tok, 'id': str(na), 'titulo': 'Matéria Alfa v2', 'corpo': '<p>Corpo v2</p>', 'tem_organizacao': ''})
+rc = linha_n(na)
+ok(rc['titulo'] == 'Matéria Alfa v2' and rc['corpo'] == '<p>Corpo v2</p>' and rc['chamada_titulo'] == 'Chamada Alfa 2' and rc['chamada_formato'] == 'manchete' and rc['categoria'] == 'Saúde',
+   'alterar só a matéria não altera a chamada nem a categoria')
+# formatos
+c.post('/admin/noticias/vitrine', data={'csrf': tok, 'layout': 'lista', 'colunas': '2', 'qtd': '6'})
+for fmt, marca in (('cartao', 'ch-cartao'), ('faixa', 'ch-faixa'), ('texto', 'ch-texto'), ('', 'not-item')):
+    noticia_post({'csrf': tok, 'id': str(na), 'chamada_formato': fmt, 'tem_organizacao': '', 'chamada_visivel': 'on'})
+    ok(marca in anon.get('/').get_data(as_text=True), 'formato da chamada: %s' % (fmt or 'padrão'))
+noticia_post({'csrf': tok, 'id': str(na), 'chamada_formato': 'hack;}', 'tem_organizacao': ''})
+ok(linha_n(na)['chamada_formato'] == '', 'formato inválido é descartado')
+# destino do clique
+ok('href="/noticias/%s"' % ra['slug'] in anon.get('/').get_data(as_text=True), 'por padrão a chamada leva à página da notícia')
+noticia_post({'csrf': tok, 'id': str(na), 'url': 'https://exemplo.gov.br/x', 'tem_organizacao': ''})
+ok('href="https://exemplo.gov.br/x"' in anon.get('/').get_data(as_text=True), 'a chamada pode levar a um site')
+noticia_post({'csrf': tok, 'id': str(na), 'url': '/ramais', 'tem_organizacao': ''})
+ok('href="/ramais"' in anon.get('/').get_data(as_text=True), 'a chamada pode levar a outra página interna')
+noticia_post({'csrf': tok, 'id': str(na), 'url': '', 'tem_organizacao': ''})
+# ocultar a chamada sem excluir a matéria
+noticia_post({'csrf': tok, 'id': str(na), 'tem_organizacao': '1', 'chamada_visivel': ''})
+ok('Chamada Alfa 2' not in anon.get('/').get_data(as_text=True) and anon.get('/noticias/' + ra['slug']).status_code == 200,
+   'ocultar a chamada não exclui a matéria')
+noticia_post({'csrf': tok, 'id': str(na), 'tem_organizacao': '1', 'chamada_visivel': 'on'})
+# imagem exclusiva da chamada
+with portal.app.app_context():
+    arq_c = portal.db().execute("SELECT arquivo FROM midia LIMIT 1").fetchone() if False else None
+r2 = c.post('/admin/conteudos/salvar', data={'csrf': tok, 'tipo': 'noticia', 'id': str(na), 'chamada_biblioteca': arq, 'tem_organizacao': '', 'chamada_visivel': 'on'},
+            content_type='multipart/form-data').get_json()
+rd_ = linha_n(na)
+ok(r2['ok'] and rd_['chamada_imagem'] == arq and rd_['capa'] == ra['capa'], 'imagem da chamada é independente da capa da matéria')
+ok('uploads/' + arq in anon.get('/').get_data(as_text=True), 'a imagem da chamada aparece na página principal')
+# agrupado por categoria
+c.post('/admin/noticias/vitrine', data={'csrf': tok, 'layout': 'categorias', 'colunas': '2', 'qtd': '6'})
+h = anon.get('/').get_data(as_text=True)
+ok('not-categorias' in h and '>Saúde<' in h, 'bloco de notícias agrupadas por categoria')
+c.post('/admin/noticias/vitrine', data={'csrf': tok, 'layout': 'lista', 'colunas': '2', 'qtd': '5'})
+# notícia antiga (sem chamada própria) continua igual
+with portal.app.app_context():
+    con = portal.db(); con.execute("UPDATE noticias SET chamada_titulo='',chamada_resumo='',chamada_imagem='',chamada_formato='' WHERE id=?", (na,)); con.commit()
+ok('Matéria Alfa v2' in anon.get('/').get_data(as_text=True), 'sem chamada própria, usa o título da matéria (compatível com notícias antigas)')
+# prévia: chamada, página inicial e matéria
+r = c.post('/admin/conteudos/previa', data={'csrf': tok, 'tipo': 'noticia', 'id': str(na), 'titulo': 'Prévia T', 'chamada_titulo': 'Prévia chamada',
+        'chamada_formato': 'faixa', 'corpo': '<p>x</p>'}).get_json()
+ok(r['ok'] and 'data-visao="chamada"' in r['html'] and 'data-visao="inicial"' in r['html'] and 'data-visao="pagina"' in r['html'] and 'Prévia chamada' in r['html'] and 'ch-faixa' in r['html'],
+   'prévia isolada da chamada, da página principal e da matéria')
+ok(c.get('/admin/conteudos/noticia/%d' % na).get_data(as_text=True).count('<fieldset') >= 3 and 'Chamada da página principal' in c.get('/admin/conteudos/noticia/%d' % na).get_data(as_text=True)
+   and 'Matéria completa' in c.get('/admin/conteudos/noticia/%d' % na).get_data(as_text=True), 'editor mostra os dois blocos separados')
+c.post('/admin/conteudos/excluir', data={'csrf': tok, 'tipo': 'noticia', 'id': na})
 
 # ── roteiro de consolidação: um só caminho de edição ─────────────────────────
 for rota in ('/admin/noticias', '/admin/lateral', '/admin/cartoes'):

@@ -121,7 +121,7 @@
   {% if c.tipo == 'link' and c.url %}
     <a class="comunicado destaque-{{ d }} tom-{{ u }}" style="{{ estilo }}" href="{{ c.url }}" target="_blank" rel="noopener">{{ interno }}</a>
   {% else %}
-    {% set alvo = c.url or destino %}
+    {% set alvo = c.url or (url_for('materia', tipo='comunicado', ident=c.id) if c.materia_html and c.id else '') or destino %}
     {% if alvo and not modo_edicao %}
     <div class="comunicado comunicado-clicavel destaque-{{ d }} tom-{{ u }}" style="{{ estilo }}">
       <a class="com-overlay" href="{{ alvo }}" target="{{ '_blank' if c.url or destino.startswith('http') else '_self' }}" rel="noopener"

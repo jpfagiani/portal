@@ -135,6 +135,7 @@
       <select id="v-layout" name="layout">
         <option value="grade" {{ 'selected' if vit[0] == 'grade' }}>Grade (imagem em cima, título embaixo)</option>
         <option value="lista" {{ 'selected' if vit[0] == 'lista' }}>Lista (data e título)</option>
+        <option value="categorias" {{ 'selected' if vit[0] == 'categorias' }}>Agrupado por seção / categoria</option>
       </select></div>
     <div><label for="v-col">Colunas na grade</label>
       <select id="v-col" name="colunas">{% for k in (1, 2, 3, 4) %}<option value="{{ k }}" {{ 'selected' if vit[1] == k }}>{{ k }}</option>{% endfor %}</select></div>

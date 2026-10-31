@@ -1175,10 +1175,23 @@ def init_db():
             ('paginas_lateral', 'mostrar_leia',   'INTEGER NOT NULL DEFAULT 0'),
             ('noticias', 'ordem',    'INTEGER NOT NULL DEFAULT 0'),
             ('noticias', 'so_pagina', 'INTEGER NOT NULL DEFAULT 0'),   # página de apoio: fora das listas
+            # Chamada da página principal, independente da matéria. Vazio = usa título, resumo e capa da matéria.
+            ('noticias', 'chamada_titulo',  "TEXT NOT NULL DEFAULT ''"),
+            ('noticias', 'chamada_resumo',  "TEXT NOT NULL DEFAULT ''"),
+            ('noticias', 'chamada_imagem',  "TEXT NOT NULL DEFAULT ''"),
+            ('noticias', 'chamada_legenda', "TEXT NOT NULL DEFAULT ''"),
+            ('noticias', 'chamada_alt',     "TEXT NOT NULL DEFAULT ''"),
+            ('noticias', 'chamada_formato', "TEXT NOT NULL DEFAULT ''"),     # '' = o do cartão
+            ('noticias', 'chamada_visivel', 'INTEGER NOT NULL DEFAULT 1'),
             ('noticias', 'titulo_fonte', "TEXT NOT NULL DEFAULT ''"),
             ('noticias', 'titulo_cor',   "TEXT NOT NULL DEFAULT ''"),
             ('noticias', 'titulo_tam',   "TEXT NOT NULL DEFAULT ''"),
             ('cartao_conteudo', 'url', "TEXT NOT NULL DEFAULT ''"),
+            # Matéria completa do cartão / comunicado: a página que abre no clique (opcional).
+            ('cartao_conteudo', 'materia_titulo', "TEXT NOT NULL DEFAULT ''"),
+            ('cartao_conteudo', 'materia_html',   "TEXT NOT NULL DEFAULT ''"),
+            ('lateral', 'materia_titulo', "TEXT NOT NULL DEFAULT ''"),
+            ('lateral', 'materia_html',   "TEXT NOT NULL DEFAULT ''"),
             ('ramais',   'destaque', 'INTEGER NOT NULL DEFAULT 0'),
             ('usuarios', 'ultimo_acesso', "TEXT DEFAULT ''")):
         existentes = {c[1] for c in con.execute(f'PRAGMA table_info({tabela})')}
@@ -1321,7 +1334,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.30'
+VERSAO = '1.9.31'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']

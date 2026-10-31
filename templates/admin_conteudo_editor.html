@@ -25,8 +25,11 @@
   <input type="hidden" name="imagem_biblioteca" value="">
   <input type="hidden" name="imagem_nova" value="">
 
+  {% if tipo == 'noticia' %}
+  {% include 'admin_conteudo_noticia.html' %}
+  {% else %}
   <fieldset class="cont-bloco">
-    <legend>Conteúdo</legend>
+    <legend>{{ '1 · Chamada (o que aparece no cartão)' if tipo in ('cartao', 'comunicado') else 'Conteúdo' }}</legend>
     <label for="c-titulo">{{ 'Nome do cartão' if tipo == 'cartao' else ('Nome do comunicado' if tipo == 'comunicado' else 'Título') }}{{ ' *' if tipo == 'noticia' }}
       {% if tipo != 'noticia' %}<small>(só para você gerenciar; não aparece no portal — escreva o título dentro do texto)</small>{% endif %}</label>
     <input id="c-titulo" name="titulo" maxlength="{{ 80 if tipo == 'cartao' else 200 }}" value="{{ d.titulo }}"
@@ -77,26 +80,28 @@
   </fieldset>
   {% endif %}
 
+  {% if tipo in ('cartao', 'comunicado') %}
+  <fieldset class="cont-bloco bloco-materia">
+    <legend>2 · Matéria completa <small>(opcional)</small></legend>
+    <p class="dica">Se preencher, o clique no cartão abre uma página com esta matéria, e o cartão fica só com a chamada.</p>
+    <label for="c-mat-titulo">Título da matéria <small>(em branco = nome do cartão)</small></label>
+    <input id="c-mat-titulo" name="materia_titulo" maxlength="200" value="{{ d.materia_titulo }}">
+    <label>Texto e imagens da matéria</label>
+    {{ r.editor('materia', d.materia|safe, destinos_links, csrf_token) }}
+    {% if not novo and d.materia %}<p class="dica">Endereço da matéria: <code>/materia/{{ tipo }}/{{ d.id }}</code></p>{% endif %}
+    <div class="acoes"><button type="button" class="btn btn-sm" data-ver="materia">Ver a matéria</button></div>
+  </fieldset>
+  {% endif %}
+
   <fieldset class="cont-bloco">
     <legend>Link e destino</legend>
     <label for="c-url">{{ {'noticia': 'Ao clicar, abrir', 'cartao': 'Endereço do cartão inteiro', 'comunicado': 'Endereço (o item inteiro vira link)'}[tipo] }}
       <small>({{ 'opcional; vazio = a própria notícia' if tipo == 'noticia' else 'opcional' }})</small></label>
     <input id="c-url" name="url" list="c-destinos" maxlength="500" placeholder="https://... ou /pagina" value="{{ d.url }}">
     <datalist id="c-destinos">{% for n, e in destinos_links %}<option value="{{ e }}">{{ n }}</option>{% endfor %}</datalist>
-    {% if tipo in ('cartao', 'comunicado') and not novo %}
-    <div class="acoes" style="margin-top:.5rem">
-      <button type="button" class="btn btn-sm" id="c-criar-pagina" data-url="{{ url_for('conteudos_criar_pagina') }}"
-              title="Cria uma página, como uma notícia, com o conteúdo salvo deste cartão, e liga o clique do cartão a ela">
-        {{ 'Editar a página interna' if d.url and d.url.startswith('/noticias/') else 'Criar página interna deste cartão' }}</button>
-      {% if d.url and d.url.startswith('/noticias/') %}
-      <button type="button" class="btn btn-sm" id="c-so-chamada" data-url="{{ url_for('conteudos_so_chamada') }}"
-              title="Troca o texto do cartão por uma linha de chamada; o texto completo fica só na página interna">
-        Deixar só imagem e chamada no cartão</button>
-      {% endif %}
-    </div>
-    <p class="dica">O conteúdo <strong>já salvo</strong> vai inteiro para a nova página (fora da lista “Últimas notícias”).
-      No cartão ficam só as imagens e uma linha de chamada (o nome do cartão), que você pode trocar depois.
-      O clique no cartão leva à página.</p>
+    {% if tipo in ('cartao', 'comunicado') %}
+    <p class="dica">Vazio: se o cartão tiver <strong>matéria completa</strong> (bloco 2), o clique abre a matéria; sem matéria, o cartão não é link.
+      Escolha outra página ou um site para mudar o destino.</p>
     {% endif %}
   </fieldset>
 
@@ -135,6 +140,8 @@
     {% endif %}
   </fieldset>
 
+  {% endif %}
+
   <p class="pe-erro" id="c-erro" role="alert"></p>
   <p class="dica" id="c-ok" role="status" hidden></p>
   <div class="acoes cont-acoes">
@@ -154,10 +161,22 @@
 
 <aside class="painel-caixa cont-previa" id="c-previa" aria-live="polite" hidden>
   <h2>Pré-visualização</h2>
+  {% if tipo in ('cartao', 'comunicado') %}
+  <div class="acoes">
+    <button type="button" class="btn btn-sm btn-principal" data-visao="chamada">Chamada</button>
+    <button type="button" class="btn btn-sm" data-visao="materia">Matéria completa</button>
+  </div>
+  {% endif %}
   {% if tipo == 'noticia' %}
   <div class="acoes">
-    <button type="button" class="btn btn-sm btn-principal" data-visao="cartao">Cartão</button>
-    <button type="button" class="btn btn-sm" data-visao="pagina">Página completa</button>
+    <button type="button" class="btn btn-sm btn-principal" data-visao="chamada">Chamada</button>
+    <button type="button" class="btn btn-sm" data-visao="inicial">Página principal</button>
+    <button type="button" class="btn btn-sm" data-visao="pagina">Matéria completa</button>
+  </div>
+  <div class="acoes">
+    <button type="button" class="btn btn-sm btn-principal" data-aparelho="pc">Computador</button>
+    <button type="button" class="btn btn-sm" data-aparelho="tablet">Tablet</button>
+    <button type="button" class="btn btn-sm" data-aparelho="cel">Celular</button>
   </div>
   {% endif %}
   <p class="dica">Só uma prévia: nada foi salvo nem publicado.</p>

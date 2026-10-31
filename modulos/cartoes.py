@@ -43,9 +43,11 @@ def titulo_visivel(chave):
 
 
 def url_cartao(chave):
-    """Endereço do cartão inteiro (título, texto e imagem), ou vazio."""
-    r = nucleo.db().execute('SELECT url FROM cartao_conteudo WHERE chave=?', (chave,)).fetchone()
-    return nucleo.endereco_seguro(r['url']) if r else ''
+    """Endereço do cartão inteiro (título, texto e imagem): o escolhido, ou a matéria completa do cartão, ou vazio."""
+    r = nucleo.db().execute('SELECT url,materia_html FROM cartao_conteudo WHERE chave=?', (chave,)).fetchone()
+    if not r:
+        return ''
+    return nucleo.endereco_seguro(r['url']) or (('/materia/cartao/' + chave) if nucleo.so_texto(r['materia_html']) or '<img' in (r['materia_html'] or '') else '')
 
 
 def dados_edicao():
@@ -122,8 +124,8 @@ def _duplica(con, chave):
                 [c[k] for k in cols])
     con.execute('UPDATE cartoes_painel SET z=(SELECT COALESCE(MAX(z),0)+1 FROM cartoes_painel) WHERE chave=?', (nova,))
     if c['tipo'] == 'conteudo':
-        con.execute('INSERT INTO cartao_conteudo (chave,html,titulo_visivel,url) '
-                    'SELECT ?,html,titulo_visivel,url FROM cartao_conteudo WHERE chave=?', (nova, chave))
+        con.execute('INSERT INTO cartao_conteudo (chave,html,titulo_visivel,url,materia_titulo,materia_html) '
+                    'SELECT ?,html,titulo_visivel,url,materia_titulo,materia_html FROM cartao_conteudo WHERE chave=?', (nova, chave))
     else:
         nucleo._semear_aparencia(con, nova)
         for r in con.execute("SELECT chave,valor FROM config WHERE substr(chave,1,?)=?",

@@ -670,3 +670,33 @@ html:not([data-tema="escuro"]) .ntit[style*="--n-cor"]{color:var(--n-cor)}
 .cont-novo-menu>summary::-webkit-details-marker{display:none}
 .cont-novo-opcoes{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:.5rem;padding:.7rem;border:1px solid var(--borda,#d9e0ea);border-radius:10px;background:var(--fundo-cartao,#fff)}
 .cont-novo-opcoes .dica{flex-basis:100%;margin:0}
+/* Formatos da chamada de notícia (página principal) */
+.ch{display:flex;color:inherit;text-decoration:none;min-width:0;border-radius:10px}
+.ch:focus-visible{outline:2px solid var(--azul);outline-offset:3px}
+.ch img{display:block;width:100%;object-fit:cover}
+.ch .ntit{display:block;color:var(--noticias-titulo-cor,#2563eb);font-family:var(--noticias-fonte,inherit);line-height:1.25}
+.ch:hover .ntit{text-decoration:underline}
+.ch-sup{display:block;color:var(--texto-fraco);font-size:.7rem;margin-bottom:.15rem}
+.ch-sup b{text-transform:uppercase;letter-spacing:.03em;color:var(--azul)}
+.ch-resumo{display:block;color:var(--texto-fraco);font-size:.85rem;margin-top:.25rem}
+.ch-leg{display:block;color:var(--texto-fraco);font-size:.68rem;margin-top:.2rem}
+.ch-manchete{flex-direction:column;gap:.55rem;grid-column:1/-1}
+.ch-manchete img{aspect-ratio:16/9;border-radius:10px}
+.ch-manchete .ntit{font-size:1.35rem;font-weight:800}
+.ch-cartao{flex-direction:column;gap:.5rem}
+.ch-cartao img{aspect-ratio:4/3;border-radius:8px}
+.ch-cartao .ntit{font-size:1.05rem;font-weight:800}
+.ch-faixa{flex-direction:row;gap:.8rem;align-items:center;padding:.35rem;background:var(--cartao-suave);grid-column:1/-1}
+.ch-faixa .ch-foto{flex:0 0 38%}
+.ch-faixa img{aspect-ratio:16/10;border-radius:8px}
+.ch-faixa .ntit{font-size:1rem;font-weight:800}
+.ch-texto{flex-direction:column;padding:.35rem .1rem;grid-column:1/-1;border-bottom:1px solid var(--borda-suave,var(--borda))}
+.ch-texto .ntit{font-size:1rem;font-weight:700}
+.not-cat{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;margin:.6rem 0 .1rem;color:var(--texto-fraco)}
+.not-categorias .not-cat:first-child{margin-top:0}
+.cont-previa-cel #c-previa-corpo{max-width:360px;margin:0 auto;border:1px solid var(--borda);border-radius:18px;padding:.5rem;overflow:hidden}
+.cont-previa[data-aparelho="cel"] #c-previa-corpo{max-width:360px;margin:0 auto;border:1px solid var(--borda);border-radius:18px;padding:.6rem}
+.cont-previa[data-aparelho="tablet"] #c-previa-corpo{max-width:640px;margin:0 auto;border:1px solid var(--borda);border-radius:14px;padding:.6rem}
+.ch-txt{min-width:0;flex:1 1 auto}
+.ch .ntit,.ch-resumo{overflow-wrap:anywhere}
+.ch-faixa .ch-foto{min-width:0}

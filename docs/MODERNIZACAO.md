@@ -163,3 +163,10 @@ Veja `docs/AUDITORIA-CONTEUDOS.md`. Rotas antigas `/admin/noticias` e `/admin/la
 
 ## 1.9.30 — "Deixar só imagem e chamada no cartão"
 - Para cartões/comunicados que já têm página interna: o botão troca o texto do cartão por uma linha de chamada (perguntada na hora); o texto completo fica só na página.
+
+## 1.9.31 — Chamada e matéria independentes (roteiro "Editor de notícias com referências visuais")
+- Notícia: bloco 1 (chamada da página principal: título, resumo, imagem exclusiva, legenda, alt, formato, destino) e bloco 2 (matéria completa: título, subtítulo, capa, corpo); bloco 3 organização (categoria, situação, agendamento, visibilidade da chamada, destaque). Salvar um bloco não altera o outro.
+- Formatos da chamada: padrão do cartão, manchete, cartão, faixa, somente texto; modelo do cartão também "agrupado por categoria".
+- Prévia isolada da chamada, da página principal e da matéria, com visão de computador/tablet/celular.
+- Cartões e comunicados: chamada (o que aparece no cartão) + matéria completa própria em `/materia/cartao/<chave>` e `/materia/comunicado/<id>`; o clique leva à matéria. Os botões "Criar página interna" e "Deixar só chamada" (que criavam uma notícia oculta) foram substituídos por isso.
+- Detalhes em `docs/PLANO-DE-REVERSAO.md`.

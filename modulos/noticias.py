@@ -51,6 +51,10 @@ ESTADOS = {'rascunho': 'Rascunho', 'publicado': 'Publicado', 'arquivado': 'Arqui
 VISIVEL = "estado='publicado' AND publicar_em<>'' AND publicar_em <= datetime('now','localtime')"
 # Nas listas e vitrines entram só as notícias de verdade; as páginas de apoio de um cartão ficam de fora.
 VISIVEL_LISTA = VISIVEL + ' AND so_pagina=0'
+# Formato de cada chamada na página principal ('' = segue o modelo do cartão: lista ou grade).
+FORMATOS = {'': 'Padrão do cartão', 'manchete': 'Manchete: imagem grande, título e resumo',
+            'cartao': 'Cartão: imagem, título e resumo', 'faixa': 'Faixa: imagem ao lado do texto',
+            'texto': 'Somente texto'}
 POR_PAGINA = 10
 # A ordem escolhida pelo administrador manda; sem escolha (tudo empatado em 0,
 # como nas instalações antigas) vale o critério de sempre: destaque, mais nova.
@@ -141,7 +145,7 @@ app.jinja_env.globals['estilo_titulo'] = estilo_titulo
 def recentes(limite=4):
     """Últimas publicações visíveis (destaques primeiro) para a página inicial."""
     return nucleo.db().execute(
-        f'SELECT * FROM noticias WHERE {VISIVEL_LISTA} ORDER BY {ORDEM} LIMIT ?',
+        f'SELECT * FROM noticias WHERE {VISIVEL_LISTA} AND chamada_visivel=1 ORDER BY {ORDEM} LIMIT ?',
         (limite,)).fetchall()
 
 
@@ -223,7 +227,7 @@ def admin_noticias():
 def vitrine():
     """Como o cartão "Últimas notícias" aparece na página inicial: (layout, colunas, quantidade)."""
     c = nucleo.cfg()
-    layout = c.get('noticias_layout') if c.get('noticias_layout') in ('grade', 'lista') else 'lista'
+    layout = c.get('noticias_layout') if c.get('noticias_layout') in ('grade', 'lista', 'categorias') else 'lista'
     colunas = max(1, min(4, nucleo._int(c.get('noticias_colunas'), 2) or 2))
     qtd = max(1, min(12, nucleo._int(c.get('noticias_qtd'), 5) or 5))
     return layout, colunas, qtd
@@ -232,7 +236,7 @@ def vitrine():
 @app.route('/admin/noticias/vitrine', methods=['POST'])
 @nucleo.admin_obrigatorio
 def admin_noticias_vitrine():
-    layout = request.form.get('layout') if request.form.get('layout') in ('grade', 'lista') else 'lista'
+    layout = request.form.get('layout') if request.form.get('layout') in ('grade', 'lista', 'categorias') else 'lista'
     colunas = max(1, min(4, nucleo._int(request.form.get('colunas'), 2) or 2))
     qtd = max(1, min(12, nucleo._int(request.form.get('qtd'), 5) or 5))
     con = nucleo.db()

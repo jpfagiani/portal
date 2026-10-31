@@ -175,8 +175,10 @@ def _obter(tipo, ident):
                         (ident,)).fetchone()
         if not r:
             return None
+        m = con.execute('SELECT materia_titulo,materia_html FROM cartao_conteudo WHERE chave=?', (ident,)).fetchone()
         return dict(id=r['chave'], titulo=r['nome'], corpo=nucleo.limpa_html(r['html']),
-                    titulo_visivel=bool(r['titulo_visivel']), url=r['url'] or '')
+                    titulo_visivel=bool(r['titulo_visivel']), url=r['url'] or '',
+                    materia_titulo=m['materia_titulo'], materia=nucleo.limpa_html(m['materia_html']))
     if tipo == 'noticia':
         r = con.execute('SELECT * FROM noticias WHERE id=?', (nucleo._int(ident),)).fetchone()
         if not r:
@@ -193,6 +195,7 @@ def _obter(tipo, ident):
             return None
         d = dict(r)
         d['corpo'] = nucleo.limpa_html(d['corpo_html']) if d.get('corpo_html') else _corpo_legado(d)
+        d['materia'] = nucleo.limpa_html(d.get('materia_html') or '')
         return d
     return None
 
@@ -212,12 +215,14 @@ def _corpo_legado(d):
 
 def _valores_novos(tipo):
     if tipo == 'cartao':
-        return dict(id='', titulo='', corpo='', titulo_visivel=False, url='')
+        return dict(id='', titulo='', corpo='', titulo_visivel=False, url='', materia_titulo='', materia='')
     if tipo == 'noticia':
         return dict(id='', titulo='', subtitulo='', resumo='', corpo='', capa='', capa_alt='', legenda='',
                     categoria='', so_pagina=0, estado='rascunho', publicar_em_campo='', destaque=0, url='', meta='',
-                    slug='', titulo_fonte='', titulo_cor='', titulo_tam='', situacao='Rascunho')
-    return dict(id='', titulo='', conteudo='', corpo='', corpo_html='', url='', url_rot='', imagem='', video='', img_pos='topo',
+                    slug='', titulo_fonte='', titulo_cor='', titulo_tam='', situacao='Rascunho',
+                    chamada_titulo='', chamada_resumo='', chamada_imagem='', chamada_legenda='', chamada_alt='',
+                    chamada_formato='', chamada_visivel=1)
+    return dict(id='', titulo='', conteudo='', corpo='', corpo_html='', materia_titulo='', materia='', url='', url_rot='', imagem='', video='', img_pos='topo',
                 urgencia='informacao', destaque='nenhum', data='', titulo_cor='', texto_cor='', fundo_cor='',
                 titulo_tam='', texto_tam='', tipo='aviso', ativo=1)
 
@@ -243,7 +248,7 @@ def conteudos_editor(tipo, ident):
     return render_template(
         'admin_conteudo_editor.html', tipo=tipo, rotulo=TIPOS[tipo], novo=novo, d=d,
         cartao_chave=cartao_chave, volta=_volta(),
-        estados=mn.ESTADOS, categorias=mn.categorias(), fontes=nucleo.FONTES_TEXTO,
+        estados=mn.ESTADOS, formatos=mn.FORMATOS, categorias=mn.categorias(), fontes=nucleo.FONTES_TEXTO,
         destinos_links=nucleo.destinos_de_links(), destaques=nucleo.DESTAQUES_COMUNICADO,
         img_pos=nucleo.CARTAO_IMG_POS, paleta=nucleo.PALETA,
         cartoes_itens=[c for c in nucleo.cartoes_do_painel() if c['tipo'] == 'itens'])
@@ -258,9 +263,13 @@ class Invalido(Exception):
 def _salva_cartao(f, ident):
     con = nucleo.db()
     nome = f.get('titulo', '').strip()[:80]
-    html = nucleo.limpa_html(f.get('corpo', ''))
-    visivel = 1 if f.get('titulo_visivel') else 0
-    url = nucleo.endereco_seguro(f.get('url', ''))
+    atual = con.execute('SELECT * FROM cartao_conteudo WHERE chave=?', (ident,)).fetchone() if ident else None
+    if atual and 'corpo' not in f:                   # salvamento parcial (só a matéria): a chamada fica como está
+        html, visivel, url = atual['html'], atual['titulo_visivel'], atual['url']
+    else:
+        html = nucleo.limpa_html(f.get('corpo', ''))
+        visivel = 1 if f.get('titulo_visivel') else 0
+        url = nucleo.endereco_seguro(f.get('url', ''))
     if not nome and not nucleo.so_texto(html) and '<img' not in html:
         raise Invalido('Escreva um texto, escolha uma imagem ou dê um nome ao cartão.')
     nome = nome or 'Novo cartão'
@@ -281,6 +290,11 @@ def _salva_cartao(f, ident):
                     (chave, nome, ordem, pos['gx'], pos['gy'], pos['gw'], pos['gh']))
         con.execute('INSERT INTO cartao_conteudo (chave,html,titulo_visivel,url) VALUES (?,?,?,?)',
                     (chave, html, visivel, url))
+    # Matéria completa: só grava o que veio no formulário (a chamada e a matéria são independentes).
+    if 'materia' in f:
+        con.execute('UPDATE cartao_conteudo SET materia_html=? WHERE chave=?', (nucleo.limpa_html(f['materia']), chave))
+    if 'materia_titulo' in f:
+        con.execute('UPDATE cartao_conteudo SET materia_titulo=? WHERE chave=?', (f.get('materia_titulo', '').strip()[:200], chave))
     con.commit()
     return chave
 
@@ -301,46 +315,80 @@ def _capa_noticia(f, atual):
     return '' if f.get('remover_imagem') else atual
 
 
+def _imagem_chamada(f, atual):
+    """Imagem exclusiva da chamada: enviada, escolhida na biblioteca ou removida. Sem pedido, fica como está."""
+    arq = request.files.get('chamada_arquivo')
+    try:
+        if arq and arq.filename:
+            img = midia._salva_imagem(arq)
+            midia.registrar_arquivo(img, arq.filename, os.path.getsize(midia._caminho(img)))
+            return img
+        escolhida = os.path.basename(f.get('chamada_biblioteca', '') or '')
+        if escolhida and midia.registrada(escolhida):
+            return escolhida
+    except ValueError as e:
+        raise Invalido(str(e))
+    return '' if f.get('remover_chamada_imagem') else atual
+
+
 def _salva_noticia(f, ident):
+    """Grava a notícia. A chamada (página principal) e a matéria completa são independentes: um campo que não
+    veio no formulário NÃO é alterado, e as caixas de marcar só valem quando o bloco que as contém foi enviado."""
     con = nucleo.db()
     atual = con.execute('SELECT * FROM noticias WHERE id=?', (ident,)).fetchone() if ident else None
     if ident and not atual:
         raise Invalido('Notícia não encontrada.')
+    old = dict(atual) if atual else {}
+
+    def texto(nome, limite, padrao=''):
+        if nome in f:
+            return f.get(nome, '').strip()[:limite]
+        return old.get(nome, padrao)
+
     acao = f.get('acao', 'salvar')
-    titulo = f.get('titulo', '').strip()[:200]
+    titulo = texto('titulo', 200)
     if not titulo:
-        raise Invalido('Informe o título.')
+        raise Invalido('Informe o título da matéria.')
     # Salvar nunca publica sozinho: só o botão Publicar (ou a situação escolhida).
-    estado = f.get('estado') if f.get('estado') in mn.ESTADOS else 'rascunho'
+    estado = f.get('estado') if f.get('estado') in mn.ESTADOS else old.get('estado', 'rascunho')
     if acao == 'rascunho':
         estado = 'rascunho'
     elif acao == 'publicar':
         estado = 'publicado'
-    publicar_em = mn._para_banco(f.get('publicar_em'))
+    publicar_em = mn._para_banco(f.get('publicar_em')) if 'publicar_em' in f else old.get('publicar_em', '')
     if estado == 'publicado' and not publicar_em:
         publicar_em = _agora()
-    capa = _capa_noticia(f, atual['capa'] if atual else '')
-    slug = mn._slug_livre(con, mn.slugify(f.get('slug') or titulo), ident or 0)
-    dados = (slug, titulo, f.get('subtitulo', '').strip()[:300], f.get('resumo', '').strip()[:600],
-             nucleo.limpa_html(f.get('corpo', '')), capa, f.get('capa_alt', '').strip()[:300],
-             f.get('legenda', '').strip()[:300], f.get('categoria', '').strip()[:60], estado, publicar_em,
-             1 if f.get('em_destaque') else 0, nucleo.endereco_seguro(f.get('url', '')),
-             f.get('meta', '').strip()[:300]) + mn._titulo_do_form(f)
+    d = dict(
+        titulo=titulo, subtitulo=texto('subtitulo', 300), resumo=texto('resumo', 600),
+        corpo=nucleo.limpa_html(f['corpo']) if 'corpo' in f else old.get('corpo', ''),
+        capa=_capa_noticia(f, old.get('capa', '')), capa_alt=texto('capa_alt', 300), legenda=texto('legenda', 300),
+        categoria=texto('categoria', 60), estado=estado, publicar_em=publicar_em,
+        destino_url=nucleo.endereco_seguro(f['url']) if 'url' in f else old.get('destino_url', ''),
+        meta=texto('meta', 300),
+        chamada_titulo=texto('chamada_titulo', 200), chamada_resumo=texto('chamada_resumo', 300),
+        chamada_legenda=texto('chamada_legenda', 300), chamada_alt=texto('chamada_alt', 300),
+        chamada_imagem=_imagem_chamada(f, old.get('chamada_imagem', '')))
+    fmt = f.get('chamada_formato') if 'chamada_formato' in f else old.get('chamada_formato', '')
+    d['chamada_formato'] = fmt if fmt in mn.FORMATOS else ''
+    if any(k in f for k in ('titulo_fonte', 'titulo_cor', 'titulo_tam')):
+        d['titulo_fonte'], d['titulo_cor'], d['titulo_tam'] = mn._titulo_do_form(f)
+    if f.get('tem_organizacao'):                    # caixas de marcar: só valem se o bloco foi enviado
+        d['destaque'] = 1 if f.get('em_destaque') else 0
+        d['so_pagina'] = 1 if f.get('so_pagina') else 0
+        d['chamada_visivel'] = 1 if f.get('chamada_visivel') else 0
+    d['slug'] = mn._slug_livre(con, mn.slugify(f.get('slug') or old.get('slug') or titulo), ident or 0)
     if atual:
-        if dados[11] and not atual['destaque']:
+        if d.get('destaque') and not old.get('destaque'):
             con.execute('UPDATE noticias SET ordem=? WHERE id=?', (mn._topo(con), ident))
-        con.execute("UPDATE noticias SET slug=?,titulo=?,subtitulo=?,resumo=?,corpo=?,capa=?,capa_alt=?,"
-                    "legenda=?,categoria=?,estado=?,publicar_em=?,destaque=?,destino_url=?,meta=?,"
-                    "titulo_fonte=?,titulo_cor=?,titulo_tam=?,atualizado_em=datetime('now','localtime')"
-                    " WHERE id=?", dados + (ident,))
+        con.execute('UPDATE noticias SET ' + ','.join(k + '=?' for k in d)
+                    + ",atualizado_em=datetime('now','localtime') WHERE id=?", list(d.values()) + [ident])
         novo = ident
     else:
-        novo = con.execute(
-            "INSERT INTO noticias (slug,titulo,subtitulo,resumo,corpo,capa,capa_alt,legenda,categoria,estado,"
-            "publicar_em,destaque,destino_url,meta,titulo_fonte,titulo_cor,titulo_tam,autor,ordem)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            dados + (session.get('nome') or session.get('user', ''), mn._topo(con))).lastrowid
-    con.execute('UPDATE noticias SET so_pagina=? WHERE id=?', (1 if f.get('so_pagina') else 0, novo))
+        d.setdefault('chamada_visivel', 1)
+        d['autor'] = session.get('nome') or session.get('user', '')
+        d['ordem'] = mn._topo(con)
+        novo = con.execute('INSERT INTO noticias (' + ','.join(d) + ') VALUES (' + ','.join('?' * len(d)) + ')',
+                           list(d.values())).lastrowid
     con.commit()
     return novo
 
@@ -379,6 +427,10 @@ def _salva_comunicado(f, ident):
         ordem = con.execute('SELECT COALESCE(MAX(ordem),-1)+1 FROM lateral WHERE cartao=?', (chave,)).fetchone()[0]
         novo = con.execute('INSERT INTO lateral (' + ','.join(campos) + ',ordem,cartao) VALUES ('
                            + ','.join('?' * (len(campos) + 2)) + ')', dados + (ordem, chave)).lastrowid
+    if 'materia' in f:
+        con.execute('UPDATE lateral SET materia_html=? WHERE id=?', (nucleo.limpa_html(f['materia']), novo))
+    if 'materia_titulo' in f:
+        con.execute('UPDATE lateral SET materia_titulo=? WHERE id=?', (f.get('materia_titulo', '').strip()[:200], novo))
     con.commit()
     return novo
 
@@ -415,13 +467,15 @@ def conteudos_previa():
         return _erro('Tipo de conteúdo desconhecido.')
     f = request.form
     ident = f.get('id', '')
-    contexto = dict(tipo=tipo, titulo=f.get('titulo', '').strip(), corpo=Markup(nucleo.agrupa_figuras(nucleo.limpa_html(f.get('corpo', '')))))
+    contexto = dict(tipo=tipo, titulo=f.get('titulo', '').strip(), corpo=Markup(nucleo.agrupa_figuras(nucleo.limpa_html(f.get('corpo', '')))),
+                    materia_titulo=f.get('materia_titulo', '').strip(),
+                    materia_corpo=Markup(nucleo.agrupa_figuras(nucleo.limpa_html(f.get('materia', '')))))
     if tipo == 'cartao':
         contexto.update(titulo_visivel=bool(f.get('titulo_visivel')))
     elif tipo == 'noticia':
-        capa = ''
+        capa, r = '', None
         if ident:
-            r = nucleo.db().execute('SELECT capa FROM noticias WHERE id=?', (nucleo._int(ident),)).fetchone()
+            r = nucleo.db().execute('SELECT capa,chamada_imagem FROM noticias WHERE id=?', (nucleo._int(ident),)).fetchone()
             capa = r['capa'] if r else ''
         escolhida = os.path.basename(f.get('imagem_biblioteca', '') or '')
         if escolhida and midia.registrada(escolhida):
@@ -430,6 +484,24 @@ def conteudos_previa():
             capa = ''
         if f.get('imagem_nova') and not capa:
             capa = 'pendente'
+        cham = r['chamada_imagem'] if r else ''
+        escolhida_c = os.path.basename(f.get('chamada_biblioteca', '') or '')
+        if escolhida_c and midia.registrada(escolhida_c):
+            cham = escolhida_c
+        if f.get('remover_chamada_imagem'):
+            cham = ''
+        arq_c = request.files.get('chamada_arquivo')
+        if arq_c and arq_c.filename and not cham:
+            cham = 'pendente'
+        titulo_est = dict(zip(('titulo_fonte', 'titulo_cor', 'titulo_tam'), mn._titulo_do_form(f)))
+        fmt = f.get('chamada_formato') if f.get('chamada_formato') in mn.FORMATOS else ''
+        contexto['n'] = dict(
+            titulo=f.get('titulo', '').strip(), resumo=f.get('resumo', ''), capa=capa or '', categoria=f.get('categoria', ''),
+            chamada_titulo=f.get('chamada_titulo', '').strip(), chamada_resumo=f.get('chamada_resumo', '').strip(),
+            chamada_imagem=cham or '', chamada_legenda=f.get('chamada_legenda', '').strip(),
+            chamada_alt=f.get('chamada_alt', '').strip(), chamada_formato=fmt, slug='previa', destino_url='', **titulo_est)
+        contexto['modelo'] = mn.vitrine()[0]
+        contexto['formatos'] = mn.FORMATOS
         contexto.update(subtitulo=f.get('subtitulo', ''), resumo=f.get('resumo', ''), capa=capa,
                         legenda=f.get('legenda', ''), capa_alt=f.get('capa_alt', ''),
                         categoria=f.get('categoria', ''), estilo=mn.estilo_titulo(
@@ -479,84 +551,29 @@ def conteudos_ordenar():
 
 # ── página interna de um cartão ───────────────────────────────────────────────
 
-def _so_chamada(corpo, texto):
-    """Corpo reduzido para o cartão: as imagens e uma linha de chamada."""
-    imagens = re.findall(r'<img\b[^>]*>', nucleo.limpa_html(corpo))
-    return nucleo.limpa_html(''.join('<p>%s</p>' % i for i in imagens)
-                             + '<p><strong>%s</strong></p>' % escape((texto or 'Saiba mais').strip()[:200]))
+# ── matéria completa de um cartão ou comunicado (página pública) ─────────────
 
-
-@app.route('/admin/conteudos/so-chamada', methods=['POST'])
-@nucleo.admin_obrigatorio
-def conteudos_so_chamada():
-    """Deixa no cartão só as imagens e um texto de chamada; o texto completo fica na página interna."""
-    tipo, ident = request.form.get('tipo', ''), request.form.get('id', '')
-    chamada_txt = request.form.get('chamada', '').strip()
+@app.route('/materia/<tipo>/<ident>')
+def materia(tipo, ident):
+    """Página aberta pelo clique num cartão ou comunicado que tem matéria completa."""
     con = nucleo.db()
     if tipo == 'cartao':
-        r = con.execute("SELECT p.nome,k.html,k.url FROM cartoes_painel p JOIN cartao_conteudo k ON k.chave=p.chave"
+        r = con.execute("SELECT p.nome AS nome,p.ativo AS ativo,k.materia_titulo AS mt,k.materia_html AS mh"
+                        " FROM cartoes_painel p JOIN cartao_conteudo k ON k.chave=p.chave"
                         " WHERE p.chave=? AND p.tipo='conteudo'", (ident,)).fetchone()
-        corpo, url, nome = (r['html'], r['url'], r['nome']) if r else ('', '', '')
     elif tipo == 'comunicado':
-        r = con.execute('SELECT * FROM lateral WHERE id=?', (nucleo._int(ident),)).fetchone()
-        corpo = (r['corpo_html'] or _corpo_legado(dict(r))) if r else ''
-        url, nome = (r['url'], r['titulo']) if r else ('', '')
+        r = con.execute('SELECT titulo AS nome,ativo,materia_titulo AS mt,materia_html AS mh FROM lateral WHERE id=?',
+                        (nucleo._int(ident),)).fetchone()
     else:
-        return _erro('Tipo de conteúdo desconhecido.')
+        r = None
     if not r:
-        return _erro('Conteúdo não encontrado.', 404)
-    if not (url or '').startswith('/noticias/'):
-        return _erro('Crie a página interna antes: o texto completo precisa estar nela.')
-    novo = _so_chamada(corpo, chamada_txt or nome)
-    if tipo == 'cartao':
-        con.execute('UPDATE cartao_conteudo SET html=? WHERE chave=?', (novo, ident))
-    else:
-        con.execute('UPDATE lateral SET corpo_html=? WHERE id=?', (novo, nucleo._int(ident)))
-    con.commit()
-    return jsonify(ok=True)
-
-
-@app.route('/admin/conteudos/criar-pagina', methods=['POST'])
-@nucleo.admin_obrigatorio
-def conteudos_criar_pagina():
-    """Dá ao cartão (ou comunicado) uma página própria, como uma notícia: o clique no cartão leva até ela.
-    Se o cartão já aponta para uma, só devolve o endereço dela para editar."""
-    tipo, ident = request.form.get('tipo', ''), request.form.get('id', '')
-    con = nucleo.db()
-    if tipo == 'cartao':
-        r = con.execute("SELECT p.nome,k.html,k.url FROM cartoes_painel p JOIN cartao_conteudo k ON k.chave=p.chave"
-                        " WHERE p.chave=? AND p.tipo='conteudo'", (ident,)).fetchone()
-        nome, corpo, url = (r['nome'], r['html'], r['url']) if r else ('', '', '')
-    elif tipo == 'comunicado':
-        r = con.execute('SELECT * FROM lateral WHERE id=?', (nucleo._int(ident),)).fetchone()
-        nome = (r['titulo'] or 'Comunicado') if r else ''
-        corpo = (r['corpo_html'] or _corpo_legado(dict(r))) if r else ''
-        url = r['url'] if r else ''
-    else:
-        return _erro('Tipo de conteúdo desconhecido.')
-    if not r:
-        return _erro('Conteúdo não encontrado.', 404)
-    m = re.fullmatch(r'/noticias/([^/?#]+)', url or '')
-    n = con.execute('SELECT id FROM noticias WHERE slug=?', (m.group(1),)).fetchone() if m else None
-    if not n:
-        slug = mn._slug_livre(con, mn.slugify(nome or 'pagina'), 0)
-        nid = con.execute(
-            "INSERT INTO noticias (slug,titulo,corpo,estado,publicar_em,so_pagina,autor,ordem)"
-            " VALUES (?,?,?,'publicado',?,1,?,?)",
-            (slug, (nome or 'Página')[:200], nucleo.limpa_html(corpo), _agora(),
-             session.get('nome') or session.get('user', ''), mn._topo(con))).lastrowid
-        destino = '/noticias/' + slug
-        # O texto completo foi para a página; no cartão ficam as imagens e uma linha de chamada
-        # (o nome, que o administrador troca depois pelo texto que quiser).
-        chamada = _so_chamada(corpo, nome)
-        if tipo == 'cartao':
-            con.execute('UPDATE cartao_conteudo SET url=?, html=? WHERE chave=?', (destino, chamada, ident))
-        else:
-            con.execute('UPDATE lateral SET url=?, corpo_html=? WHERE id=?', (destino, chamada, nucleo._int(ident)))
-        con.commit()
-    else:
-        nid = n['id']
-    return jsonify(ok=True, id=nid, editar=url_for('conteudos_editor', tipo='noticia', ident=nid, volta=request.form.get('volta') or None))
+        abort(404)
+    html = nucleo.limpa_html(r['mh'] or '')
+    if not (nucleo.so_texto(html) or '<img' in html) or (not r['ativo'] and not session.get('admin')):
+        abort(404)
+    return render_template('materia.html', titulo=r['mt'] or r['nome'] or 'Matéria',
+                           corpo=Markup(nucleo.agrupa_figuras(html)),
+                           editar=url_for('conteudos_editor', tipo=tipo, ident=ident))
 
 
 # ── excluir e duplicar ────────────────────────────────────────────────────────
