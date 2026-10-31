@@ -18,7 +18,7 @@ import secrets
 from datetime import datetime
 
 from flask import abort, flash, jsonify, redirect, render_template, request, session, url_for
-from markupsafe import Markup
+from markupsafe import Markup, escape
 
 import app as nucleo
 from . import auditoria, cartoes as mc, midia, noticias as mn
@@ -493,10 +493,15 @@ def conteudos_criar_pagina():
             (slug, (nome or 'Página')[:200], nucleo.limpa_html(corpo), _agora(),
              session.get('nome') or session.get('user', ''), mn._topo(con))).lastrowid
         destino = '/noticias/' + slug
+        # O texto completo foi para a página; no cartão ficam as imagens e uma linha de chamada
+        # (o nome, que o administrador troca depois pelo texto que quiser).
+        imagens = re.findall(r'<img\b[^>]*>', nucleo.limpa_html(corpo))
+        chamada = ''.join('<p>%s</p>' % i for i in imagens) + '<p><strong>%s</strong></p>' % escape(nome or 'Saiba mais')
+        chamada = nucleo.limpa_html(chamada)
         if tipo == 'cartao':
-            con.execute('UPDATE cartao_conteudo SET url=? WHERE chave=?', (destino, ident))
+            con.execute('UPDATE cartao_conteudo SET url=?, html=? WHERE chave=?', (destino, chamada, ident))
         else:
-            con.execute('UPDATE lateral SET url=? WHERE id=?', (destino, nucleo._int(ident)))
+            con.execute('UPDATE lateral SET url=?, corpo_html=? WHERE id=?', (destino, chamada, nucleo._int(ident)))
         con.commit()
     else:
         nid = n['id']

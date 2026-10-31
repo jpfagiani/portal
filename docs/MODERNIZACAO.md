@@ -154,3 +154,6 @@ Mapa de destinos (Fase 1): ver `docs/MAPA-DE-DESTINOS.md`.
 
 ## 1.9.27 — Destino escolhível em Sistemas, Atalhos e Banners
 - Os campos de endereço de Sistemas/Atalhos e Banners passam a oferecer a lista de páginas e notícias do portal, além de aceitar um site (https://...).
+
+## 1.9.28 — Criar página interna deixa só a chamada no cartão
+- Ao criar a página interna, o texto completo vai para a página; o cartão fica com as imagens e uma linha de chamada (o nome), editável.

@@ -88,8 +88,9 @@
               title="Cria uma página, como uma notícia, com o conteúdo salvo deste cartão, e liga o clique do cartão a ela">
         {{ 'Editar a página interna' if d.url and d.url.startswith('/noticias/') else 'Criar página interna deste cartão' }}</button>
     </div>
-    <p class="dica">A página é criada com o conteúdo <strong>já salvo</strong> do cartão e fica fora da lista “Últimas notícias”.
-      Nela você escreve o texto maior; o cartão continua mostrando só a chamada.</p>
+    <p class="dica">O conteúdo <strong>já salvo</strong> vai inteiro para a nova página (fora da lista “Últimas notícias”).
+      No cartão ficam só as imagens e uma linha de chamada (o nome do cartão), que você pode trocar depois.
+      O clique no cartão leva à página.</p>
     {% endif %}
   </fieldset>
 

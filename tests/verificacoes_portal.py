@@ -587,6 +587,10 @@ with portal.app.app_context():
     cx = portal.db()
     url_c = cx.execute('SELECT url FROM cartao_conteudo WHERE chave=?', (ck,)).fetchone()['url']
     sp = cx.execute('SELECT slug,so_pagina FROM noticias WHERE id=?', (r['id'],)).fetchone()
+with portal.app.app_context():
+    corpo_pg = portal.db().execute('SELECT corpo FROM noticias WHERE id=?', (r['id'],)).fetchone()['corpo']
+    html_c = portal.db().execute('SELECT html FROM cartao_conteudo WHERE chave=?', (ck,)).fetchone()['html']
+ok('Novo' in corpo_pg and 'Novo' not in html_c and 'Horário 3' in html_c, 'o texto vai para a página e o cartão fica só com a chamada')
 ok(url_c == '/noticias/' + sp['slug'] and sp['so_pagina'] == 1, 'o cartão passa a apontar para a página criada')
 ok(anon.get(url_c).status_code == 200 and sp['slug'] not in anon.get('/noticias').get_data(as_text=True), 'a página abre e não entra na lista de notícias')
 ok(c.post('/admin/conteudos/criar-pagina', data={'csrf': tok, 'tipo': 'cartao', 'id': ck}).get_json()['id'] == r['id'], 'repetir não cria outra página')
