@@ -89,7 +89,14 @@
     <label>Texto e imagens da matéria</label>
     {{ r.editor('materia', d.materia|safe, destinos_links, csrf_token) }}
     {% if not novo and d.materia %}<p class="dica">Endereço da matéria: <code>/materia/{{ tipo }}/{{ d.id }}</code></p>{% endif %}
-    <div class="acoes"><button type="button" class="btn btn-sm" data-ver="materia">Ver a matéria</button></div>
+    <div class="acoes">
+      <button type="button" class="btn btn-sm" data-ver="materia">Ver a matéria</button>
+      {% if not novo and not d.materia %}
+      <button type="button" class="btn btn-sm btn-principal" id="c-mover" data-url="{{ url_for('conteudos_mover_para_materia') }}"
+              title="Leva o texto que está no cartão para a matéria completa; no cartão ficam as imagens e uma linha de chamada">
+        Mover o texto deste cartão para a matéria completa</button>
+      {% endif %}
+    </div>
   </fieldset>
   {% endif %}
 

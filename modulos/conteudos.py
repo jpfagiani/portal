@@ -576,6 +576,45 @@ def materia(tipo, ident):
                            editar=url_for('conteudos_editor', tipo=tipo, ident=ident))
 
 
+@app.route('/admin/conteudos/mover-para-materia', methods=['POST'])
+@nucleo.admin_obrigatorio
+def conteudos_mover_para_materia():
+    """Passa o texto que está no cartão para a matéria completa; no cartão ficam as imagens e uma linha de chamada."""
+    tipo, ident = request.form.get('tipo', ''), request.form.get('id', '')
+    chamada_txt = request.form.get('chamada', '').strip()
+    con = nucleo.db()
+    if tipo == 'cartao':
+        r = con.execute("SELECT p.nome,k.html,k.materia_html FROM cartoes_painel p JOIN cartao_conteudo k ON k.chave=p.chave"
+                        " WHERE p.chave=? AND p.tipo='conteudo'", (ident,)).fetchone()
+        corpo, mat, nome = (r['html'], r['materia_html'], r['nome']) if r else ('', '', '')
+    elif tipo == 'comunicado':
+        r = con.execute('SELECT * FROM lateral WHERE id=?', (nucleo._int(ident),)).fetchone()
+        corpo = (r['corpo_html'] or _corpo_legado(dict(r))) if r else ''
+        mat, nome = (r['materia_html'], r['titulo']) if r else ('', '')
+    else:
+        return _erro('Tipo de conteúdo desconhecido.')
+    if not r:
+        return _erro('Conteúdo não encontrado.', 404)
+    if nucleo.so_texto(mat) or '<img' in (mat or ''):
+        return _erro('Este cartão já tem matéria completa. Edite o bloco 2.')
+    chamada = _so_chamada(corpo, chamada_txt or nome)
+    if tipo == 'cartao':
+        con.execute('UPDATE cartao_conteudo SET html=?,materia_html=?,materia_titulo=? WHERE chave=?',
+                    (chamada, nucleo.limpa_html(corpo), nome[:200], ident))
+    else:
+        con.execute('UPDATE lateral SET corpo_html=?,materia_html=?,materia_titulo=? WHERE id=?',
+                    (chamada, nucleo.limpa_html(corpo), (nome or '')[:200], nucleo._int(ident)))
+    con.commit()
+    return jsonify(ok=True)
+
+
+def _so_chamada(corpo, texto):
+    """Corpo reduzido para o cartão: as imagens e uma linha de chamada."""
+    imagens = re.findall(r'<img\b[^>]*>', nucleo.limpa_html(corpo))
+    return nucleo.limpa_html(''.join('<p>%s</p>' % i for i in imagens)
+                             + '<p><strong>%s</strong></p>' % escape((texto or 'Saiba mais').strip()[:200]))
+
+
 # ── excluir e duplicar ────────────────────────────────────────────────────────
 
 @app.route('/admin/conteudos/excluir', methods=['POST'])

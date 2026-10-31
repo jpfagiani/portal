@@ -621,6 +621,15 @@ ok(anon.get('/materia/cartao/inexistente').status_code == 404 and anon.get('/mat
 ok('materia_titulo' in c.get('/admin/conteudos/cartao/' + ck).get_data(as_text=True) and 'Matéria completa' in c.get('/admin/conteudos/cartao/' + ck).get_data(as_text=True), 'editor do cartão tem o bloco da matéria')
 r = c.post('/admin/conteudos/previa', data={'csrf': tok, 'tipo': 'cartao', 'titulo': 'T', 'corpo': '<p>ch</p>', 'materia': '<p>mat</p>'}).get_json()
 ok(r['ok'] and 'data-visao="materia"' in r['html'] and 'mat' in r['html'], 'prévia do cartão mostra chamada e matéria')
+# mover o texto do cartão para a matéria (um clique)
+mk = cartao_salvar({'nome': 'Aviso longo', 'corpo': '<p><img src="/static/uploads/%s" alt=""></p><p>Texto muito longo do aviso completo</p>' % arq}).get_json()['id']
+ok(c.post('/admin/conteudos/mover-para-materia', data={'csrf': tok, 'tipo': 'cartao', 'id': mk, 'chamada': 'Chamada curta do aviso'}).get_json().get('ok'), 'mover o texto do cartão para a matéria')
+with portal.app.app_context():
+    rk = dict(portal.db().execute('SELECT * FROM cartao_conteudo WHERE chave=?', (mk,)).fetchone())
+ok('Chamada curta do aviso' in rk['html'] and 'Texto muito longo' not in rk['html'] and 'uploads/' + arq in rk['html'] and 'Texto muito longo' in rk['materia_html'],
+   'no cartão ficam a imagem e a chamada; o texto completo vai para a matéria')
+ok(not c.post('/admin/conteudos/mover-para-materia', data={'csrf': tok, 'tipo': 'cartao', 'id': mk}).get_json().get('ok'), 'não move duas vezes (não sobrescreve a matéria)')
+c.post('/admin/conteudos/excluir', data={'csrf': tok, 'tipo': 'cartao', 'id': mk})
 # comunicado com matéria
 rcom = cont({'tipo': 'comunicado', 'cartao': chave_itens, 'titulo': 'Aviso M', 'corpo': '<p>Chamada do aviso</p>', 'materia': '<p>Matéria do aviso</p>', 'ativo': 'on'}).get_json()
 ok(rcom['ok'], 'salva comunicado com matéria')

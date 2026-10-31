@@ -1243,6 +1243,32 @@ def init_db():
             pass                                  # tabela ainda não existe: nada a esconder
         con.execute("INSERT INTO config (chave,valor) VALUES ('titulos_ocultos_v1','1')")
 
+    # Cartões e comunicados que apontavam para uma "página de apoio" (notícia oculta criada pelos botões antigos):
+    # o texto completo da página vira a matéria do próprio cartão, e o cartão fica só com imagens e uma chamada.
+    if not con.execute("SELECT 1 FROM config WHERE chave='materia_migrada_v1'").fetchone():
+        def _chamada(html, nome):
+            imgs = re.findall(r'<img\b[^>]*>', html or '')
+            curto = len(so_texto(html or '')) <= 140
+            return html if curto else limpa_html(''.join('<p>%s</p>' % i for i in imgs)
+                                                  + '<p><strong>%s</strong></p>' % escape((nome or 'Saiba mais')[:200]))
+        try:
+            for chave, nome, html, url in con.execute(
+                    "SELECT k.chave,p.nome,k.html,k.url FROM cartao_conteudo k JOIN cartoes_painel p ON p.chave=k.chave"
+                    " WHERE k.url LIKE '/noticias/%' AND k.materia_html=''").fetchall():
+                n = con.execute('SELECT titulo,corpo FROM noticias WHERE slug=? AND so_pagina=1', (url[len('/noticias/'):],)).fetchone()
+                if n and (so_texto(n[1]) or '<img' in n[1]):
+                    con.execute("UPDATE cartao_conteudo SET materia_titulo=?,materia_html=?,html=?,url='' WHERE chave=?",
+                                (n[0], n[1], _chamada(html, nome), chave))
+            for ident, titulo, html, url in con.execute(
+                    "SELECT id,titulo,corpo_html,url FROM lateral WHERE url LIKE '/noticias/%' AND materia_html='' AND corpo_html<>''").fetchall():
+                n = con.execute('SELECT titulo,corpo FROM noticias WHERE slug=? AND so_pagina=1', (url[len('/noticias/'):],)).fetchone()
+                if n and (so_texto(n[1]) or '<img' in n[1]):
+                    con.execute("UPDATE lateral SET materia_titulo=?,materia_html=?,corpo_html=?,url='' WHERE id=?",
+                                (n[0], n[1], _chamada(html, titulo), ident))
+        except sqlite3.OperationalError:
+            pass
+        con.execute("INSERT INTO config (chave,valor) VALUES ('materia_migrada_v1','1')")
+
     # Título das notícias: o padrão passou de vinho para azul. Uma vez só, troca quem ainda
     # estava no vinho antigo; depois disso, a cor escolhida no painel é respeitada.
     if not con.execute("SELECT 1 FROM config WHERE chave='noticias_azul_v1'").fetchone():
@@ -1334,7 +1360,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.31'
+VERSAO = '1.9.32'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']

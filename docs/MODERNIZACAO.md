@@ -170,3 +170,7 @@ Veja `docs/AUDITORIA-CONTEUDOS.md`. Rotas antigas `/admin/noticias` e `/admin/la
 - Prévia isolada da chamada, da página principal e da matéria, com visão de computador/tablet/celular.
 - Cartões e comunicados: chamada (o que aparece no cartão) + matéria completa própria em `/materia/cartao/<chave>` e `/materia/comunicado/<id>`; o clique leva à matéria. Os botões "Criar página interna" e "Deixar só chamada" (que criavam uma notícia oculta) foram substituídos por isso.
 - Detalhes em `docs/PLANO-DE-REVERSAO.md`.
+
+## 1.9.32 — Cartões existentes passam ao novo formato
+- Migração única (`materia_migrada_v1`): cartões e comunicados que apontavam para uma página de apoio (notícia oculta) recebem o texto dela como matéria completa e ficam só com imagens e uma linha de chamada; o link antigo é limpo (o clique vai à matéria).
+- Botão "Mover o texto deste cartão para a matéria completa" no bloco 2 de cartões e comunicados: leva o texto atual para a matéria e deixa no cartão a imagem e uma chamada.
