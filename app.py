@@ -1133,6 +1133,8 @@ def init_db():
             # Onde a imagem (quando menor que o cartão) fica na horizontal:
             # 0 = encostada à esquerda, 50 = centralizada, 100 = à direita.
             ('lateral',  'img_x', 'INTEGER NOT NULL DEFAULT 0'),
+            # Corpo com texto e imagens do editor rico (o mesmo dos demais conteúdos). Vazio = item antigo.
+            ('lateral',  'corpo_html', "TEXT NOT NULL DEFAULT ''"),
             ('cartoes',  'coluna',  'INTEGER NOT NULL DEFAULT 0'),
             ('cartoes_painel', 'coluna', 'INTEGER NOT NULL DEFAULT 0'),
             ('cartoes_painel', 'altura', 'INTEGER NOT NULL DEFAULT 0'),
@@ -1318,7 +1320,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.24'
+VERSAO = '1.9.25'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']

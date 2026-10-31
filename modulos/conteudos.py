@@ -13,6 +13,7 @@ encaminhado ao serviço do tipo, que mantém as regras de sempre (limpeza de HTM
 validação de endereço, envio de arquivos, publicação e agendamento).
 """
 import os
+import re
 import secrets
 from datetime import datetime
 
@@ -189,8 +190,25 @@ def _obter(tipo, ident):
         return d
     if tipo == 'comunicado':
         r = con.execute('SELECT * FROM lateral WHERE id=?', (nucleo._int(ident),)).fetchone()
-        return dict(r) if r else None
+        if not r:
+            return None
+        d = dict(r)
+        d['corpo'] = nucleo.limpa_html(d['corpo_html']) if d.get('corpo_html') else _corpo_legado(d)
+        return d
     return None
+
+
+def _corpo_legado(d):
+    """Item antigo (título, texto simples, imagem) vira o corpo do editor rico, para ser editado como os demais."""
+    from markupsafe import escape
+    partes = []
+    if d.get('imagem'):
+        partes.append('<p><img src="/static/uploads/%s" alt=""></p>' % escape(d['imagem']))
+    if (d.get('titulo') or '').strip():
+        partes.append('<p><strong>%s</strong></p>' % escape(d['titulo'].strip()))
+    for linha in (d.get('conteudo') or '').splitlines():
+        partes.append('<p>%s</p>' % escape(linha) if linha.strip() else '')
+    return nucleo.limpa_html(''.join(partes))
 
 
 def _valores_novos(tipo):
@@ -200,7 +218,7 @@ def _valores_novos(tipo):
         return dict(id='', titulo='', subtitulo='', resumo='', corpo='', capa='', capa_alt='', legenda='',
                     categoria='', estado='rascunho', publicar_em_campo='', destaque=0, url='', meta='',
                     slug='', titulo_fonte='', titulo_cor='', titulo_tam='', situacao='Rascunho')
-    return dict(id='', titulo='', conteudo='', url='', url_rot='', imagem='', video='', img_pos='topo',
+    return dict(id='', titulo='', conteudo='', corpo='', corpo_html='', url='', url_rot='', imagem='', video='', img_pos='topo',
                 urgencia='informacao', destaque='nenhum', data='', titulo_cor='', texto_cor='', fundo_cor='',
                 titulo_tam='', texto_tam='', tipo='aviso', ativo=1)
 
@@ -336,42 +354,24 @@ def _salva_comunicado(f, ident):
     c = nucleo.cartao_por_chave(chave)
     if not c or c['tipo'] != 'itens':
         raise Invalido('Escolha o cartão onde o comunicado aparece.')
-    ant_img = atuais['imagem'] if atuais else ''
-    ant_vid = atuais['video'] if atuais else ''
-    try:
-        imagem = nucleo.salva_upload('imagem', ant_img)
-        video = nucleo.salva_upload('video', ant_vid, nucleo.VIDEO_EXTS)
-    except ValueError as e:
-        raise Invalido(str(e))
-    for novo, ant in ((imagem, ant_img), (video, ant_vid)):
-        if novo != ant:
-            nucleo.remove_upload(ant)
-    if f.get('remover_imagem'):
-        nucleo.remove_upload(imagem)
-        imagem = ''
-    if f.get('remover_video'):
-        nucleo.remove_upload(video)
-        video = ''
+    atu = dict(atuais) if atuais else {}
+    corpo = nucleo.limpa_html(f.get('corpo', ''))
     urg = f.get('urgencia', 'informacao')
     dest = f.get('destaque', 'nenhum')
-
-    def medida(campo):
-        return nucleo.medida(f.get(campo), '', 0.6, 2.0) if f.get(campo, '').strip() else ''
-    texto = f.get('texto', '').strip('\r\n').rstrip()
-    dados = (atuais['tipo'] if atuais else 'aviso', f.get('titulo', '').strip(), texto,
-             nucleo.endereco_seguro(f.get('url', '')),
-             1 if f.get('ativo') else 0,
+    url = nucleo.endereco_seguro(f.get('url', ''))
+    titulo = f.get('titulo', '').strip()[:200]
+    if not (nucleo.so_texto(corpo) or '<img' in corpo or url):
+        raise Invalido('Escreva o texto, coloque uma imagem ou informe o endereço do link.')
+    # O texto simples acompanha o corpo: listas, busca e impressão ainda o usam.
+    texto = '\n'.join(l for l in nucleo.so_texto(re.sub(r'</(p|div|h\d|li)>', '\n', corpo)).splitlines() if l.strip())
+    dados = (atu.get('tipo', 'aviso'), titulo, texto, url, 1 if f.get('ativo') else 0,
              urg if urg in ('urgente', 'comunicado', 'informacao') else 'informacao',
              dest if dest in nucleo.DESTAQUES_COMUNICADO else 'nenhum',
-             medida('titulo_tam'), nucleo.cor_hexa(f.get('titulo_cor'), ''),
-             medida('texto_tam'), nucleo.cor_hexa(f.get('texto_cor'), ''),
-             nucleo.cor_hexa(f.get('fundo_cor'), ''), f.get('data', '').strip(), imagem, video,
-             f.get('url_rot', '').strip(),
-             f.get('img_pos') if f.get('img_pos') in nucleo.CARTAO_IMG_POS else 'topo')
-    if not (dados[1] or dados[2] or dados[3] or imagem or video):
-        raise Invalido('Preencha ao menos um destes: título, texto, link, imagem ou vídeo.')
+             atu.get('titulo_tam', ''), atu.get('titulo_cor', ''), atu.get('texto_tam', ''), atu.get('texto_cor', ''),
+             atu.get('fundo_cor', ''), atu.get('data', ''), atu.get('imagem', ''), atu.get('video', ''),
+             atu.get('url_rot', ''), atu.get('img_pos', 'topo'), corpo)
     campos = ('tipo,titulo,conteudo,url,ativo,urgencia,destaque,titulo_tam,titulo_cor,texto_tam,texto_cor,'
-              'fundo_cor,data,imagem,video,url_rot,img_pos').split(',')
+              'fundo_cor,data,imagem,video,url_rot,img_pos,corpo_html').split(',')
     if atuais:
         con.execute('UPDATE lateral SET ' + ','.join(k + '=?' for k in campos) + ' WHERE id=?', dados + (ident,))
         novo = ident
@@ -442,6 +442,7 @@ def conteudos_previa():
                     imagem='', video='', titulo_tam='', titulo_cor=nucleo.cor_hexa(f.get('titulo_cor'), ''),
                     texto_tam='', texto_cor=nucleo.cor_hexa(f.get('texto_cor'), ''),
                     fundo_cor=nucleo.cor_hexa(f.get('fundo_cor'), ''), img_larg=0, img_x=0)
+        item['corpo_html'] = nucleo.limpa_html(f.get('corpo', ''))
         if ident:
             r = nucleo.db().execute('SELECT imagem,video FROM lateral WHERE id=?', (nucleo._int(ident),)).fetchone()
             if r:

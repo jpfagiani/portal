@@ -557,17 +557,28 @@ ok(not cont({'tipo': 'cartao', 'id': 'ramais', 'titulo': 'x', 'corpo': '<p>y</p>
 # comunicado
 with portal.app.app_context():
     chave_itens = portal.db().execute("SELECT chave FROM cartoes_painel WHERE tipo='itens' ORDER BY ordem LIMIT 1").fetchone()['chave']
-r = cont({'tipo': 'comunicado', 'cartao': chave_itens, 'titulo': 'Decreto de teste', 'texto': 'Linha 1\nLinha 2', 'ativo': 'on', 'urgencia': 'comunicado'})
+r = cont({'tipo': 'comunicado', 'cartao': chave_itens, 'titulo': 'Decreto de teste', 'corpo': '<p>Linha 1</p><p>Linha 2</p>', 'ativo': 'on', 'urgencia': 'comunicado'})
 j = r.get_json(); lid = j.get('id')
 ok(j.get('ok') and lid, 'cria comunicado pelo editor único')
 h = anon.get('/').get_data(as_text=True)
-ok('Decreto de teste' in h and 'comunicado-clicavel' in h and 'com-overlay' in h, 'comunicado aparece com o item inteiro clicável')
+ok('Linha 2' in h and 'com-rico' in h and 'comunicado-clicavel' in h and 'com-overlay' in h, 'comunicado aparece com o item inteiro clicável')
+ok('>Decreto de teste<' not in h, 'o nome do comunicado não aparece no portal')
 ok('id="form-conteudo-ed"' in c.get('/admin/conteudos/comunicado/%s' % lid).get_data(as_text=True), 'comunicado abre no mesmo editor')
-cont({'tipo': 'comunicado', 'id': lid, 'titulo': 'Decreto de teste', 'texto': 'x', 'url': 'https://exemplo.gov.br/d', 'ativo': 'on'})
+cont({'tipo': 'comunicado', 'id': lid, 'titulo': 'Decreto de teste', 'corpo': '<p>x</p>', 'url': 'https://exemplo.gov.br/d', 'ativo': 'on'})
 h = anon.get('/').get_data(as_text=True)
 ok('href="https://exemplo.gov.br/d"' in h, 'comunicado com endereço vira link')
-ok(not cont({'tipo': 'comunicado', 'cartao': chave_itens, 'titulo': '', 'texto': ''}).get_json().get('ok'), 'comunicado vazio é recusado')
+ok(not cont({'tipo': 'comunicado', 'cartao': chave_itens, 'titulo': '', 'corpo': ''}).get_json().get('ok'), 'comunicado vazio é recusado')
 ok(not cont({'tipo': 'comunicado', 'cartao': 'ramais', 'titulo': 'x'}).get_json().get('ok'), 'comunicado não entra em cartão de outro tipo')
+
+# comunicado antigo (título + texto + imagem) abre no editor rico, com a imagem antes do texto
+with portal.app.app_context():
+    con = portal.db()
+    antigo = con.execute("INSERT INTO lateral (tipo,titulo,conteudo,cartao,imagem,ativo) VALUES ('aviso','Antigo T','Texto antigo',?,'x.png',1)", (chave_itens,)).lastrowid
+    con.commit()
+h = c.get('/admin/conteudos/comunicado/%s' % antigo).get_data(as_text=True)
+ok('Texto antigo' in h and h.index('x.png') < h.index('Texto antigo'), 'comunicado antigo vira corpo do editor rico (imagem, título, texto)')
+with portal.app.app_context():
+    con = portal.db(); con.execute('DELETE FROM lateral WHERE id=?', (antigo,)); con.commit()
 
 # lista, filtros e pesquisa
 h = c.get('/admin/conteudos').get_data(as_text=True)
@@ -586,9 +597,9 @@ ok('Matéria ção única' in c.get('/admin/conteudos?situacao=agendado').get_da
 # pré-visualização não grava
 with portal.app.app_context():
     antes = portal.db().execute('SELECT (SELECT COUNT(*) FROM noticias)+(SELECT COUNT(*) FROM lateral)+(SELECT COUNT(*) FROM cartoes_painel)').fetchone()[0]
-for t, extra in (('noticia', {'subtitulo': 'Sub'}), ('cartao', {'titulo_visivel': 'on'}), ('comunicado', {'texto': 'abc'})):
+for t, extra in (('noticia', {'subtitulo': 'Sub'}), ('cartao', {'titulo_visivel': 'on'}), ('comunicado', {})):
     r = c.post('/admin/conteudos/previa', data=dict({'csrf': tok, 'tipo': t, 'titulo': 'Prévia ' + t, 'corpo': '<p>corpo<script>x()</script></p>'}, **extra))
-    ok(r.get_json().get('ok') and 'Prévia ' + t in r.get_json()['html'] and '<script' not in r.get_json()['html'], 'prévia de %s' % t)
+    ok(r.get_json().get('ok') and ('Prévia ' + t in r.get_json()['html'] or t == 'comunicado') and 'corpo' in r.get_json()['html'] and '<script' not in r.get_json()['html'], 'prévia de %s' % t)
 with portal.app.app_context():
     depois = portal.db().execute('SELECT (SELECT COUNT(*) FROM noticias)+(SELECT COUNT(*) FROM lateral)+(SELECT COUNT(*) FROM cartoes_painel)').fetchone()[0]
 ok(antes == depois, 'pré-visualizar não grava nada')

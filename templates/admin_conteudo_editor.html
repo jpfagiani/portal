@@ -8,7 +8,7 @@
     para aqueles tipos; o servidor ignora o que não é do tipo (e não apaga o que
     já estava guardado). #}
 {% block admin %}
-{% set rico = tipo in ('cartao', 'noticia') %}
+{% set rico = tipo in ('cartao', 'noticia', 'comunicado') %}
 <div class="cont-editor">
 <form id="form-conteudo-ed" method="post" enctype="multipart/form-data" class="painel-caixa"
       data-salvar="{{ url_for('conteudos_salvar') }}" data-previa="{{ url_for('conteudos_previa') }}"
@@ -26,7 +26,8 @@
 
   <fieldset class="cont-bloco">
     <legend>Conteúdo</legend>
-    <label for="c-titulo">{{ 'Nome do cartão' if tipo == 'cartao' else 'Título' }}{{ ' *' if tipo == 'noticia' }}</label>
+    <label for="c-titulo">{{ 'Nome do cartão' if tipo == 'cartao' else ('Nome do comunicado' if tipo == 'comunicado' else 'Título') }}{{ ' *' if tipo == 'noticia' }}
+      {% if tipo != 'noticia' %}<small>(só para você gerenciar; não aparece no portal — escreva o título dentro do texto)</small>{% endif %}</label>
     <input id="c-titulo" name="titulo" maxlength="{{ 80 if tipo == 'cartao' else 200 }}" value="{{ d.titulo }}"
            {{ 'required' if tipo == 'noticia' }}>
     {% if tipo == 'noticia' %}
@@ -46,7 +47,7 @@
     {% endif %}
   </fieldset>
 
-  {% if tipo != 'cartao' %}
+  {% if tipo == 'noticia' %}
   <fieldset class="cont-bloco">
     <legend>Mídia</legend>
     {% set atual = d.capa if tipo == 'noticia' else d.imagem %}
@@ -81,10 +82,6 @@
       <small>({{ 'opcional; vazio = a própria notícia' if tipo == 'noticia' else 'opcional' }})</small></label>
     <input id="c-url" name="url" list="c-destinos" maxlength="500" placeholder="https://... ou /pagina" value="{{ d.url }}">
     <datalist id="c-destinos">{% for n, e in destinos_links %}<option value="{{ e }}">{{ n }}</option>{% endfor %}</datalist>
-    {% if tipo == 'comunicado' %}
-    <label for="c-urlrot">Texto do link <small>(padrão: “Abrir”)</small></label>
-    <input id="c-urlrot" name="url_rot" maxlength="60" value="{{ d.url_rot }}">
-    {% endif %}
   </fieldset>
 
   <fieldset class="cont-bloco">
@@ -118,10 +115,6 @@
       <div><label for="c-dest">Destaque</label>
         <select id="c-dest" name="destaque">{% for k, v in destaques.items() %}<option value="{{ k }}" {{ 'selected' if d.destaque == k }}>{{ v }}</option>{% endfor %}</select></div>
     </div>
-    <label for="c-datae">Data exibida <small>(livre, ex.: 15/07/2026)</small></label>
-    <input id="c-datae" name="data" value="{{ d.data }}">
-    <label>Cor do título</label>{{ campos.paleta('titulo_cor', d.titulo_cor, paleta) }}
-    <label>Cor do texto</label>{{ campos.paleta('texto_cor', d.texto_cor, paleta) }}
     {% endif %}
   </fieldset>
 

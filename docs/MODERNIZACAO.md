@@ -141,3 +141,9 @@ Mapa de destinos (Fase 1): ver `docs/MAPA-DE-DESTINOS.md`.
 ## 1.9.24 — Nome oculto também nos cartões de comunicados
 - Cartões do tipo comunicados ("itens") também não mostram o nome no portal por padrão (config `<cartao>_titulo_visivel`).
 - Em Conteúdos → Cartões da página inicial, a caixa "Mostrar o nome no portal" liga/desliga por cartão (comunicados e texto/imagem).
+
+## 1.9.25 — Um só editor: comunicados também usam o editor rico
+- Comunicados agora são editados no mesmo editor de texto e imagens dos cartões e notícias (fonte, tamanho em px, cor, alinhamento, imagem com texto embaixo, links). Nova coluna `lateral.corpo_html`.
+- O campo "Nome" do comunicado serve só para gerenciar; não aparece no portal. Escreva o título dentro do texto.
+- Comunicados antigos (título + texto + imagem) abrem já convertidos: imagem, título em negrito e texto; ao salvar passam ao formato novo.
+- Urgência (selo), destaque, visível e endereço continuam como opções do item.

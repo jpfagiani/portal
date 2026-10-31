@@ -60,6 +60,7 @@ def dados_edicao():
 
 
 app.jinja_env.globals['cartao_conteudo'] = conteudo
+app.jinja_env.filters['rico'] = lambda h: Markup(nucleo.agrupa_figuras(nucleo.limpa_html(h or '')))
 app.jinja_env.globals['cartao_titulo_visivel'] = titulo_visivel
 app.jinja_env.globals['cartao_url'] = url_cartao
 
