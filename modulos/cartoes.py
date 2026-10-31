@@ -33,8 +33,13 @@ def conteudo(chave):
 
 
 def titulo_visivel(chave):
-    r = nucleo.db().execute('SELECT titulo_visivel FROM cartao_conteudo WHERE chave=?', (chave,)).fetchone()
-    return bool(r['titulo_visivel']) if r else False
+    """O nome do cartão aparece no portal? Por padrão não: o nome é para o administrador gerenciar."""
+    con = nucleo.db()
+    r = con.execute('SELECT titulo_visivel FROM cartao_conteudo WHERE chave=?', (chave,)).fetchone()
+    if r:
+        return bool(r['titulo_visivel'])
+    r = con.execute('SELECT valor FROM config WHERE chave=?', (chave + '_titulo_visivel',)).fetchone()
+    return bool(r and r['valor'] == '1')
 
 
 def url_cartao(chave):

@@ -299,6 +299,7 @@
       vendo (no editor) para poder preenchê-lo. #}
   {% if itens or modo_edicao %}
   <section class="cartao" {{ pos(c) }}>
+    {% if cartao_titulo_visivel(c.chave) or modo_edicao %}
     <div class="cartao-cab">
       <span class="cab-ic">{{ ic(c.icone) }}</span>
       {#  O nome do cartão é o link para a lista completa. Para o administrador
@@ -313,6 +314,7 @@
              target="_blank" rel="noopener" title="Ver todos: {{ c.nome }}">{{ c.nome }}</a></h2>
       {% endif %}
     </div>
+    {% endif %}
     <div class="cartao-corpo comunicados" style="--liv-fonte:var(--{{ c.chave }}-fonte)">
       {{ comunicados(itens, url_for('lista', chave=c.chave)) }}
     </div>

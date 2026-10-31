@@ -107,6 +107,14 @@ def _acao_cartao():
     if not nucleo.cartao_por_chave(chave):
         abort(400)
     if acao == 'titulo_cartao':
+        if request.form.get('tem_mostrar_nome'):
+            mostrar = 1 if request.form.get('mostrar_nome') else 0
+            if con.execute("SELECT 1 FROM cartoes_painel WHERE chave=? AND tipo='conteudo'", (chave,)).fetchone():
+                con.execute('UPDATE cartao_conteudo SET titulo_visivel=? WHERE chave=?', (mostrar, chave))
+            else:
+                con.execute('INSERT OR REPLACE INTO config (chave,valor) VALUES (?,?)',
+                            (chave + '_titulo_visivel', str(mostrar)))
+            con.commit()
         if (request.form.get('titulo_cartao') or '').strip():
             nucleo.salvar_nome_cartao_painel(chave)
         else:

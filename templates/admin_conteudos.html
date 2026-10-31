@@ -112,6 +112,11 @@
       <input id="nome-{{ c.chave }}" name="titulo_cartao" maxlength="80" value="{{ c.nome }}">
       <button class="btn" type="submit">Salvar nome</button>
     </div>
+    {% if c.tipo in ('itens', 'conteudo') %}
+    <input type="hidden" name="tem_mostrar_nome" value="1">
+    <label class="check"><input type="checkbox" name="mostrar_nome" {{ 'checked' if cartao_titulo_visivel(c.chave) }}>
+      Mostrar o nome no portal <small>(desmarcado: o nome serve só para você gerenciar; escreva o título no conteúdo se quiser)</small></label>
+    {% endif %}
   </form>
 
   {% if c.tipo == 'noticias' %}

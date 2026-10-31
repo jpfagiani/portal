@@ -137,3 +137,7 @@ Mapa de destinos (Fase 1): ver `docs/MAPA-DE-DESTINOS.md`.
 - O nome do cartão (conteúdo) serve só para o administrador gerenciar; no portal público não aparece mais por padrão.
 - Cartões novos nascem com "Mostrar o nome do cartão" desmarcado. Para ter título, escreva-o dentro do conteúdo.
 - Migração única (`titulos_ocultos_v1`) esconde o nome dos cartões já existentes. Em modo de edição o admin continua vendo o nome.
+
+## 1.9.24 — Nome oculto também nos cartões de comunicados
+- Cartões do tipo comunicados ("itens") também não mostram o nome no portal por padrão (config `<cartao>_titulo_visivel`).
+- Em Conteúdos → Cartões da página inicial, a caixa "Mostrar o nome no portal" liga/desliga por cartão (comunicados e texto/imagem).
