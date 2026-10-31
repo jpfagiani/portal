@@ -14,11 +14,6 @@
   {% for c in itens %}
   {% set u = c.urgencia|default('informacao') %}
   {% set d = c.destaque|default('nenhum') %}
-  {#  Regra única de exibição (modulos/exibicao.py): título e texto só aparecem se o modo do item
-      mandar; `nome_admin` nunca chega aqui. `dest` é o destino já conferido (sem link se quebrado). #}
-  {% set it = comunicado_publico(c) %}
-  {% set dest = destino_comunicado(c) %}
-  {% set alvo_attr %}{% if dest.nova_aba %} target="_blank" rel="{{ dest.rel }}"{% endif %}{% endset %}
   {#  Cada ajuste vira uma variável CSS no próprio item. Só entram as que foram
       preenchidas — as demais continuam herdando o padrão de Aparência. #}
   {% set estilo %}
@@ -40,9 +35,9 @@
     <span class="conteudo">
       {#  Título é opcional: o nome do cartão já diz do que se trata. Sem título
           (e sem selo) a linha nem é desenhada. #}
-      {% if it.mostrar_titulo or u in ('urgente', 'comunicado') %}
+      {% if c.titulo or u in ('urgente', 'comunicado') %}
       <span class="linha-titulo">
-        {% if it.mostrar_titulo %}<span class="titulo">{{ it.titulo }}</span>{% endif %}
+        {% if c.titulo %}<span class="titulo">{{ c.titulo }}</span>{% endif %}
         {#  O item informativo (o padrão) não leva selo: "Novo" em tudo deixava de
             dizer alguma coisa. Só Urgente e Aviso são marcados. #}
         {% if u in ('urgente', 'comunicado') %}
@@ -51,7 +46,7 @@
         {% endif %}
       </span>
       {% endif %}
-      {% if it.mostrar_texto %}
+      {% if c.conteudo %}
       <p class="{{ 'cortado' if c.conteudo|texto_longo }}">{{ c.conteudo|linhas }}</p>
       {% endif %}
       {#  Imagem e video sao conteudo do item, nao decoracao: entram depois do
@@ -64,15 +59,15 @@
           dentro de outro <a> é inválido) e o item sem endereço.
           Imagem "ao fundo" também é link: o <a> cobre a área do item, atrás do
           texto, e o CSS deixa o clique atravessar o texto até ele. #}
-      {% set img_link = c.imagem and dest.href and c.tipo != 'link' %}
+      {% set img_link = c.imagem and c.url and c.tipo != 'link' %}
       {% if c.imagem %}
       {% set img %}<img class="com-imagem com-img-{{ c.img_pos|default('topo') }}" loading="lazy"
-           alt="{{ it.alt }}"
+           alt="{{ c.titulo or 'Imagem' }}"
            src="{{ url_for('static', filename='uploads/' ~ c.imagem) }}">{% endset %}
       {% set img_final %}{% if img_link %}
       <a class="com-img-link{{ ' com-img-link-fundo' if c.img_pos == 'fundo' }}"
-         href="{{ dest.href }}"{{ alvo_attr }}
-         aria-label="{{ it.rotulo }}">{{ img }}</a>
+         href="{{ c.url }}" target="_blank" rel="noopener"
+         title="Abrir{{ ': ' ~ c.titulo if c.titulo }}">{{ img }}</a>
       {% else %}{{ img }}{% endif %}{% endset %}
       {#  Só a imagem acima do texto muda de tamanho. `img_larg` é a largura em
           % da área do texto (0 = a de sempre). O administrador vê dois
@@ -108,22 +103,21 @@
       <video class="com-video" controls preload="metadata"
              src="{{ url_for('static', filename='uploads/' ~ c.video) }}"></video>
       {% endif %}
-      {% if dest.href and c.tipo != 'link' and not img_link %}
-      <a class="com-link" href="{{ dest.href }}"{{ alvo_attr }}
+      {% if c.url and c.tipo != 'link' and not img_link %}
+      <a class="com-link" href="{{ c.url }}" target="_blank" rel="noopener"
         >{{ c.url_rot or 'Abrir' }}</a>
       {% endif %}
       {% if c.data %}<span class="quando">{{ c.data }}</span>{% endif %}
     </span>
   {% endset %}
-  {% if c.tipo == 'link' and dest.href %}
-    <a class="comunicado destaque-{{ d }} tom-{{ u }}" style="{{ estilo }}" href="{{ dest.href }}"{{ alvo_attr }}>{{ interno }}</a>
+  {% if c.tipo == 'link' and c.url %}
+    <a class="comunicado destaque-{{ d }} tom-{{ u }}" style="{{ estilo }}" href="{{ c.url }}" target="_blank" rel="noopener">{{ interno }}</a>
   {% else %}
-    {% set alvo = dest.href or destino %}
+    {% set alvo = c.url or destino %}
     {% if alvo and not modo_edicao %}
     <div class="comunicado comunicado-clicavel destaque-{{ d }} tom-{{ u }}" style="{{ estilo }}">
-      <a class="com-overlay" href="{{ alvo }}"
-         {%- if dest.href %}{{ alvo_attr }}{% elif destino.startswith('http') %} target="_blank" rel="noopener noreferrer"{% endif %}
-         aria-label="{{ it.rotulo }}"></a>{{ interno }}</div>
+      <a class="com-overlay" href="{{ alvo }}" target="{{ '_blank' if c.url or destino.startswith('http') else '_self' }}" rel="noopener"
+         aria-label="Abrir{{ ': ' ~ c.titulo if c.titulo }}"></a>{{ interno }}</div>
     {% else %}
     <div class="comunicado destaque-{{ d }} tom-{{ u }}" style="{{ estilo }}">{{ interno }}</div>
     {% endif %}

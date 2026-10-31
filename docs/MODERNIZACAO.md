@@ -133,58 +133,7 @@ salvar de novo. Blocos de colunas (`.cols`) continuam livres. Reversão: apagar 
 
 Mapa de destinos (Fase 1): ver `docs/MAPA-DE-DESTINOS.md`.
 
-## 1.11.0 — Plano de correções: nome administrativo × conteúdo público, destinos e editor
-
-Feito em cópia de desenvolvimento (branch `correcoes-fase0-7`, origem: `portal-sistemas-modernizado.zip`); nada foi implantado.
-
-### Diagnóstico (Fase 0)
-| Requisito | Encontrado | Lacuna | Arquivos | Teste |
-|---|---|---|---|---|
-| Nome interno nunca público | `cartoes_painel.nome` era o título público do cartão (se `titulo_visivel`) e ia ao `aria-label` | vazava | `index.html`, `blocos.html`, `cartoes.py` | 1–4, 10 |
-| 3 modos de apresentação | inexistentes | todo | `exibicao.py`, templates | 1–3, 6, 10 |
-| Regra única nos componentes | 3 componentes, 3 regras | divergência | `chamada.html`, `index.html`, `noticias.html`, `blocos.html` | 10 |
-| Destino validado | 3 colunas, sem validação forte; sem esquema virava `http://`; destino removido dava 404 | sim | `exibicao.py`, `conteudos.py` | 7–9 |
-| Aba Cartões fora do menu | já feito | nenhuma | — | menu |
-| Editor em áreas | campos soltos | reorganizar | `admin_conteudo_editor.html` | manual |
-
-### Mapeamento de campos e migração
-Só acrescenta colunas; nada é apagado ou sobrescrito. Antes, o banco é copiado para `dados.db.pre-exibicao-v1`.
-| Conceito | Cartão | Notícia | Comunicado |
-|---|---|---|---|
-| nome administrativo | `cartoes_painel.nome` (já existia) | `noticias.nome_admin` (novo) | `lateral.nome_admin` (novo) |
-| título público | `cartao_conteudo.titulo_publico` (novo) | `noticias.titulo` (título editorial) | `lateral.titulo` |
-| texto de apoio | `texto_apoio` (novo) | `resumo` (ou `subtitulo`) | `lateral.conteudo` |
-| exibir título / texto | `exibir_titulo`, `exibir_texto_apoio` | idem (padrão 1/0) | idem (padrão 1/1) |
-| imagem / alt | `imagem`, `alt_imagem` (novos) | `capa`, `capa_alt` | `imagem`, `alt_imagem` (novo) |
-| destino | `destino_tipo`, `url`, `nova_aba` | `destino_tipo`, `destino_url`, `nova_aba` | `destino_tipo`, `url`, `nova_aba` |
-
-Itens antigos: `destino_tipo=''` e `nova_aba=-1` significam "regra antiga" (tipo inferido do endereço; externo em nova aba, interno na mesma). Uma única vez (`config.exibicao_v1`), o nome que o visitante já via nos cartões é **copiado** para `titulo_publico` e `titulo_visivel` vira `exibir_titulo`; assim nada muda para o visitante. `titulo_visivel` continua sendo gravado, o que mantém a volta à versão anterior coerente.
-
-### Regras implementadas (`modulos/exibicao.py`)
-- Título vazio ou desligado = nenhum título; sem fallback para nome interno, chave, slug ou arquivo. Nome acessível do link = título público ou texto alternativo.
-- “Somente imagem” exige imagem e texto alternativo; não exige título.
-- Destino: página do portal, notícia ou externo (**apenas http/https**). Interno é conferido contra as rotas reais e notícias publicadas; `/admin` é recusado. Destino que sumiu vira "sem link" (o painel avisa "destino indisponível"). Nova aba leva `rel="noopener noreferrer"`. O endereço não é exibido ao visitante. Tudo validado no servidor, antes de mexer em arquivos.
-- Mudança de comportamento: endereço sem esquema (ex.: `exemplo.com`) agora é recusado em vez de virar `http://`; link interno de comunicado abre na mesma aba.
-
-### Arquivos alterados
-`app.py` (colunas, migração, backup, versão), `modulos/exibicao.py` (novo), `modulos/conteudos.py`, `modulos/cartoes.py`, `modulos/midia.py`, `modulos/__init__.py`, `templates/chamada.html` (novo), `index.html`, `noticias.html`, `blocos.html`, `admin_conteudo_editor.html`, `admin_conteudo_previa.html`, `admin_conteudos.html`, `static/destino-editor.js` (novo), `static/limpo.css`, `tests/*`.
-
-### Testes executados (resultados reais)
-- `python3 -I tests/verificacoes_portal.py`: 225 verificações, todas passaram (suíte anterior; 8 asserções atualizadas ao novo contrato).
-- `python3 -I tests/verificacoes_exibicao.py`: 81 verificações, todas passaram (modos, sem vazamento do nome interno, busca, destinos válidos/inválidos/removidos, migração, CSRF/login, sanitização, prévia, duplicar).
-- `python3 -I tests/migracao_antes_depois.py <versão-anterior>`: 49 verificações. Banco criado pela versão anterior aberto pela nova: nenhuma linha perdida, nenhum valor alterado, cópia pré-migração idêntica.
-- `python3 -m unittest discover -s tests`: passa.
-- Chromium (desktop 1366 e celular 390): página inicial nos três modos, listagem de notícias, matéria, lista de Conteúdos, editor; sem rolagem horizontal; erro de salvamento mostra mensagem e mantém o que foi digitado. Capturas em `docs/capturas/`.
-- **Não executado:** axe-core/leitor de tela, Firefox/Safari, celular físico, restauração de backup em outra máquina.
-
-### Limitações e decisões pendentes
-1. O título editorial da notícia é o título público da chamada (não há `titulo_publico` separado nelas).
-2. Cabeçalhos dos cartões-contêiner (Sistemas, Atalhos, Ramais, Últimas notícias, Comunicados) continuam sendo títulos de seção editáveis pelo administrador; só os itens/chamadas seguem os modos.
-3. No cartão de texto e imagem, o texto formatado (área 6) é conteúdo e sempre aparece.
-4. Crédito da imagem não foi implementado (legenda existe só em notícia). Troca de tipo de conteúdo (cartão↔notícia) no editor não foi implementada.
-5. Arquivos soltos na raiz e scripts sem uso seguem aguardando sua confirmação para remoção.
-6. Em telas estreitas, a vitrine em grade na lateral com 3 colunas fica apertada; use 1–2 colunas.
-
-### Backup, implantação e rollback
-1. Backup em Administração → Backup (guardar fora da pasta). 2. Copiar a pasta do portal. 3. Extrair o zip por cima e `./atualizar.sh`. 4. Na primeira subida surge `dados.db.pre-exibicao-v1`.
-Rollback: parar o serviço, restaurar os arquivos da cópia e, se desejar, `dados.db.pre-exibicao-v1` → `dados.db`. Mesmo sem restaurar o banco, a versão anterior roda: colunas novas são ignoradas.
+## 1.9.23 — Nomes dos cartões ocultos no portal
+- O nome do cartão (conteúdo) serve só para o administrador gerenciar; no portal público não aparece mais por padrão.
+- Cartões novos nascem com "Mostrar o nome do cartão" desmarcado. Para ter título, escreva-o dentro do conteúdo.
+- Migração única (`titulos_ocultos_v1`) esconde o nome dos cartões já existentes. Em modo de edição o admin continua vendo o nome.

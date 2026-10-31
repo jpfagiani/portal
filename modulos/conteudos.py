@@ -20,7 +20,7 @@ from flask import abort, flash, jsonify, redirect, render_template, request, ses
 from markupsafe import Markup
 
 import app as nucleo
-from . import auditoria, cartoes as mc, exibicao as ex, midia, noticias as mn
+from . import auditoria, cartoes as mc, midia, noticias as mn
 
 app = nucleo.app
 
@@ -61,51 +61,28 @@ def _casa(valor, q):
 
 # ── listagem ──────────────────────────────────────────────────────────────────
 
-def _destino_estado(tipo, url, nova, padrao=''):
-    """Resumo do destino para a listagem: 'quebrado' se aponta para algo que não existe mais."""
-    return ex.resolve(tipo, url, nova, padrao=padrao)['quebrado']
-
-
 def _linhas():
-    """Todas as linhas de gerenciamento. O NOME ADMINISTRATIVO é o rótulo principal aqui — é para isso
-    que ele existe; o que o visitante vê (título público) aparece à parte, na linha de apoio."""
     con = nucleo.db()
     saida = []
     for r in con.execute(
-            "SELECT p.chave,p.nome,p.ativo,k.* FROM cartoes_painel p"
+            "SELECT p.chave,p.nome,p.ativo,k.html FROM cartoes_painel p"
             " JOIN cartao_conteudo k ON k.chave=p.chave WHERE p.tipo='conteudo' ORDER BY p.ordem,p.id"):
-        modo = ex.modo_das_flags(r['exibir_titulo'], r['exibir_texto_apoio'])
-        publico = (r['titulo_publico'] or '').strip()
-        saida.append(dict(tipo='cartao', id=r['chave'], titulo=r['nome'],
-                          extra=' · '.join(x for x in (ex.MODOS[modo], ('Título público: ' + publico) if publico else '',
-                                                       _texto_curto(r['html'], 60)) if x),
-                          busca=' '.join((publico, r['texto_apoio'] or '', nucleo.so_texto(r['html'] or ''))),
+        saida.append(dict(tipo='cartao', id=r['chave'], titulo=r['nome'], extra=_texto_curto(r['html']),
                           situacao='visivel' if r['ativo'] else 'oculto', atualizado='', ordem=0,
-                          onde='Página inicial', quebrado=_destino_estado(r['destino_tipo'], r['url'], r['nova_aba'])))
+                          onde='Página inicial'))
     nomes = {c['chave']: c['nome'] for c in nucleo.cartoes_do_painel()}
     for r in con.execute('SELECT * FROM lateral WHERE cartao<>\'\' ORDER BY cartao, ordem, id'):
-        modo = ex.modo_das_flags(r['exibir_titulo'], r['exibir_texto_apoio'])
-        publico = (r['titulo'] or '').strip()
-        saida.append(dict(tipo='comunicado', id=r['id'],
-                          titulo=r['nome_admin'] or publico or _texto_curto(r['conteudo'], 60) or '(sem nome)',
-                          extra=' · '.join(x for x in (ex.MODOS[modo], ('Título público: ' + publico) if publico and r['nome_admin'] else '',
-                                                       _texto_curto(r['conteudo'], 60)) if x),
-                          busca=' '.join((publico, r['conteudo'] or '')),
-                          situacao='visivel' if r['ativo'] else 'oculto',
+        saida.append(dict(tipo='comunicado', id=r['id'], titulo=r['titulo'] or _texto_curto(r['conteudo'], 60) or '(sem título)',
+                          extra=_texto_curto(r['conteudo']), situacao='visivel' if r['ativo'] else 'oculto',
                           atualizado='', ordem=r['ordem'], onde=nomes.get(r['cartao'], r['cartao']),
-                          cartao=r['cartao'], quebrado=_destino_estado(r['destino_tipo'], r['url'], r['nova_aba'])))
+                          cartao=r['cartao']))
     for n in con.execute(f'SELECT * FROM noticias ORDER BY {mn.ORDEM}'):
         s = mn.situacao(n)
         chave = {'Publicada': 'publicado', 'Agendada': 'agendado', 'Rascunho': 'rascunho',
                  'Arquivado': 'arquivado'}.get(s, n['estado'])
-        modo = ex.modo_das_flags(n['exibir_titulo'], n['exibir_texto_apoio'])
-        saida.append(dict(tipo='noticia', id=n['id'], titulo=n['nome_admin'] or n['titulo'],
-                          extra=' · '.join(x for x in (n['categoria'] or '', ex.MODOS[modo],
-                                                       ('Título: ' + n['titulo']) if n['nome_admin'] else '') if x),
-                          busca=' '.join((n['titulo'], n['resumo'] or '', n['subtitulo'] or '', n['categoria'] or '')),
+        saida.append(dict(tipo='noticia', id=n['id'], titulo=n['titulo'], extra=n['categoria'] or '',
                           situacao=chave, atualizado=(n['atualizado_em'] or '')[:16], ordem=n['ordem'],
-                          onde='Últimas notícias', destaque=bool(n['destaque']), slug=n['slug'],
-                          quebrado=_destino_estado(n['destino_tipo'], n['destino_url'], n['nova_aba'], '/noticias/' + n['slug'])))
+                          onde='Últimas notícias', destaque=bool(n['destaque']), slug=n['slug']))
     return saida
 
 
@@ -165,7 +142,7 @@ def conteudos():
     linhas = [l for l in _linhas()
               if (not tipo or l['tipo'] == tipo) and (not sit or l['situacao'] == sit)
               and (not cartao or l.get('cartao') == cartao)
-              and (not q or _casa(l['titulo'], q) or _casa(l['extra'], q) or _casa(l.get('busca'), q))]
+              and (not q or _casa(l['titulo'], q) or _casa(l['extra'], q))]
     for l in linhas:
         l['rotulo_tipo'] = TIPOS[l['tipo']]
         l['rotulo_situacao'] = SITUACOES.get(l['situacao'], l['situacao'])
@@ -181,66 +158,41 @@ def conteudos():
 
 # ── leitura de um conteúdo para o editor ──────────────────────────────────────
 
-def _destino_form(tipo, url, nova, padrao_externo_nova=True):
-    """Valores do bloco "Destino do clique" para o formulário, inclusive de registros antigos
-    (destino_tipo vazio): o tipo sai do endereço e a nova aba segue a regra de sempre."""
-    tipo, url = (tipo or ''), (url or '')
-    if not tipo:
-        tipo = 'padrao' if not url else ('interno' if url.startswith('/') else 'externo')
-        if tipo == 'interno' and url.startswith('/noticias/'):
-            tipo = 'noticia'
-    if nova is None or nova == -1:
-        nova = tipo == 'externo' and padrao_externo_nova
-    return dict(destino_tipo=tipo, destino_valor=url, nova_aba=bool(nova))
-
-
 def _obter(tipo, ident):
     """Dicionário com os valores do formulário, ou None se não existir."""
     con = nucleo.db()
     if tipo == 'cartao':
-        r = con.execute("SELECT p.chave,p.nome,k.* FROM cartoes_painel p"
+        r = con.execute("SELECT p.chave,p.nome,k.html,k.titulo_visivel,k.url FROM cartoes_painel p"
                         " JOIN cartao_conteudo k ON k.chave=p.chave WHERE p.chave=? AND p.tipo='conteudo'",
                         (ident,)).fetchone()
         if not r:
             return None
-        return dict(id=r['chave'], nome_admin=r['nome'], titulo_publico=r['titulo_publico'], texto_apoio=r['texto_apoio'],
-                    corpo=nucleo.limpa_html(r['html']), imagem=r['imagem'], alt=r['alt_imagem'],
-                    modo=ex.modo_das_flags(r['exibir_titulo'], r['exibir_texto_apoio']),
-                    **_destino_form(r['destino_tipo'], r['url'], r['nova_aba']))
+        return dict(id=r['chave'], titulo=r['nome'], corpo=nucleo.limpa_html(r['html']),
+                    titulo_visivel=bool(r['titulo_visivel']), url=r['url'] or '')
     if tipo == 'noticia':
         r = con.execute('SELECT * FROM noticias WHERE id=?', (nucleo._int(ident),)).fetchone()
         if not r:
             return None
         d = dict(r)
         d['corpo'] = nucleo.limpa_html(d['corpo'])
+        d['url'] = d['destino_url']
         d['publicar_em_campo'] = mn._para_campo(d['publicar_em'])
         d['situacao'] = mn.situacao(r)
-        d['modo'] = ex.modo_das_flags(r['exibir_titulo'], r['exibir_texto_apoio'])
-        d['alt'] = r['capa_alt']
-        d['imagem'] = r['capa']
-        d.update(_destino_form(r['destino_tipo'], r['destino_url'], r['nova_aba']))
         return d
     if tipo == 'comunicado':
         r = con.execute('SELECT * FROM lateral WHERE id=?', (nucleo._int(ident),)).fetchone()
-        if not r:
-            return None
-        d = dict(r)
-        d['modo'] = ex.modo_das_flags(r['exibir_titulo'], r['exibir_texto_apoio'])
-        d['alt'] = r['alt_imagem']
-        d.update(_destino_form(r['destino_tipo'], r['url'], r['nova_aba']))
-        return d
+        return dict(r) if r else None
     return None
 
 
 def _valores_novos(tipo):
-    base = dict(id='', nome_admin='', modo='imagem_titulo', alt='', destino_tipo='padrao', destino_valor='', nova_aba=False)
     if tipo == 'cartao':
-        return dict(base, titulo_publico='', texto_apoio='', corpo='', imagem='')
+        return dict(id='', titulo='', corpo='', titulo_visivel=False, url='')
     if tipo == 'noticia':
-        return dict(base, titulo='', subtitulo='', resumo='', corpo='', capa='', imagem='', capa_alt='', legenda='',
-                    categoria='', estado='rascunho', publicar_em_campo='', destaque=0, meta='',
+        return dict(id='', titulo='', subtitulo='', resumo='', corpo='', capa='', capa_alt='', legenda='',
+                    categoria='', estado='rascunho', publicar_em_campo='', destaque=0, url='', meta='',
                     slug='', titulo_fonte='', titulo_cor='', titulo_tam='', situacao='Rascunho')
-    return dict(base, modo='imagem_titulo_texto', titulo='', conteudo='', url='', url_rot='', imagem='', video='', img_pos='topo',
+    return dict(id='', titulo='', conteudo='', url='', url_rot='', imagem='', video='', img_pos='topo',
                 urgencia='informacao', destaque='nenhum', data='', titulo_cor='', texto_cor='', fundo_cor='',
                 titulo_tam='', texto_tam='', tipo='aviso', ativo=1)
 
@@ -268,7 +220,6 @@ def conteudos_editor(tipo, ident):
         cartao_chave=cartao_chave, volta=_volta(),
         estados=mn.ESTADOS, categorias=mn.categorias(), fontes=nucleo.FONTES_TEXTO,
         destinos_links=nucleo.destinos_de_links(), destaques=nucleo.DESTAQUES_COMUNICADO,
-        destinos_paginas=ex.destinos_paginas(), destinos_noticias=ex.destinos_noticias(),
         img_pos=nucleo.CARTAO_IMG_POS, paleta=nucleo.PALETA,
         cartoes_itens=[c for c in nucleo.cartoes_do_painel() if c['tipo'] == 'itens'])
 
@@ -279,49 +230,22 @@ class Invalido(Exception):
     pass
 
 
-def _destino(f):
-    """Destino do clique validado no servidor (a validação do navegador não vale como proteção)."""
-    try:
-        return ex.le_destino(f)
-    except ex.DestinoInvalido as e:
-        raise Invalido(str(e))
-
-
-def _apresentacao(f, padrao, tem_imagem, alt):
-    """Modo de apresentação pública e o par de flags que ele grava."""
-    modo = ex.modo_do_form(f, padrao)
-    try:
-        ex.confere_modo(modo, tem_imagem, alt)
-    except ex.DestinoInvalido as e:
-        raise Invalido(str(e))
-    return (modo,) + ex.flags_do_modo(modo)
-
-
 def _salva_cartao(f, ident):
     con = nucleo.db()
-    nome = f.get('nome_admin', '').strip()[:80]
-    if not nome:
-        raise Invalido('Informe o nome interno do cartão (só aparece aqui no painel, nunca no portal).')
+    nome = f.get('titulo', '').strip()[:80]
     html = nucleo.limpa_html(f.get('corpo', ''))
-    titulo_pub = f.get('titulo_publico', '').strip()[:200]
-    apoio = f.get('texto_apoio', '').strip()[:600]
-    atual = con.execute('SELECT imagem FROM cartao_conteudo WHERE chave=?', (ident,)).fetchone() if ident else None
-    if ident and not con.execute("SELECT 1 FROM cartoes_painel WHERE chave=? AND tipo='conteudo'", (ident,)).fetchone():
-        raise Invalido('Cartão não encontrado.')
-    imagem = _capa_noticia(f, atual['imagem'] if atual else '')
-    alt = f.get('alt_imagem', '').strip()[:300]
-    modo, exibir_t, exibir_x = _apresentacao(f, 'imagem_titulo', bool(imagem) or '<img' in html,
-                                             alt if imagem else 'ok')
-    d_tipo, d_url, nova = _destino(f)
-    # titulo_visivel acompanha exibir_titulo: quem voltar à versão anterior continua com o cartão coerente.
-    colunas = ('html,titulo_visivel,url,titulo_publico,texto_apoio,exibir_titulo,exibir_texto_apoio,'
-               'imagem,alt_imagem,destino_tipo,nova_aba').split(',')
-    valores = (html, exibir_t, d_url, titulo_pub, apoio, exibir_t, exibir_x, imagem, alt, d_tipo, nova)
+    visivel = 1 if f.get('titulo_visivel') else 0
+    url = nucleo.endereco_seguro(f.get('url', ''))
+    if not nome and not nucleo.so_texto(html) and '<img' not in html:
+        raise Invalido('Escreva um texto, escolha uma imagem ou dê um nome ao cartão.')
+    nome = nome or 'Novo cartão'
     if ident:
+        if not con.execute("SELECT 1 FROM cartoes_painel WHERE chave=? AND tipo='conteudo'", (ident,)).fetchone():
+            raise Invalido('Cartão não encontrado.')
         con.execute('UPDATE cartoes_painel SET nome=? WHERE chave=?', (nome, ident))
-        con.execute('INSERT INTO cartao_conteudo (chave,' + ','.join(colunas) + ') VALUES (' + ','.join('?' * 12) + ')'
-                    ' ON CONFLICT(chave) DO UPDATE SET ' + ','.join(f'{c}=excluded.{c}' for c in colunas),
-                    (ident,) + valores)
+        con.execute('INSERT INTO cartao_conteudo (chave,html,titulo_visivel,url) VALUES (?,?,?,?) '
+                    'ON CONFLICT(chave) DO UPDATE SET html=excluded.html, titulo_visivel=excluded.titulo_visivel,'
+                    ' url=excluded.url', (ident, html, visivel, url))
         chave = ident
     else:
         chave = 'conteudo-' + secrets.token_hex(4)
@@ -330,8 +254,8 @@ def _salva_cartao(f, ident):
         con.execute("INSERT INTO cartoes_painel (chave,nome,icone,regiao,largura,coluna,ordem,tipo,ativo,gx,gy,gw,gh)"
                     " VALUES (?,?,'prancheta','baixo',1,0,?,'conteudo',1,?,?,?,?)",
                     (chave, nome, ordem, pos['gx'], pos['gy'], pos['gw'], pos['gh']))
-        con.execute('INSERT INTO cartao_conteudo (chave,' + ','.join(colunas) + ') VALUES (' + ','.join('?' * 12) + ')',
-                    (chave,) + valores)
+        con.execute('INSERT INTO cartao_conteudo (chave,html,titulo_visivel,url) VALUES (?,?,?,?)',
+                    (chave, html, visivel, url))
     con.commit()
     return chave
 
@@ -371,14 +295,11 @@ def _salva_noticia(f, ident):
     if estado == 'publicado' and not publicar_em:
         publicar_em = _agora()
     capa = _capa_noticia(f, atual['capa'] if atual else '')
-    capa_alt = f.get('capa_alt', '').strip()[:300]
-    modo, exibir_t, exibir_x = _apresentacao(f, 'imagem_titulo', bool(capa), capa_alt)
-    d_tipo, d_url, nova = _destino(f)
     slug = mn._slug_livre(con, mn.slugify(f.get('slug') or titulo), ident or 0)
     dados = (slug, titulo, f.get('subtitulo', '').strip()[:300], f.get('resumo', '').strip()[:600],
-             nucleo.limpa_html(f.get('corpo', '')), capa, capa_alt,
+             nucleo.limpa_html(f.get('corpo', '')), capa, f.get('capa_alt', '').strip()[:300],
              f.get('legenda', '').strip()[:300], f.get('categoria', '').strip()[:60], estado, publicar_em,
-             1 if f.get('em_destaque') else 0, d_url,
+             1 if f.get('em_destaque') else 0, nucleo.endereco_seguro(f.get('url', '')),
              f.get('meta', '').strip()[:300]) + mn._titulo_do_form(f)
     if atual:
         if dados[11] and not atual['destaque']:
@@ -394,8 +315,6 @@ def _salva_noticia(f, ident):
             "publicar_em,destaque,destino_url,meta,titulo_fonte,titulo_cor,titulo_tam,autor,ordem)"
             " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             dados + (session.get('nome') or session.get('user', ''), mn._topo(con))).lastrowid
-    con.execute('UPDATE noticias SET nome_admin=?, exibir_titulo=?, exibir_texto_apoio=?, destino_tipo=?, nova_aba=? WHERE id=?',
-                (f.get('nome_admin', '').strip()[:120], exibir_t, exibir_x, d_tipo, nova, novo))
     con.commit()
     return novo
 
@@ -411,17 +330,6 @@ def _salva_comunicado(f, ident):
         raise Invalido('Escolha o cartão onde o comunicado aparece.')
     ant_img = atuais['imagem'] if atuais else ''
     ant_vid = atuais['video'] if atuais else ''
-    # Tudo o que pode recusar o salvamento é conferido ANTES de mexer em arquivos: um erro de
-    # validação não pode apagar a imagem anterior nem deixar um envio órfão.
-    d_tipo, d_url, nova = _destino(f)
-    arq_img, arq_vid = request.files.get('imagem'), request.files.get('video')
-    tem_img = bool(arq_img and arq_img.filename) or bool(ant_img and not f.get('remover_imagem'))
-    tem_vid = bool(arq_vid and arq_vid.filename) or bool(ant_vid and not f.get('remover_video'))
-    alt = f.get('alt_imagem', '').strip()[:300]
-    modo, exibir_t, exibir_x = _apresentacao(f, 'imagem_titulo_texto', tem_img, alt)
-    texto = f.get('texto', '').strip('\r\n').rstrip()
-    if not (f.get('titulo', '').strip() or texto or d_url or tem_img or tem_vid):
-        raise Invalido('Preencha ao menos um destes: título, texto, destino, imagem ou vídeo.')
     try:
         imagem = nucleo.salva_upload('imagem', ant_img)
         video = nucleo.salva_upload('video', ant_vid, nucleo.VIDEO_EXTS)
@@ -441,8 +349,9 @@ def _salva_comunicado(f, ident):
 
     def medida(campo):
         return nucleo.medida(f.get(campo), '', 0.6, 2.0) if f.get(campo, '').strip() else ''
+    texto = f.get('texto', '').strip('\r\n').rstrip()
     dados = (atuais['tipo'] if atuais else 'aviso', f.get('titulo', '').strip(), texto,
-             d_url,
+             nucleo.endereco_seguro(f.get('url', '')),
              1 if f.get('ativo') else 0,
              urg if urg in ('urgente', 'comunicado', 'informacao') else 'informacao',
              dest if dest in nucleo.DESTAQUES_COMUNICADO else 'nenhum',
@@ -450,11 +359,11 @@ def _salva_comunicado(f, ident):
              medida('texto_tam'), nucleo.cor_hexa(f.get('texto_cor'), ''),
              nucleo.cor_hexa(f.get('fundo_cor'), ''), f.get('data', '').strip(), imagem, video,
              f.get('url_rot', '').strip(),
-             f.get('img_pos') if f.get('img_pos') in nucleo.CARTAO_IMG_POS else 'topo',
-             f.get('nome_admin', '').strip()[:120], exibir_t, exibir_x, alt, d_tipo, nova)
+             f.get('img_pos') if f.get('img_pos') in nucleo.CARTAO_IMG_POS else 'topo')
+    if not (dados[1] or dados[2] or dados[3] or imagem or video):
+        raise Invalido('Preencha ao menos um destes: título, texto, link, imagem ou vídeo.')
     campos = ('tipo,titulo,conteudo,url,ativo,urgencia,destaque,titulo_tam,titulo_cor,texto_tam,texto_cor,'
-              'fundo_cor,data,imagem,video,url_rot,img_pos,nome_admin,exibir_titulo,exibir_texto_apoio,'
-              'alt_imagem,destino_tipo,nova_aba').split(',')
+              'fundo_cor,data,imagem,video,url_rot,img_pos').split(',')
     if atuais:
         con.execute('UPDATE lateral SET ' + ','.join(k + '=?' for k in campos) + ' WHERE id=?', dados + (ident,))
         novo = ident
@@ -480,7 +389,7 @@ def conteudos_salvar():
         ident = nucleo._int(ident)
     try:
         novo = SALVAR[tipo](request.form, ident)
-    except (Invalido, ex.DestinoInvalido) as e:
+    except Invalido as e:
         return _erro(str(e))
     acao = request.form.get('acao', 'salvar')
     msg = {'publicar': 'Publicada.', 'rascunho': 'Rascunho salvo.'}.get(acao, 'Salvo.')
@@ -498,71 +407,48 @@ def conteudos_previa():
         return _erro('Tipo de conteúdo desconhecido.')
     f = request.form
     ident = f.get('id', '')
-    con = nucleo.db()
-    corpo = Markup(nucleo.agrupa_figuras(nucleo.limpa_html(f.get('corpo', ''))))
-
-    def imagem_atual(sql, chave, coluna):
-        """Imagem que o item terá: a gravada, a escolhida na biblioteca, nenhuma, ou 'pendente' (envio novo)."""
-        img = ''
+    contexto = dict(tipo=tipo, titulo=f.get('titulo', '').strip(), corpo=Markup(nucleo.agrupa_figuras(nucleo.limpa_html(f.get('corpo', '')))))
+    if tipo == 'cartao':
+        contexto.update(titulo_visivel=bool(f.get('titulo_visivel')))
+    elif tipo == 'noticia':
+        capa = ''
         if ident:
-            r = con.execute(sql, (chave,)).fetchone()
-            img = r[coluna] if r else ''
+            r = nucleo.db().execute('SELECT capa FROM noticias WHERE id=?', (nucleo._int(ident),)).fetchone()
+            capa = r['capa'] if r else ''
         escolhida = os.path.basename(f.get('imagem_biblioteca', '') or '')
         if escolhida and midia.registrada(escolhida):
-            img = escolhida
+            capa = escolhida
         if f.get('remover_imagem'):
-            img = ''
-        if f.get('imagem_nova') and not img:
-            img = 'pendente'
-        return img
-
-    def destino():
-        try:
-            t, u, n = ex.le_destino(f)
-        except ex.DestinoInvalido:
-            return None            # a prévia não reclama; o erro sai ao salvar
-        return t, u, n
-
-    if tipo in ('cartao', 'noticia'):
-        modo = ex.modo_do_form(f, 'imagem_titulo')
-        et, ex_ = ex.flags_do_modo(modo)
-        d = destino()
-        padrao = ''
-        if tipo == 'cartao':
-            img = imagem_atual('SELECT imagem FROM cartao_conteudo WHERE chave=?', ident, 'imagem')
-            it = ex.monta(exibir_titulo=et, titulo=f.get('titulo_publico', ''), exibir_texto=ex_, texto=f.get('texto_apoio', ''),
-                          imagem=img, alt=f.get('alt_imagem', ''),
-                          destino=ex.resolve(*d) if d else None, html=corpo)
-            return jsonify(ok=True, html=render_template('admin_conteudo_previa.html', tipo=tipo, it=it))
-        img = imagem_atual('SELECT capa FROM noticias WHERE id=?', nucleo._int(ident), 'capa')
-        it = ex.monta(exibir_titulo=et, titulo=f.get('titulo', '').strip(), exibir_texto=ex_,
-                      texto=f.get('resumo', '') or f.get('subtitulo', ''), imagem=img, alt=f.get('capa_alt', ''),
-                      destino=ex.resolve(*d) if d else None)
-        estilo = mn.estilo_titulo(dict(zip(('titulo_fonte', 'titulo_cor', 'titulo_tam'), mn._titulo_do_form(f))))
-        return jsonify(ok=True, html=render_template(
-            'admin_conteudo_previa.html', tipo=tipo, it=it, titulo=f.get('titulo', '').strip(), corpo=corpo,
-            subtitulo=f.get('subtitulo', ''), resumo=f.get('resumo', ''), capa=img, legenda=f.get('legenda', ''),
-            capa_alt=f.get('capa_alt', ''), categoria=f.get('categoria', ''), estilo=estilo))
-
-    modo = ex.modo_do_form(f, 'imagem_titulo_texto')
-    et, ex_ = ex.flags_do_modo(modo)
-    d = destino() or ('padrao', '', 0)
-    item = dict(titulo=f.get('titulo', '').strip(), conteudo=f.get('texto', ''),
-                url=d[1], destino_tipo=d[0], nova_aba=d[2], url_rot=f.get('url_rot', ''),
-                exibir_titulo=et, exibir_texto_apoio=ex_, alt_imagem=f.get('alt_imagem', ''),
-                urgencia=f.get('urgencia', 'informacao'), destaque=f.get('destaque', 'nenhum'),
-                data=f.get('data', ''), img_pos=f.get('img_pos', 'topo'), tipo='aviso', id=0,
-                imagem='', video='', titulo_tam='', titulo_cor=nucleo.cor_hexa(f.get('titulo_cor'), ''),
-                texto_tam='', texto_cor=nucleo.cor_hexa(f.get('texto_cor'), ''),
-                fundo_cor=nucleo.cor_hexa(f.get('fundo_cor'), ''), img_larg=0, img_x=0)
-    if ident:
-        r = con.execute('SELECT video FROM lateral WHERE id=?', (nucleo._int(ident),)).fetchone()
-        if r:
-            item['video'] = r['video']
-    item['imagem'] = imagem_atual('SELECT imagem FROM lateral WHERE id=?', nucleo._int(ident), 'imagem')
-    if f.get('remover_video'):
-        item['video'] = ''
-    return jsonify(ok=True, html=render_template('admin_conteudo_previa.html', tipo=tipo, item=item))
+            capa = ''
+        if f.get('imagem_nova') and not capa:
+            capa = 'pendente'
+        contexto.update(subtitulo=f.get('subtitulo', ''), resumo=f.get('resumo', ''), capa=capa,
+                        legenda=f.get('legenda', ''), capa_alt=f.get('capa_alt', ''),
+                        categoria=f.get('categoria', ''), estilo=mn.estilo_titulo(
+                            dict(zip(('titulo_fonte', 'titulo_cor', 'titulo_tam'), mn._titulo_do_form(f)))))
+    else:
+        item = dict(titulo=f.get('titulo', '').strip(), conteudo=f.get('texto', ''),
+                    url=nucleo.endereco_seguro(f.get('url', '')), url_rot=f.get('url_rot', ''),
+                    urgencia=f.get('urgencia', 'informacao'), destaque=f.get('destaque', 'nenhum'),
+                    data=f.get('data', ''), img_pos=f.get('img_pos', 'topo'), tipo='aviso', id=0,
+                    imagem='', video='', titulo_tam='', titulo_cor=nucleo.cor_hexa(f.get('titulo_cor'), ''),
+                    texto_tam='', texto_cor=nucleo.cor_hexa(f.get('texto_cor'), ''),
+                    fundo_cor=nucleo.cor_hexa(f.get('fundo_cor'), ''), img_larg=0, img_x=0)
+        if ident:
+            r = nucleo.db().execute('SELECT imagem,video FROM lateral WHERE id=?', (nucleo._int(ident),)).fetchone()
+            if r:
+                item['imagem'], item['video'] = r['imagem'], r['video']
+        escolhida = os.path.basename(f.get('imagem_biblioteca', '') or '')
+        if escolhida and midia.registrada(escolhida):
+            item['imagem'] = escolhida
+        if f.get('remover_imagem'):
+            item['imagem'] = ''
+        if f.get('imagem_nova') and not item['imagem']:
+            item['imagem'] = 'pendente'
+        if f.get('remover_video'):
+            item['video'] = ''
+        contexto['item'] = item
+    return jsonify(ok=True, html=render_template('admin_conteudo_previa.html', **contexto))
 
 
 # ── excluir e duplicar ────────────────────────────────────────────────────────

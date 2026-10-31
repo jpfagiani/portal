@@ -154,13 +154,13 @@ r = c.post('/admin/noticias', data={'acao': 'salvar', 'titulo': 'sem csrf'})
 ok(r.status_code in (400, 403), 'POST sem token CSRF é recusado (%s)' % r.status_code)
 
 # ── cartões de texto e imagem ────────────────────────────────────────────────
-r = c.post('/admin/cartao-conteudo', data={'csrf': tok, 'nome': 'Horário', 'titulo_publico': 'Horário',
+r = c.post('/admin/cartao-conteudo', data={'csrf': tok, 'nome': 'Horário', 'titulo_visivel': 'on',
            'corpo': '<p>Das 8h às 17h</p><script>x()</script>'})
 j = r.get_json() or {}
 ok(j.get('ok'), 'cria cartão de texto e imagem')
 h = anon.get('/').get_data(as_text=True)
 ok('Das 8h às 17h' in h and 'x()' not in h, 'cartão aparece ao público, com HTML limpo')
-r = c.post('/admin/cartao-conteudo', data={'csrf': tok, 'chave': j.get('chave'), 'nome': 'Horário 2', 'titulo_publico': 'Horário 2', 'corpo': '<p>Novo</p>'})
+r = c.post('/admin/cartao-conteudo', data={'csrf': tok, 'chave': j.get('chave'), 'nome': 'Horário 2', 'titulo_visivel': 'on', 'corpo': '<p>Novo</p>'})
 ok(r.get_json().get('ok') and 'Horário 2' in anon.get('/').get_data(as_text=True), 'edita o cartão')
 ok(not c.post('/admin/cartao-conteudo', data={'csrf': tok, 'nome': '', 'corpo': ''}).get_json().get('ok'), 'cartão vazio é recusado')
 ok(anon.post('/admin/cartao-conteudo', data={'nome': 'x', 'corpo': 'y'}).status_code in (302, 400, 401, 403), 'visitante não cria cartão')
@@ -365,11 +365,11 @@ with portal.app.app_context():
 ok('Cartão com foto' in c.get('/admin/midia').get_data(as_text=True), 'mídia mostra o cartão de texto e imagem que usa a imagem')
 
 # cartão de texto e imagem com endereço: o cartão inteiro vira link (só para o visitante)
-r = c.post('/admin/cartao-conteudo', data={'csrf': tok, 'nome': 'Curso EaD', 'titulo_publico': 'Curso EaD',
-           'corpo': '<p>Texto</p>', 'url': 'https://exemplo.gov.br/curso'})
+r = c.post('/admin/cartao-conteudo', data={'csrf': tok, 'nome': 'Curso EaD', 'titulo_visivel': 'on',
+           'corpo': '<p>Texto</p>', 'url': 'exemplo.gov.br/curso'})
 ok(r.get_json()['ok'], 'cartão de texto e imagem com endereço é salvo')
 h = anon.get('/').get_data(as_text=True)
-ok('class="cartao-overlay" href="https://exemplo.gov.br/curso"' in h and 'cartao-clicavel' in h, 'visitante vê o cartão inteiro como link')
+ok('class="cartao-overlay" href="http://exemplo.gov.br/curso"' in h and 'cartao-clicavel' in h, 'visitante vê o cartão inteiro como link')
 ok('cartao-overlay' not in c.get('/editor').get_data(as_text=True), 'no editor o cartão não vira link (clique abre a edição)')
 r = c.post('/admin/cartao-conteudo', data={'csrf': tok, 'nome': 'Sem link', 'corpo': '<p>x</p>', 'url': 'javascript:alert(1)'})
 ok('javascript:' not in anon.get('/').get_data(as_text=True), 'endereço javascript: é descartado no cartão')
@@ -530,7 +530,7 @@ ok(not cont({'tipo': 'noticia', 'titulo': '', 'corpo': 'x'}).get_json().get('ok'
 r = cont({'tipo': 'noticia', 'titulo': 'Com link ruim', 'corpo': '<p>x</p>', 'url': 'javascript:alert(1)'})
 with portal.app.app_context():
     ln = portal.db().execute("SELECT destino_url FROM noticias WHERE titulo='Com link ruim'").fetchone()
-ok(not r.get_json().get('ok') and ln is None, 'endereço perigoso é recusado (nada é salvo)')
+ok(ln and 'javascript' not in ln['destino_url'], 'endereço perigoso é descartado')
 # capa: envio e biblioteca
 r = cont({'tipo': 'noticia', 'titulo': 'Com capa enviada', 'corpo': '<p>x</p>', 'imagem': (io.BytesIO(png()), 'capa.png')})
 with portal.app.app_context():
@@ -544,16 +544,15 @@ ok(cont({'tipo': 'noticia', 'titulo': 'Capa maliciosa', 'corpo': 'x', 'imagem_bi
    and not portal.db is None, 'nome malicioso de biblioteca não derruba o salvamento')
 
 # cartão de texto e imagem
-r = cont({'tipo': 'cartao', 'nome_admin': 'Horário único', 'titulo_publico': 'Horário único', 'corpo': '<p>Das 8h às 17h</p><script>x()</script>',
-          'destino_tipo': 'interno', 'destino_interno': '/noticias'})
+r = cont({'tipo': 'cartao', 'titulo': 'Horário único', 'titulo_visivel': 'on', 'corpo': '<p>Das 8h às 17h</p><script>x()</script>', 'url': '/noticias'})
 j = r.get_json(); ck = j.get('id')
 ok(j.get('ok') and str(ck).startswith('conteudo-'), 'cria cartão pelo editor único')
 h = anon.get('/').get_data(as_text=True)
 ok('Das 8h às 17h' in h and 'x()' not in h and 'Horário único' in h, 'cartão aparece ao público, limpo')
 ok('id="form-conteudo-ed"' in c.get('/admin/conteudos/cartao/' + ck).get_data(as_text=True), 'cartão abre no mesmo editor')
-ok(cont({'tipo': 'cartao', 'id': ck, 'nome_admin': 'Horário 3', 'titulo_publico': 'Horário 3', 'corpo': '<p>Novo</p>'}).get_json().get('ok') and 'Horário 3' in anon.get('/').get_data(as_text=True), 'edita o cartão')
-ok(not cont({'tipo': 'cartao', 'id': 'conteudo-naoexiste', 'nome_admin': 'x', 'corpo': '<p>y</p>'}).get_json().get('ok'), 'não edita cartão de outro tipo/inexistente')
-ok(not cont({'tipo': 'cartao', 'id': 'ramais', 'nome_admin': 'x', 'corpo': '<p>y</p>'}).get_json().get('ok'), 'não edita cartão fixo pelo editor de texto')
+ok(cont({'tipo': 'cartao', 'id': ck, 'titulo': 'Horário 3', 'titulo_visivel': 'on', 'corpo': '<p>Novo</p>'}).get_json().get('ok') and 'Horário 3' in anon.get('/').get_data(as_text=True), 'edita o cartão')
+ok(not cont({'tipo': 'cartao', 'id': 'conteudo-naoexiste', 'titulo': 'x', 'corpo': '<p>y</p>'}).get_json().get('ok'), 'não edita cartão de outro tipo/inexistente')
+ok(not cont({'tipo': 'cartao', 'id': 'ramais', 'titulo': 'x', 'corpo': '<p>y</p>'}).get_json().get('ok'), 'não edita cartão fixo pelo editor de texto')
 
 # comunicado
 with portal.app.app_context():
@@ -587,7 +586,7 @@ ok('Matéria ção única' in c.get('/admin/conteudos?situacao=agendado').get_da
 # pré-visualização não grava
 with portal.app.app_context():
     antes = portal.db().execute('SELECT (SELECT COUNT(*) FROM noticias)+(SELECT COUNT(*) FROM lateral)+(SELECT COUNT(*) FROM cartoes_painel)').fetchone()[0]
-for t, extra in (('noticia', {'subtitulo': 'Sub'}), ('cartao', {'nome_admin': 'Interno prévia', 'titulo_publico': 'Prévia cartao'}), ('comunicado', {'texto': 'abc'})):
+for t, extra in (('noticia', {'subtitulo': 'Sub'}), ('cartao', {'titulo_visivel': 'on'}), ('comunicado', {'texto': 'abc'})):
     r = c.post('/admin/conteudos/previa', data=dict({'csrf': tok, 'tipo': t, 'titulo': 'Prévia ' + t, 'corpo': '<p>corpo<script>x()</script></p>'}, **extra))
     ok(r.get_json().get('ok') and 'Prévia ' + t in r.get_json()['html'] and '<script' not in r.get_json()['html'], 'prévia de %s' % t)
 with portal.app.app_context():

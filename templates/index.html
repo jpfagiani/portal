@@ -1,7 +1,6 @@
 {% extends 'shell.html' %}
 {% import 'blocos.html' as b with context %}
 {% import 'rico.html' as r with context %}
-{% import 'chamada.html' as ch with context %}
 {% set pagina = 'inicio' %}
 {% block titulo %}Portal{% endblock %}
 
@@ -46,25 +45,20 @@
       <div class="cartao-corpo">{{ b.atalhos(atalhos) }}</div>
     </section>
   {% elif c.tipo == 'conteudo' %}
-    {#  Cartão de texto e imagem. O NOME INTERNO (c.nome) só aparece no modo de edição, para o
-        administrador achar o cartão; o público lê apenas título público e texto de apoio, e só
-        se o modo do cartão mandar (modulos/exibicao.py). #}
-    {% set it = cartao_publico(c.chave) %}
-    <section class="cartao cartao-conteudo{{ ' cartao-clicavel' if it.href and not modo_edicao }}" data-modo="{{ it.modo }}" {{ posicao(c) }}>
-      {#  Com destino, um link transparente cobre o cartão todo; links e imagens com link próprio
-          ficam por cima dele. No editor ele não existe, para o clique continuar abrindo a edição.
-          O nome acessível é o título público ou o texto alternativo da imagem. #}
-      {% if not modo_edicao %}{{ ch.overlay(it) }}{% endif %}
-      {% if modo_edicao %}
-      <div class="cartao-cab cartao-cab-admin">
-        <h2><a class="cab-link cab-editar" href="{{ url_for('conteudos_editor', tipo='cartao', ident=c.chave, volta=url_for('editor')) }}"
-              title="Editar este cartão (nome interno: {{ c.nome }})">{{ c.nome }}</a></h2>
+    {% set url_c = '' if modo_edicao else cartao_url(c.chave) %}
+    <section class="cartao cartao-conteudo{{ ' cartao-clicavel' if url_c }}" {{ posicao(c) }}>
+      {#  Com endereço, um link transparente cobre o cartão todo; links e imagens
+          com link próprio ficam por cima dele. No editor ele não existe, para o
+          clique continuar abrindo a edição. #}
+      {% if url_c %}<a class="cartao-overlay" href="{{ url_c }}"{% if url_c.startswith('http') %} target="_blank" rel="noopener"{% endif %}
+         aria-label="Abrir: {{ c.nome }}"></a>{% endif %}
+      {% if cartao_titulo_visivel(c.chave) or modo_edicao %}
+      <div class="cartao-cab">
+        <h2>{% if modo_edicao %}<a class="cab-link cab-editar" href="{{ url_for('conteudos_editor', tipo='cartao', ident=c.chave, volta=url_for('editor')) }}"
+              title="Editar texto e imagem deste cartão">{{ c.nome }}</a>{% else %}{{ c.nome }}{% endif %}</h2>
       </div>
       {% endif %}
-      {{ ch.imagem(it) }}
-      {% if it.mostrar_titulo %}<div class="cartao-cab"><h2>{{ it.titulo }}</h2></div>{% endif %}
-      {% if it.mostrar_texto %}<p class="chamada-texto cartao-apoio">{{ it.texto }}</p>{% endif %}
-      <div class="cartao-corpo pagina-texto cartao-texto">{{ it.html }}</div>
+      <div class="cartao-corpo pagina-texto cartao-texto">{{ cartao_conteudo(c.chave) }}</div>
     </section>
   {% elif c.tipo == 'noticias' %}
     {% if noticias_recentes or modo_edicao %}
@@ -79,12 +73,11 @@
           (para a própria notícia, para uma página do portal ou para um site, conforme "Ao clicar, abrir"). #}
       <div class="cartao-corpo not-vitrine" style="--col:{{ noticias_vitrine[1] }}">
         {% for n in noticias_recentes %}
-        {% set it = noticia_publico(n) %}
-        {% set tag = 'a' if it.href else 'div' %}
-        <{{ tag }} class="not-chamada" data-modo="{{ it.modo }}"{% if it.href %} href="{{ it.href }}"{{ ch.alvo(it) }}{% if not it.mostrar_titulo %} aria-label="{{ it.rotulo }}"{% endif %}{% endif %}>
-          {{ ch.imagem(it, 'chamada-img') }}
-          {{ ch.textos(it, 'strong', estilo_titulo(n)) }}
-        </{{ tag }}>
+        {% set destino = n.destino_url or url_for('noticia', slug=n.slug) %}
+        <a class="not-chamada" href="{{ destino }}"{% if destino.startswith('http') %} target="_blank" rel="noopener"{% endif %}>
+          {% if n.capa %}<img src="{{ url_for('static', filename='uploads/' ~ n.capa) }}" alt="" loading="lazy">{% endif %}
+          <strong class="ntit" style="{{ estilo_titulo(n) }}">{{ n.titulo }}</strong>
+        </a>
         {% else %}
         <p class="vazio">Nenhuma notícia publicada ainda.</p>
         {% endfor %}
@@ -92,15 +85,12 @@
       {% else %}
       <div class="cartao-corpo not-lista">
         {% for n in noticias_recentes %}
-        {% set it = noticia_publico(n) %}
-        {% set tag = 'a' if it.href else 'div' %}
-        <{{ tag }} class="not-item" data-modo="{{ it.modo }}"{% if it.href %} href="{{ it.href }}"{{ ch.alvo(it) }}{% if not it.mostrar_titulo %} aria-label="{{ it.rotulo }}"{% endif %}{% endif %}>
-          {{ ch.imagem(it, 'chamada-img') }}
-          {% if it.mostrar_titulo or it.mostrar_texto %}
+        {% set destino = n.destino_url or url_for('noticia', slug=n.slug) %}
+        <a class="not-item" href="{{ destino }}"{% if destino.startswith('http') %} target="_blank" rel="noopener"{% endif %}>
+          {% if n.capa %}<img src="{{ url_for('static', filename='uploads/' ~ n.capa) }}" alt="" loading="lazy">{% endif %}
           <span><small>{% if n.categoria %}{{ n.categoria }} · {% endif %}{{ n.publicar_em|data_br }}</small>
-            {{ ch.textos(it, 'strong', estilo_titulo(n)) }}</span>
-          {% endif %}
-        </{{ tag }}>
+            <strong class="ntit" style="{{ estilo_titulo(n) }}">{{ n.titulo }}</strong></span>
+        </a>
         {% else %}
         <p class="vazio">Nenhuma notícia publicada ainda.</p>
         {% endfor %}

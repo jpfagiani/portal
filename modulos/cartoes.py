@@ -11,7 +11,6 @@ from flask import jsonify, request
 from markupsafe import Markup
 
 import app as nucleo
-from . import exibicao as ex
 
 app = nucleo.app
 
@@ -19,7 +18,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS cartao_conteudo (
     chave          TEXT PRIMARY KEY,
     html           TEXT NOT NULL DEFAULT '',
-    titulo_visivel INTEGER NOT NULL DEFAULT 1,
+    titulo_visivel INTEGER NOT NULL DEFAULT 0,
     url            TEXT NOT NULL DEFAULT ''     -- se preenchido, o cartão inteiro é um link
 );
 """
@@ -35,7 +34,7 @@ def conteudo(chave):
 
 def titulo_visivel(chave):
     r = nucleo.db().execute('SELECT titulo_visivel FROM cartao_conteudo WHERE chave=?', (chave,)).fetchone()
-    return bool(r['titulo_visivel']) if r else True
+    return bool(r['titulo_visivel']) if r else False
 
 
 def url_cartao(chave):
@@ -78,11 +77,7 @@ def vaga_livre(con, gw=LARGURA_NOVO, gh=ALTURA_NOVO):
 @app.route('/admin/cartao-conteudo', methods=['POST'])
 @nucleo.admin_obrigatorio
 def admin_cartao_conteudo():
-    """Cria, altera ou exclui um cartão de texto e imagem. Responde JSON.
-
-    Ponto de entrada antigo (janela da página inicial). Salvar passa pelo MESMO serviço do editor único
-    de Conteúdos — `nome` é o nome interno; título público e destino seguem as regras de modulos/exibicao.py."""
-    from . import conteudos
+    """Cria, altera ou exclui um cartão de texto e imagem. Responde JSON."""
     con = nucleo.db()
     acao = request.form.get('acao', 'salvar')
     chave = request.form.get('chave', '')
@@ -97,16 +92,31 @@ def admin_cartao_conteudo():
         con.commit()
         return jsonify(ok=True)
 
-    f = request.form.to_dict()
-    f['nome_admin'] = f.get('nome', '')
-    if f.get('url') and not f.get('destino_tipo'):
-        f['destino_tipo'] = 'interno' if f['url'].startswith('/') else 'externo'
-        f['destino_interno' if f['url'].startswith('/') else 'destino_externo'] = f['url']
-    try:
-        nova = conteudos._salva_cartao(f, chave or '')
-    except (conteudos.Invalido, ex.DestinoInvalido) as e:
-        return jsonify(ok=False, erro=str(e)), 400
-    return jsonify(ok=True, chave=nova)
+    nome = request.form.get('nome', '').strip()[:80]
+    html = nucleo.limpa_html(request.form.get('corpo', ''))
+    visivel = 1 if request.form.get('titulo_visivel') else 0
+    url = nucleo.endereco_seguro(request.form.get('url', ''))
+    if not nome and not nucleo.so_texto(html) and '<img' not in html:
+        return jsonify(ok=False, erro='Escreva um texto, ou escolha uma imagem, ou dê um nome ao cartão.'), 400
+    nome = nome or 'Novo cartão'
+
+    if existente:
+        con.execute('UPDATE cartoes_painel SET nome=? WHERE chave=?', (nome, chave))
+        con.execute('INSERT INTO cartao_conteudo (chave,html,titulo_visivel,url) VALUES (?,?,?,?) '
+                    'ON CONFLICT(chave) DO UPDATE SET html=excluded.html, titulo_visivel=excluded.titulo_visivel,'
+                    ' url=excluded.url',
+                    (chave, html, visivel, url))
+    else:
+        chave = 'conteudo-' + secrets.token_hex(4)
+        ordem = con.execute('SELECT COALESCE(MAX(ordem),0)+1 FROM cartoes_painel').fetchone()[0]
+        pos = vaga_livre(con) if nucleo.layout_livre_ativo() else {'gx': 0, 'gy': 0, 'gw': 0, 'gh': 0}
+        con.execute("INSERT INTO cartoes_painel (chave,nome,icone,regiao,largura,coluna,ordem,tipo,ativo,gx,gy,gw,gh)"
+                    " VALUES (?,?,'prancheta','baixo',1,0,?,'conteudo',1,?,?,?,?)",
+                    (chave, nome, ordem, pos['gx'], pos['gy'], pos['gw'], pos['gh']))
+        con.execute('INSERT INTO cartao_conteudo (chave,html,titulo_visivel,url) VALUES (?,?,?,?)',
+                    (chave, html, visivel, url))
+    con.commit()
+    return jsonify(ok=True, chave=chave)
 
 
 # ── excluir, copiar, ocultar e mostrar (editor de layout) ──────────────────────
@@ -151,9 +161,8 @@ def _duplica(con, chave):
                 [c[k] for k in cols])
     con.execute('UPDATE cartoes_painel SET z=(SELECT COALESCE(MAX(z),0)+1 FROM cartoes_painel) WHERE chave=?', (nova,))
     if c['tipo'] == 'conteudo':
-        k = dict(con.execute('SELECT * FROM cartao_conteudo WHERE chave=?', (chave,)).fetchone())
-        k['chave'] = nova
-        con.execute(f"INSERT INTO cartao_conteudo ({','.join(k)}) VALUES ({','.join('?' * len(k))})", list(k.values()))
+        con.execute('INSERT INTO cartao_conteudo (chave,html,titulo_visivel,url) '
+                    'SELECT ?,html,titulo_visivel,url FROM cartao_conteudo WHERE chave=?', (nova, chave))
     else:
         nucleo._semear_aparencia(con, nova)
         for r in con.execute("SELECT chave,valor FROM config WHERE substr(chave,1,?)=?",

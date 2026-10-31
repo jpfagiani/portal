@@ -1,26 +1,19 @@
 {% import 'blocos.html' as b with context %}
-{% import 'chamada.html' as ch with context %}
-{#  Prévia do editor de Conteúdos. Só desenha o que veio do formulário: nada é gravado. É a MESMA regra
-    de exibição da página pública (modulos/exibicao.py): o nome interno não entra aqui. A imagem escolhida
-    e ainda não salva é trocada pelo JS (data-previa-imagem). #}
+{#  Prévia do editor de Conteúdos. Só desenha o que veio do formulário: nada é
+    gravado. A imagem escolhida e ainda não salva é trocada pelo JS (data-previa-imagem). #}
 {% if tipo == 'cartao' %}
-<section class="cartao cartao-conteudo" data-modo="{{ it.modo }}">
-  {% if it.imagem %}<img class="chamada-img" data-previa-imagem src="{{ url_for('static', filename='uploads/' ~ it.imagem) if it.imagem != 'pendente' else '' }}" alt="{{ it.alt }}">{% endif %}
-  {% if it.mostrar_titulo %}<div class="cartao-cab"><h2>{{ it.titulo }}</h2></div>{% endif %}
-  {% if it.mostrar_texto %}<p class="chamada-texto cartao-apoio">{{ it.texto }}</p>{% endif %}
-  <div class="cartao-corpo pagina-texto cartao-texto">{{ it.html }}</div>
+<section class="cartao cartao-conteudo">
+  {% if titulo_visivel %}<div class="cartao-cab"><h2>{{ titulo or 'Novo cartão' }}</h2></div>{% endif %}
+  <div class="cartao-corpo pagina-texto cartao-texto">{{ corpo }}</div>
 </section>
-<p class="dica">{% if it.href %}Clique no cartão: abre {{ 'em nova aba' if it.nova_aba else 'na mesma aba' }}.{% else %}Sem link.{% endif %}</p>
 {% elif tipo == 'noticia' %}
 <div class="previa-visao" data-visao="cartao">
-  <p class="dica">Como aparece no cartão “Últimas notícias” ({{ {'imagem': 'somente imagem', 'imagem_titulo': 'imagem e título', 'imagem_titulo_texto': 'imagem, título e texto de apoio'}[it.modo] }}):</p>
+  <p class="dica">Como aparece no cartão “Últimas notícias”:</p>
   <div class="cartao"><div class="cartao-corpo not-lista">
-    <span class="not-item" data-modo="{{ it.modo }}">
-      {% if it.imagem %}<img data-previa-imagem class="chamada-img" src="{{ url_for('static', filename='uploads/' ~ it.imagem) if it.imagem != 'pendente' else '' }}" alt="{{ it.alt }}">{% endif %}
-      {% if it.mostrar_titulo or it.mostrar_texto %}
+    <span class="not-item">
+      {% if capa %}<img data-previa-imagem src="{{ url_for('static', filename='uploads/' ~ capa) }}" alt="">{% endif %}
       <span><small>{% if categoria %}{{ categoria }} · {% endif %}hoje</small>
-        {{ ch.textos(it, 'strong', estilo) }}</span>
-      {% endif %}
+        <strong class="ntit" style="{{ estilo }}">{{ titulo or '(sem título)' }}</strong></span>
     </span>
   </div></div>
 </div>
@@ -33,7 +26,7 @@
     </header>
     {% if capa %}
     <figure class="noticia-capa">
-      <img data-previa-imagem src="{{ url_for('static', filename='uploads/' ~ capa) if capa != 'pendente' else '' }}" alt="{{ capa_alt }}">
+      <img data-previa-imagem src="{{ url_for('static', filename='uploads/' ~ capa) }}" alt="{{ capa_alt }}">
       {% if legenda %}<figcaption>{{ legenda }}</figcaption>{% endif %}
     </figure>
     {% endif %}
