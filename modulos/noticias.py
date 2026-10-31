@@ -49,6 +49,8 @@ CREATE INDEX IF NOT EXISTS ix_noticias_pub ON noticias (estado, publicar_em);
 ESTADOS = {'rascunho': 'Rascunho', 'publicado': 'Publicado', 'arquivado': 'Arquivado'}
 # Só aparece para o público o que está publicado E já chegou a hora.
 VISIVEL = "estado='publicado' AND publicar_em<>'' AND publicar_em <= datetime('now','localtime')"
+# Nas listas e vitrines entram só as notícias de verdade; as páginas de apoio de um cartão ficam de fora.
+VISIVEL_LISTA = VISIVEL + ' AND so_pagina=0'
 POR_PAGINA = 10
 # A ordem escolhida pelo administrador manda; sem escolha (tudo empatado em 0,
 # como nas instalações antigas) vale o critério de sempre: destaque, mais nova.
@@ -139,7 +141,7 @@ app.jinja_env.globals['estilo_titulo'] = estilo_titulo
 def recentes(limite=4):
     """Últimas publicações visíveis (destaques primeiro) para a página inicial."""
     return nucleo.db().execute(
-        f'SELECT * FROM noticias WHERE {VISIVEL} ORDER BY {ORDEM} LIMIT ?',
+        f'SELECT * FROM noticias WHERE {VISIVEL_LISTA} ORDER BY {ORDEM} LIMIT ?',
         (limite,)).fetchall()
 
 
@@ -155,7 +157,7 @@ def noticias():
     con = nucleo.db()
     cat = (request.args.get('c') or '').strip()
     pagina = max(1, nucleo._int(request.args.get('p'), 1))
-    onde, args = VISIVEL, []
+    onde, args = VISIVEL_LISTA, []
     if cat:
         onde += ' AND categoria=?'
         args.append(cat)
@@ -164,7 +166,7 @@ def noticias():
         f'SELECT * FROM noticias WHERE {onde} ORDER BY {ORDEM} LIMIT ? OFFSET ?',
         args + [POR_PAGINA, (pagina - 1) * POR_PAGINA]).fetchall()
     cats = [r[0] for r in con.execute(
-        f"SELECT DISTINCT categoria FROM noticias WHERE {VISIVEL} AND categoria<>'' ORDER BY categoria COLLATE NOCASE")]
+        f"SELECT DISTINCT categoria FROM noticias WHERE {VISIVEL_LISTA} AND categoria<>'' ORDER BY categoria COLLATE NOCASE")]
     # `pg` e não `pagina`: o template já usa `pagina` para dizer ao menu qual item
     # está ativo, e a colisão derrubava a lista assim que passava de uma página.
     return render_template('noticias.html', itens=linhas, categorias=cats, categoria=cat,

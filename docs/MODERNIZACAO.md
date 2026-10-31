@@ -147,3 +147,10 @@ Mapa de destinos (Fase 1): ver `docs/MAPA-DE-DESTINOS.md`.
 - O campo "Nome" do comunicado serve só para gerenciar; não aparece no portal. Escreva o título dentro do texto.
 - Comunicados antigos (título + texto + imagem) abrem já convertidos: imagem, título em negrito e texto; ao salvar passam ao formato novo.
 - Urgência (selo), destaque, visível e endereço continuam como opções do item.
+
+## 1.9.26 — Página interna para qualquer cartão
+- Botão "Criar página interna deste cartão" (cartões de texto/imagem e comunicados): cria uma página como uma notícia com o conteúdo salvo, liga o clique do cartão a ela e abre a edição.
+- Nova coluna `noticias.so_pagina`: páginas de apoio não aparecem em "Últimas notícias", na vitrine nem na lista de notícias; só pelo link. Caixa "Página de apoio" no editor de notícia.
+
+## 1.9.27 — Destino escolhível em Sistemas, Atalhos e Banners
+- Os campos de endereço de Sistemas/Atalhos e Banners passam a oferecer a lista de páginas e notícias do portal, além de aceitar um site (https://...).

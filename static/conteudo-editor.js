@@ -84,6 +84,17 @@
     corpo.querySelectorAll('.previa-visao').forEach(function (v) { v.hidden = v.dataset.visao !== b.dataset.visao; });
   });
 
+  var criar = el('c-criar-pagina');
+  if (criar) criar.addEventListener('click', function () {
+    if (ocupado) return;
+    var fd = new FormData(); fd.set('csrf', form.dataset.csrf); fd.set('tipo', form.elements.tipo.value); fd.set('id', form.elements.id.value);
+    fd.set('volta', location.pathname);
+    travar(true);
+    post(criar.dataset.url, fd).then(function (r) {
+      if (r.ok && r.editar) { sujo = false; location.href = r.editar; } else { travar(false); erro.textContent = r.erro || 'Não foi possível criar a página.'; }
+    });
+  });
+
   var exc = el('c-excluir');
   if (exc) exc.addEventListener('click', function () {
     if (ocupado || !window.confirm('Excluir este conteúdo? Esta ação não pode ser desfeita.')) return;

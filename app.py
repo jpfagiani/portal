@@ -1174,6 +1174,7 @@ def init_db():
             # e as já existentes não ganham um bloco novo por conta da atualização.
             ('paginas_lateral', 'mostrar_leia',   'INTEGER NOT NULL DEFAULT 0'),
             ('noticias', 'ordem',    'INTEGER NOT NULL DEFAULT 0'),
+            ('noticias', 'so_pagina', 'INTEGER NOT NULL DEFAULT 0'),   # página de apoio: fora das listas
             ('noticias', 'titulo_fonte', "TEXT NOT NULL DEFAULT ''"),
             ('noticias', 'titulo_cor',   "TEXT NOT NULL DEFAULT ''"),
             ('noticias', 'titulo_tam',   "TEXT NOT NULL DEFAULT ''"),
@@ -1320,7 +1321,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.25'
+VERSAO = '1.9.27'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -2159,6 +2160,7 @@ def _injeta():
         "SELECT COUNT(*) c FROM lateral WHERE ativo=1 AND urgencia='urgente'"
     ).fetchone()['c']
     return {'cfg': cfg(), 'csrf_token': token_csrf(),
+            'destinos_portal': destinos_de_links() if session.get('admin') else [],
             'faixa_links': linhas_faixa(cfg('faixa_links')),
             'destaque': dados_destaque(),
             'fundo_nome': fundo, 'fundo_versao': fundo_v,

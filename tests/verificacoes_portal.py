@@ -580,6 +580,18 @@ ok('Texto antigo' in h and h.index('x.png') < h.index('Texto antigo'), 'comunica
 with portal.app.app_context():
     con = portal.db(); con.execute('DELETE FROM lateral WHERE id=?', (antigo,)); con.commit()
 
+# página interna de um cartão (como uma notícia, fora das listas)
+r = c.post('/admin/conteudos/criar-pagina', data={'csrf': tok, 'tipo': 'cartao', 'id': ck}).get_json()
+ok(r.get('ok') and r.get('editar'), 'cria página interna do cartão')
+with portal.app.app_context():
+    cx = portal.db()
+    url_c = cx.execute('SELECT url FROM cartao_conteudo WHERE chave=?', (ck,)).fetchone()['url']
+    sp = cx.execute('SELECT slug,so_pagina FROM noticias WHERE id=?', (r['id'],)).fetchone()
+ok(url_c == '/noticias/' + sp['slug'] and sp['so_pagina'] == 1, 'o cartão passa a apontar para a página criada')
+ok(anon.get(url_c).status_code == 200 and sp['slug'] not in anon.get('/noticias').get_data(as_text=True), 'a página abre e não entra na lista de notícias')
+ok(c.post('/admin/conteudos/criar-pagina', data={'csrf': tok, 'tipo': 'cartao', 'id': ck}).get_json()['id'] == r['id'], 'repetir não cria outra página')
+c.post('/admin/conteudos/excluir', data={'csrf': tok, 'tipo': 'noticia', 'id': r['id']})
+
 # lista, filtros e pesquisa
 h = c.get('/admin/conteudos').get_data(as_text=True)
 ok('Horário 3' in h and 'Decreto de teste' in h and 'Com capa enviada' in h, 'lista única mostra cartões, comunicados e notícias')

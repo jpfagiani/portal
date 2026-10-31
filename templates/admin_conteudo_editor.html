@@ -82,6 +82,15 @@
       <small>({{ 'opcional; vazio = a própria notícia' if tipo == 'noticia' else 'opcional' }})</small></label>
     <input id="c-url" name="url" list="c-destinos" maxlength="500" placeholder="https://... ou /pagina" value="{{ d.url }}">
     <datalist id="c-destinos">{% for n, e in destinos_links %}<option value="{{ e }}">{{ n }}</option>{% endfor %}</datalist>
+    {% if tipo in ('cartao', 'comunicado') and not novo %}
+    <div class="acoes" style="margin-top:.5rem">
+      <button type="button" class="btn btn-sm" id="c-criar-pagina" data-url="{{ url_for('conteudos_criar_pagina') }}"
+              title="Cria uma página, como uma notícia, com o conteúdo salvo deste cartão, e liga o clique do cartão a ela">
+        {{ 'Editar a página interna' if d.url and d.url.startswith('/noticias/') else 'Criar página interna deste cartão' }}</button>
+    </div>
+    <p class="dica">A página é criada com o conteúdo <strong>já salvo</strong> do cartão e fica fora da lista “Últimas notícias”.
+      Nela você escreve o texto maior; o cartão continua mostrando só a chamada.</p>
+    {% endif %}
   </fieldset>
 
   <fieldset class="cont-bloco">
@@ -101,6 +110,7 @@
     <label for="c-meta">Descrição para buscadores</label>
     <input id="c-meta" name="meta" maxlength="300" value="{{ d.meta }}">
     <label class="check"><input type="checkbox" name="em_destaque" {{ 'checked' if d.destaque }}> Destaque (fixada no topo da lista, como manchete)</label>
+    <label class="check"><input type="checkbox" name="so_pagina" {{ 'checked' if d.so_pagina }}> Página de apoio de um cartão <small>(não aparece em “Últimas notícias” nem nas listas; só abre pelo link)</small></label>
     {% elif tipo == 'cartao' %}
     <label class="check"><input type="checkbox" name="titulo_visivel" {{ 'checked' if d.titulo_visivel }}> Mostrar o nome do cartão no portal <small>(o nome serve para você gerenciar; escreva o título no texto se quiser um)</small></label>
     <p class="dica">Posição e tamanho do cartão: arraste-o em <a href="{{ url_for('editor') }}">Editar portal</a> ou no

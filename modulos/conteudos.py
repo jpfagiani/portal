@@ -216,7 +216,7 @@ def _valores_novos(tipo):
         return dict(id='', titulo='', corpo='', titulo_visivel=False, url='')
     if tipo == 'noticia':
         return dict(id='', titulo='', subtitulo='', resumo='', corpo='', capa='', capa_alt='', legenda='',
-                    categoria='', estado='rascunho', publicar_em_campo='', destaque=0, url='', meta='',
+                    categoria='', so_pagina=0, estado='rascunho', publicar_em_campo='', destaque=0, url='', meta='',
                     slug='', titulo_fonte='', titulo_cor='', titulo_tam='', situacao='Rascunho')
     return dict(id='', titulo='', conteudo='', corpo='', corpo_html='', url='', url_rot='', imagem='', video='', img_pos='topo',
                 urgencia='informacao', destaque='nenhum', data='', titulo_cor='', texto_cor='', fundo_cor='',
@@ -341,6 +341,7 @@ def _salva_noticia(f, ident):
             "publicar_em,destaque,destino_url,meta,titulo_fonte,titulo_cor,titulo_tam,autor,ordem)"
             " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             dados + (session.get('nome') or session.get('user', ''), mn._topo(con))).lastrowid
+    con.execute('UPDATE noticias SET so_pagina=? WHERE id=?', (1 if f.get('so_pagina') else 0, novo))
     con.commit()
     return novo
 
@@ -458,6 +459,48 @@ def conteudos_previa():
             item['video'] = ''
         contexto['item'] = item
     return jsonify(ok=True, html=render_template('admin_conteudo_previa.html', **contexto))
+
+
+# ── página interna de um cartão ───────────────────────────────────────────────
+
+@app.route('/admin/conteudos/criar-pagina', methods=['POST'])
+@nucleo.admin_obrigatorio
+def conteudos_criar_pagina():
+    """Dá ao cartão (ou comunicado) uma página própria, como uma notícia: o clique no cartão leva até ela.
+    Se o cartão já aponta para uma, só devolve o endereço dela para editar."""
+    tipo, ident = request.form.get('tipo', ''), request.form.get('id', '')
+    con = nucleo.db()
+    if tipo == 'cartao':
+        r = con.execute("SELECT p.nome,k.html,k.url FROM cartoes_painel p JOIN cartao_conteudo k ON k.chave=p.chave"
+                        " WHERE p.chave=? AND p.tipo='conteudo'", (ident,)).fetchone()
+        nome, corpo, url = (r['nome'], r['html'], r['url']) if r else ('', '', '')
+    elif tipo == 'comunicado':
+        r = con.execute('SELECT * FROM lateral WHERE id=?', (nucleo._int(ident),)).fetchone()
+        nome = (r['titulo'] or 'Comunicado') if r else ''
+        corpo = (r['corpo_html'] or _corpo_legado(dict(r))) if r else ''
+        url = r['url'] if r else ''
+    else:
+        return _erro('Tipo de conteúdo desconhecido.')
+    if not r:
+        return _erro('Conteúdo não encontrado.', 404)
+    m = re.fullmatch(r'/noticias/([^/?#]+)', url or '')
+    n = con.execute('SELECT id FROM noticias WHERE slug=?', (m.group(1),)).fetchone() if m else None
+    if not n:
+        slug = mn._slug_livre(con, mn.slugify(nome or 'pagina'), 0)
+        nid = con.execute(
+            "INSERT INTO noticias (slug,titulo,corpo,estado,publicar_em,so_pagina,autor,ordem)"
+            " VALUES (?,?,?,'publicado',?,1,?,?)",
+            (slug, (nome or 'Página')[:200], nucleo.limpa_html(corpo), _agora(),
+             session.get('nome') or session.get('user', ''), mn._topo(con))).lastrowid
+        destino = '/noticias/' + slug
+        if tipo == 'cartao':
+            con.execute('UPDATE cartao_conteudo SET url=? WHERE chave=?', (destino, ident))
+        else:
+            con.execute('UPDATE lateral SET url=? WHERE id=?', (destino, nucleo._int(ident)))
+        con.commit()
+    else:
+        nid = n['id']
+    return jsonify(ok=True, id=nid, editar=url_for('conteudos_editor', tipo='noticia', ident=nid, volta=request.form.get('volta') or None))
 
 
 # ── excluir e duplicar ────────────────────────────────────────────────────────
