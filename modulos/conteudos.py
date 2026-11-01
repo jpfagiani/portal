@@ -188,6 +188,7 @@ def _obter(tipo, ident):
         d['url'] = d['destino_url']
         d['publicar_em_campo'] = mn._para_campo(d['publicar_em'])
         d['situacao'] = mn.situacao(r)
+        d['ordem_pos'] = [x[0] for x in con.execute(f'SELECT id FROM noticias ORDER BY {mn.ORDEM}')].index(r['id']) + 1
         return d
     if tipo == 'comunicado':
         r = con.execute('SELECT * FROM lateral WHERE id=?', (nucleo._int(ident),)).fetchone()
@@ -221,7 +222,7 @@ def _valores_novos(tipo):
                     categoria='', so_pagina=0, estado='rascunho', publicar_em_campo='', destaque=0, url='', meta='',
                     slug='', titulo_fonte='', titulo_cor='', titulo_tam='', situacao='Rascunho',
                     chamada_titulo='', chamada_resumo='', chamada_imagem='', chamada_legenda='', chamada_alt='',
-                    chamada_formato='', chamada_visivel=1)
+                    chamada_formato='', chamada_visivel=1, chamada_credito='', chamada_posicao='', capa_credito='', ordem_pos=1)
     return dict(id='', titulo='', conteudo='', corpo='', corpo_html='', materia_titulo='', materia='', url='', url_rot='', imagem='', video='', img_pos='topo',
                 urgencia='informacao', destaque='nenhum', data='', titulo_cor='', texto_cor='', fundo_cor='',
                 titulo_tam='', texto_tam='', tipo='aviso', ativo=1)
@@ -248,7 +249,7 @@ def conteudos_editor(tipo, ident):
     return render_template(
         'admin_conteudo_editor.html', tipo=tipo, rotulo=TIPOS[tipo], novo=novo, d=d,
         cartao_chave=cartao_chave, volta=_volta(),
-        estados=mn.ESTADOS, formatos=mn.FORMATOS, categorias=mn.categorias(), fontes=nucleo.FONTES_TEXTO,
+        estados=mn.ESTADOS, formatos=mn.FORMATOS, posicoes=mn.POSICOES, total_noticias=nucleo.db().execute('SELECT COUNT(*) FROM noticias').fetchone()[0], categorias=mn.categorias(), fontes=nucleo.FONTES_TEXTO,
         destinos_links=nucleo.destinos_de_links(), destaques=nucleo.DESTAQUES_COMUNICADO,
         img_pos=nucleo.CARTAO_IMG_POS, paleta=nucleo.PALETA,
         cartoes_itens=[c for c in nucleo.cartoes_do_painel() if c['tipo'] == 'itens'])
@@ -367,9 +368,12 @@ def _salva_noticia(f, ident):
         meta=texto('meta', 300),
         chamada_titulo=texto('chamada_titulo', 200), chamada_resumo=texto('chamada_resumo', 300),
         chamada_legenda=texto('chamada_legenda', 300), chamada_alt=texto('chamada_alt', 300),
+        chamada_credito=texto('chamada_credito', 200), capa_credito=texto('capa_credito', 200),
         chamada_imagem=_imagem_chamada(f, old.get('chamada_imagem', '')))
     fmt = f.get('chamada_formato') if 'chamada_formato' in f else old.get('chamada_formato', '')
     d['chamada_formato'] = fmt if fmt in mn.FORMATOS else ''
+    pos = f.get('chamada_posicao') if 'chamada_posicao' in f else old.get('chamada_posicao', '')
+    d['chamada_posicao'] = pos if pos in mn.POSICOES else ''
     if any(k in f for k in ('titulo_fonte', 'titulo_cor', 'titulo_tam')):
         d['titulo_fonte'], d['titulo_cor'], d['titulo_tam'] = mn._titulo_do_form(f)
     if f.get('tem_organizacao'):                    # caixas de marcar: só valem se o bloco foi enviado
@@ -389,6 +393,12 @@ def _salva_noticia(f, ident):
         d['ordem'] = mn._topo(con)
         novo = con.execute('INSERT INTO noticias (' + ','.join(d) + ') VALUES (' + ','.join('?' * len(d)) + ')',
                            list(d.values())).lastrowid
+    # Ordem escolhida (1 = primeira): só se o campo veio e mudou; as demais notícias apenas se deslocam.
+    if f.get('ordem_pos', '').strip().isdigit() and f.get('ordem_pos') != f.get('ordem_pos_orig', ''):
+        ids = [r[0] for r in con.execute(f'SELECT id FROM noticias WHERE id<>? ORDER BY {mn.ORDEM}', (novo,))]
+        ids.insert(max(0, min(len(ids), int(f['ordem_pos']) - 1)), novo)
+        for posicao, ident_n in enumerate(ids):
+            con.execute('UPDATE noticias SET ordem=? WHERE id=?', (posicao, ident_n))
     con.commit()
     return novo
 
@@ -499,7 +509,13 @@ def conteudos_previa():
             titulo=f.get('titulo', '').strip(), resumo=f.get('resumo', ''), capa=capa or '', categoria=f.get('categoria', ''),
             chamada_titulo=f.get('chamada_titulo', '').strip(), chamada_resumo=f.get('chamada_resumo', '').strip(),
             chamada_imagem=cham or '', chamada_legenda=f.get('chamada_legenda', '').strip(),
-            chamada_alt=f.get('chamada_alt', '').strip(), chamada_formato=fmt, slug='previa', destino_url='', **titulo_est)
+            chamada_alt=f.get('chamada_alt', '').strip(), chamada_formato=fmt, slug='previa', destino_url='',
+            chamada_credito=f.get('chamada_credito', '').strip(), **titulo_est)
+        contexto['outras'] = nucleo.db().execute(
+            f'SELECT * FROM noticias WHERE {mn.VISIVEL_LISTA} AND chamada_visivel=1 AND id<>? ORDER BY {mn.ORDEM} LIMIT 2',
+            (nucleo._int(ident),)).fetchall()
+        contexto['credito'] = f.get('capa_credito', '').strip()
+        contexto['capa_pendente'] = bool(f.get('imagem_nova'))
         contexto['modelo'] = mn.vitrine()[0]
         contexto['formatos'] = mn.FORMATOS
         contexto.update(subtitulo=f.get('subtitulo', ''), resumo=f.get('resumo', ''), capa=capa,

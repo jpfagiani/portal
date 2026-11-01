@@ -174,3 +174,12 @@ Veja `docs/AUDITORIA-CONTEUDOS.md`. Rotas antigas `/admin/noticias` e `/admin/la
 ## 1.9.32 — Cartões existentes passam ao novo formato
 - Migração única (`materia_migrada_v1`): cartões e comunicados que apontavam para uma página de apoio (notícia oculta) recebem o texto dela como matéria completa e ficam só com imagens e uma linha de chamada; o link antigo é limpo (o clique vai à matéria).
 - Botão "Mover o texto deste cartão para a matéria completa" no bloco 2 de cartões e comunicados: leva o texto atual para a matéria e deixa no cartão a imagem e uma chamada.
+
+## 1.9.33 — Editor de notícia em painéis (roteiro "Editor de notícias com referências visuais")
+- Novo layout do editor de notícias, como nas referências: cabeçalho com trilha (Conteúdos › Notícias › Editar) e botões Pré-visualizar / Salvar rascunho / Publicar; painel 1 (chamada: título e resumo com contador, imagem com Trocar/Enviar/Remover, legenda, crédito, texto alternativo, formato, destino do clique, prévia da chamada); painel 2 (matéria: título, subtítulo, capa com Trocar/Remover/Ver imagem, legenda, crédito, alt, corpo no editor rico existente, contador de caracteres); painel 3 (organização: categoria, posição na página, ordem, exibir na página principal, destaque, situação, agendamento); painel 4 (visualização com abas Página principal / Matéria completa / Mobile e aparelhos computador/tablet/celular); barra de estado (sem alterações, não salvas, salvando, salvo às HH:MM, erro) com último publicado e histórico.
+- Destino do clique: página da notícia (padrão), outra página do portal ou endereço externo.
+- Prévia ao vivo (a cada pausa na digitação), sem gravar nada; falha de salvamento mantém o que foi digitado.
+- Banco (somente aditivo): `noticias.chamada_credito`, `noticias.capa_credito`, `noticias.chamada_posicao` ('' automática | principal | lista). A ordem usa a coluna `ordem` existente (campo "Ordem" = posição 1..N).
+- Arquivos novos: `templates/admin_noticia_painel.html`, `static/noticia-painel.js`. Alterados: `admin_conteudo_editor.html`, `admin_conteudo_previa.html`, `noticia.html`, `chamada.html`, `modulos/conteudos.py`, `modulos/noticias.py`, `app.py`, `static/limpo.css`, `tests/verificacoes_portal.py`.
+- Reversão: restaurar esses arquivos e apagar os dois novos. As colunas novas são ignoradas pelo código antigo.
+- Não alterados: `secret.key`, uploads, registros, slugs. Cartões e comunicados continuam no editor anterior.

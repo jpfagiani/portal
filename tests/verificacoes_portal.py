@@ -539,7 +539,7 @@ with portal.app.app_context():
     n = portal.db().execute('SELECT * FROM noticias WHERE id=?', (nid,)).fetchone()
 ok(n['estado'] == 'rascunho' and anon.get('/noticias/' + n['slug']).status_code == 404, 'Salvar não publica')
 ok('<script' not in n['corpo'] and '<strong>mundo</strong>' in n['corpo'] and 'ção' in n['titulo'], 'HTML é limpo e acentos são preservados')
-ok(c.get('/admin/conteudos/noticia/%d' % nid).status_code == 200 and 'id="form-conteudo-ed"' in c.get('/admin/conteudos/noticia/%d' % nid).get_data(as_text=True), 'notícia abre no editor único')
+ok(c.get('/admin/conteudos/noticia/%d' % nid).status_code == 200 and 'id="form-ne"' in c.get('/admin/conteudos/noticia/%d' % nid).get_data(as_text=True), 'notícia abre no editor único')
 r = cont({'tipo': 'noticia', 'id': nid, 'acao': 'publicar', 'titulo': 'Matéria ção única', 'corpo': '<p>ok</p>'})
 ok(r.get_json().get('ok') and anon.get('/noticias/' + n['slug']).status_code == 200, 'Publicar publica agora')
 cont({'tipo': 'noticia', 'id': nid, 'acao': 'rascunho', 'titulo': 'Matéria ção única', 'corpo': '<p>ok</p>', 'estado': 'publicado'})
@@ -744,8 +744,8 @@ r = c.post('/admin/conteudos/previa', data={'csrf': tok, 'tipo': 'noticia', 'id'
         'chamada_formato': 'faixa', 'corpo': '<p>x</p>'}).get_json()
 ok(r['ok'] and 'data-visao="chamada"' in r['html'] and 'data-visao="inicial"' in r['html'] and 'data-visao="pagina"' in r['html'] and 'Prévia chamada' in r['html'] and 'ch-faixa' in r['html'],
    'prévia isolada da chamada, da página principal e da matéria')
-ok(c.get('/admin/conteudos/noticia/%d' % na).get_data(as_text=True).count('<fieldset') >= 3 and 'Chamada da página principal' in c.get('/admin/conteudos/noticia/%d' % na).get_data(as_text=True)
-   and 'Matéria completa' in c.get('/admin/conteudos/noticia/%d' % na).get_data(as_text=True), 'editor mostra os dois blocos separados')
+ok(c.get('/admin/conteudos/noticia/%d' % na).get_data(as_text=True).count('class="ne2-painel') >= 4 and 'Chamada da página principal' in c.get('/admin/conteudos/noticia/%d' % na).get_data(as_text=True)
+   and 'Conteúdo completo da notícia' in c.get('/admin/conteudos/noticia/%d' % na).get_data(as_text=True), 'editor mostra os painéis separados')
 c.post('/admin/conteudos/excluir', data={'csrf': tok, 'tipo': 'noticia', 'id': na})
 
 # ── roteiro de consolidação: um só caminho de edição ─────────────────────────
@@ -759,7 +759,25 @@ for arq_velho in ('static/cartao-edicao.js', 'static/noticia-ordem.js', 'templat
     ok(not os.path.exists(os.path.join(os.path.dirname(portal.__file__), arq_velho)), f'{arq_velho} removido')
 h = c.get('/admin/conteudos').get_data(as_text=True)
 ok('+ Novo conteúdo' in h and 'Qual tipo de conteúdo' in h, 'botão único Novo conteúdo com escolha do tipo')
-ok('NOTÍCIA' in c.get('/admin/conteudos/noticia/novo').get_data(as_text=True), 'o editor mostra o tipo do conteúdo')
+ok('Nova Notícia' in c.get('/admin/conteudos/noticia/novo').get_data(as_text=True), 'o editor mostra o tipo do conteúdo')
+# painéis, posição, ordem e crédito (1.9.33)
+r = c.post('/admin/conteudos/salvar', data={'csrf': tok, 'tipo': 'noticia', 'titulo': 'Painel A', 'chamada_titulo': 'Chamada A', 'chamada_credito': 'Foto X',
+        'capa_credito': 'Foto Y', 'chamada_posicao': 'principal', 'corpo': '<p>corpo</p>', 'tem_organizacao': '1', 'chamada_visivel': '1'}).get_json()
+pa = r.get('id')
+r = c.post('/admin/conteudos/salvar', data={'csrf': tok, 'tipo': 'noticia', 'titulo': 'Painel B', 'corpo': '<p>b</p>', 'tem_organizacao': '1', 'chamada_visivel': '1'}).get_json()
+pb = r.get('id')
+with portal.app.app_context():
+    n = portal.db().execute('SELECT * FROM noticias WHERE id=?', (pa,)).fetchone()
+ok(n['chamada_posicao'] == 'principal' and n['chamada_credito'] == 'Foto X' and n['capa_credito'] == 'Foto Y', 'posição e créditos da chamada e da capa são gravados')
+c.post('/admin/conteudos/salvar', data={'csrf': tok, 'tipo': 'noticia', 'id': str(pa), 'chamada_titulo': 'Só chamada nova', 'titulo': 'Painel A'})
+with portal.app.app_context():
+    n = portal.db().execute('SELECT * FROM noticias WHERE id=?', (pa,)).fetchone()
+ok(n['chamada_titulo'] == 'Só chamada nova' and n['corpo'] == '<p>corpo</p>' and n['chamada_posicao'] == 'principal' and n['capa_credito'] == 'Foto Y', 'salvar só a chamada não apaga a matéria nem a posição')
+c.post('/admin/conteudos/salvar', data={'csrf': tok, 'tipo': 'noticia', 'id': str(pb), 'titulo': 'Painel B', 'ordem_pos': '1', 'ordem_pos_orig': '9', 'tem_organizacao': '1', 'chamada_visivel': '1'})
+with portal.app.app_context():
+    ordem = [r[0] for r in portal.db().execute('SELECT id FROM noticias ORDER BY ' + portal.modulos.noticias.ORDEM)]
+ok(ordem[0] == pb, 'ordem escolhida (1) coloca a notícia em primeiro')
+
 
 shutil.rmtree(TMP, ignore_errors=True)
 print('\nFALHAS: %d' % len(falhas) if falhas else '\nTodos os testes passaram.')

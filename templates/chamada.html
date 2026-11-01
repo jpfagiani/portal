@@ -22,7 +22,7 @@
 </a>
 {% else %}
 <a class="ch ch-{{ fmt }}" {{ alvo|safe }}>
-  {% if fmt != 'texto' and im %}<span class="ch-foto">{{ foto|safe }}{% if n.chamada_legenda and fmt in ('manchete', 'cartao') %}<small class="ch-leg">{{ n.chamada_legenda }}</small>{% endif %}</span>{% endif %}
+  {% if fmt != 'texto' and im %}<span class="ch-foto">{{ foto|safe }}{% if (n.chamada_legenda or n.chamada_credito) and fmt in ('manchete', 'cartao') %}<small class="ch-leg">{{ n.chamada_legenda }}{% if n.chamada_credito %}{% if n.chamada_legenda %} · {% endif %}{{ n.chamada_credito }}{% endif %}</small>{% endif %}</span>{% endif %}
   <span class="ch-txt">
     {% if n.categoria or data %}<small class="ch-sup">{% if n.categoria %}<b>{{ n.categoria }}</b>{% endif %}{% if n.categoria and data %} · {% endif %}{{ data }}</small>{% endif %}
     <strong class="ntit" style="{{ estilo_titulo(n) }}">{{ t }}</strong>

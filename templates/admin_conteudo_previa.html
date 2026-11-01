@@ -25,11 +25,11 @@
   </div></div>
 </div>
 <div class="previa-visao" data-visao="inicial" hidden>
-  <p class="dica">Dentro do cartão “Últimas notícias”. Clicar abre a matéria.</p>
   <section class="cartao"><div class="cartao-cab"><h2>Últimas notícias</h2></div>
-    <div class="cartao-corpo not-lista">
+    <div class="cartao-corpo not-lista" style="--col:1">
       {{ ch.chamada(n, fmt, '#', 'hoje') }}
-      <span class="not-item" aria-hidden="true"><span><small>outra notícia</small><strong class="ntit">Título de outra notícia</strong></span></span>
+      {% for o in outras %}{{ ch.chamada(o, 'lista', '#', o.publicar_em|data_br) }}{% endfor %}
+      {% if not outras %}<span class="not-item" aria-hidden="true"><span><small>outra notícia</small><strong class="ntit">Título de outra notícia</strong></span></span>{% endif %}
     </div></section>
 </div>
 <div class="previa-visao" data-visao="pagina" hidden>
@@ -43,7 +43,7 @@
     {% if capa %}
     <figure class="noticia-capa">
       <img data-previa-imagem src="{{ url_for('static', filename='uploads/' ~ capa) }}" alt="{{ capa_alt }}">
-      {% if legenda %}<figcaption>{{ legenda }}</figcaption>{% endif %}
+      {% if legenda or credito %}<figcaption>{{ legenda }}{% if credito %}{% if legenda %} · {% endif %}<span class="cred">Crédito: {{ credito }}</span>{% endif %}</figcaption>{% endif %}
     </figure>
     {% endif %}
     <div class="pagina-texto noticia-corpo">{{ corpo }}</div>

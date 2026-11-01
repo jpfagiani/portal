@@ -8,6 +8,7 @@
     para aqueles tipos; o servidor ignora o que não é do tipo (e não apaga o que
     já estava guardado). #}
 {% block admin %}
+{% if tipo == 'noticia' %}{% include 'admin_noticia_painel.html' %}{% else %}
 {% set rico = tipo in ('cartao', 'noticia', 'comunicado') %}
 <div class="cont-editor">
 <form id="form-conteudo-ed" method="post" enctype="multipart/form-data" class="painel-caixa"
@@ -195,4 +196,5 @@
 <script src="{{ url_for('static', filename='editor-rico.js') }}"></script>
 <script src="{{ url_for('static', filename='tamanho-px.js') }}"></script>
 <script src="{{ url_for('static', filename='conteudo-editor.js') }}"></script>
+{% endif %}
 {% endblock %}

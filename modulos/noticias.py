@@ -55,6 +55,8 @@ VISIVEL_LISTA = VISIVEL + ' AND so_pagina=0'
 FORMATOS = {'': 'Padrão do cartão', 'manchete': 'Manchete: imagem grande, título e resumo',
             'cartao': 'Cartão: imagem, título e resumo', 'faixa': 'Faixa: imagem ao lado do texto',
             'texto': 'Somente texto'}
+# Posição da chamada na página principal ('' = automática, pela ordem).
+POSICOES = {'': 'Automática (pela ordem)', 'principal': 'Destaque principal', 'lista': 'Lista de notícias'}
 POR_PAGINA = 10
 # A ordem escolhida pelo administrador manda; sem escolha (tudo empatado em 0,
 # como nas instalações antigas) vale o critério de sempre: destaque, mais nova.
@@ -145,7 +147,8 @@ app.jinja_env.globals['estilo_titulo'] = estilo_titulo
 def recentes(limite=4):
     """Últimas publicações visíveis (destaques primeiro) para a página inicial."""
     return nucleo.db().execute(
-        f'SELECT * FROM noticias WHERE {VISIVEL_LISTA} AND chamada_visivel=1 ORDER BY {ORDEM} LIMIT ?',
+        f'SELECT * FROM noticias WHERE {VISIVEL_LISTA} AND chamada_visivel=1 '
+        f"ORDER BY (chamada_posicao='principal') DESC, (chamada_posicao='lista') ASC, {ORDEM} LIMIT ?",
         (limite,)).fetchall()
 
 
