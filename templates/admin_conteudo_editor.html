@@ -8,7 +8,7 @@
     para aqueles tipos; o servidor ignora o que não é do tipo (e não apaga o que
     já estava guardado). #}
 {% block admin %}
-{% if tipo == 'noticia' %}{% include 'admin_noticia_painel.html' %}{% else %}
+{% if tipo == 'noticia' %}{% include 'admin_noticia_painel.html' %}{% elif tipo in ('cartao', 'comunicado') %}{% include 'admin_cartao_painel.html' %}{% else %}
 {% set rico = tipo in ('cartao', 'noticia', 'comunicado') %}
 <div class="cont-editor">
 <form id="form-conteudo-ed" method="post" enctype="multipart/form-data" class="painel-caixa"

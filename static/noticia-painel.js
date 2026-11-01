@@ -19,7 +19,8 @@
     });
     if (acao) fd.set('acao', acao);
     if (paraPrevia) {                       // a prévia não precisa dos arquivos: só saber que há um
-      var temCh = $('ne-ch-arquivo').files.length, temCapa = $('ne-capa-arquivo').files.length;
+      var fch = $('ne-ch-arquivo'), fcapa = $('ne-capa-arquivo');
+      var temCh = fch ? fch.files.length : 0, temCapa = fcapa ? fcapa.files.length : 0;
       fd.delete('imagem'); fd.delete('chamada_arquivo');
       if (temCapa) fd.set('imagem_nova', '1');
       if (temCh) fd.set('chamada_arquivo', new Blob([''], {type: 'image/png'}), 'x.png');
@@ -72,8 +73,10 @@
     form.querySelectorAll('.ne2-conta[data-para]').forEach(function (s) {
       var c = $(s.dataset.para); s.textContent = 'Caracteres: ' + c.value.length + '/' + c.dataset.conta;
     });
-    var a = form.querySelector('.re-area');
-    if (a) $('ne-corpo-conta').textContent = 'Quantidade de caracteres: ' + (a.textContent || '').trim().length;
+    [['ne-corpo-conta', 0], ['ne-mat-conta', 1]].forEach(function (x) {
+      var a = form.querySelectorAll('.re-area')[x[1]], o = $(x[0]);
+      if (a && o) o.textContent = 'Quantidade de caracteres: ' + (a.textContent || '').trim().length;
+    });
   }
   form.addEventListener('input', conta); conta();
 
@@ -88,15 +91,19 @@
   /* ── categoria ── */
   var cs = $('ne-cat-sel'), cn = $('ne-cat-nova');
   function categoria() {
+    if (!cs) return;
     cn.hidden = cs.value !== '__nova__';
     form.elements.categoria.value = cs.value === '__nova__' ? cn.value.trim() : cs.value;
   }
-  cs.addEventListener('change', function () { categoria(); if (!cn.hidden) cn.focus(); });
-  cn.addEventListener('input', categoria);
-  $('ne-ordem-topo').addEventListener('click', function () { $('ne-ordem').value = 1; alterou(); });
+  if (cs) {
+    cs.addEventListener('change', function () { categoria(); if (!cn.hidden) cn.focus(); });
+    cn.addEventListener('input', categoria);
+    $('ne-ordem-topo').addEventListener('click', function () { $('ne-ordem').value = 1; alterou(); });
+  }
 
   /* ── imagens: biblioteca, envio e remoção, com miniatura ── */
   function imagem(c) {
+    if (!$(c.prev)) return;                                // cartões e comunicados não têm capa separada
     var prev = $(c.prev), sem = $(c.sem), arq = $(c.arq), rem = $(c.rem);
     function mostra(src) { prev.src = src; prev.hidden = !src; sem.hidden = !!src; if (c.ver) { var v = $(c.ver); if (src && src.indexOf('blob:') !== 0) { v.href = src; v.hidden = false; } else v.hidden = true; } }
     $(c.biblioteca).addEventListener('click', function () {
@@ -126,7 +133,7 @@
       var t = document.createElement('div'); t.innerHTML = r.html;
       var ch = t.querySelector('[data-visao="chamada"]');
       $('ne-previa-chamada').innerHTML = ch ? ch.innerHTML : '';
-      if (ch) ch.remove();
+      if (ch && !form.dataset.cartao) ch.remove();
       corpoPrevia.innerHTML = t.innerHTML;
       var capa = srcDe($('ne-capa-prev')), cham = srcDe($('ne-ch-prev')) || capa;
       if (capa) corpoPrevia.querySelectorAll('[data-previa-imagem]').forEach(function (i) { i.src = capa; });
@@ -153,10 +160,22 @@
   $('ne-previa-btn').addEventListener('click', function () { atualizarPrevia(); painel.scrollIntoView({behavior: 'smooth', block: 'start'}); });
 
   /* ── excluir ── */
+  var mover = $('ne-mover');
+  if (mover) mover.addEventListener('click', function () {
+    if (ocupado) return;
+    var t = window.prompt('Texto de chamada que fica no cartão, abaixo da imagem. O texto atual vai inteiro para a matéria completa:', form.elements.titulo.value || '');
+    if (t === null) return;
+    var fd = new FormData(); fd.set('csrf', form.dataset.csrf); fd.set('tipo', form.elements.tipo.value); fd.set('id', form.elements.id.value); fd.set('chamada', t);
+    travar(true);
+    post(mover.dataset.url, fd).then(function (r) {
+      if (r.ok) { sujo = false; location.reload(); } else { travar(false); erro.textContent = r.erro || 'Não foi possível mover o texto.'; }
+    });
+  });
+
   var exc = $('ne-excluir');
   if (exc) exc.addEventListener('click', function () {
     if (ocupado || !window.confirm('Excluir esta notícia? Esta ação não pode ser desfeita.')) return;
-    var fd = new FormData(); fd.set('csrf', form.dataset.csrf); fd.set('tipo', 'noticia'); fd.set('id', form.elements.id.value);
+    var fd = new FormData(); fd.set('csrf', form.dataset.csrf); fd.set('tipo', form.elements.tipo.value); fd.set('id', form.elements.id.value);
     travar(true);
     post(exc.dataset.url, fd).then(function (r) {
       if (r.ok) { sujo = false; location.href = form.dataset.lista; } else { travar(false); erro.textContent = r.erro || 'Não foi possível excluir.'; }
