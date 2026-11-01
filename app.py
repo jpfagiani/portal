@@ -1183,6 +1183,9 @@ def init_db():
             ('noticias', 'chamada_alt',     "TEXT NOT NULL DEFAULT ''"),
             ('noticias', 'chamada_formato', "TEXT NOT NULL DEFAULT ''"),     # '' = o do cartão
             ('noticias', 'chamada_visivel', 'INTEGER NOT NULL DEFAULT 1'),
+            ('noticias', 'chamada_credito', "TEXT NOT NULL DEFAULT ''"),
+            ('noticias', 'chamada_posicao', "TEXT NOT NULL DEFAULT ''"),     # '' = automática | principal | lista
+            ('noticias', 'capa_credito',    "TEXT NOT NULL DEFAULT ''"),
             ('noticias', 'titulo_fonte', "TEXT NOT NULL DEFAULT ''"),
             ('noticias', 'titulo_cor',   "TEXT NOT NULL DEFAULT ''"),
             ('noticias', 'titulo_tam',   "TEXT NOT NULL DEFAULT ''"),
@@ -1360,7 +1363,7 @@ def _valida_csrf():
             abort(400, 'Sessão expirada. Recarregue a página e tente de novo.')
 
 
-VERSAO = '1.9.32'
+VERSAO = '1.9.33'
 
 MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
          'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
